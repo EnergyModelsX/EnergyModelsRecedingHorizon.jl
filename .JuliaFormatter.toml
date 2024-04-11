@@ -1,0 +1,7 @@
+# Configuration file for JuliaFormatter.jl
+# For more information, see: https://domluna.github.io/JuliaFormatter.jl/stable/config/
+
+always_use_return = true
+margin = 92
+remove_extra_newlines = true
+whitespace_in_kwargs = false

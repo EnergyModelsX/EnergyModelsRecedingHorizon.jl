@@ -1,0 +1,51 @@
+stages:
+  - test
+  - deploy
+
+
+before_script:
+  # Install git.
+  - apt-get update -qq && apt-get install -y git
+
+  # Install ssh-agent and add the private key.
+  - command -v ssh-agent >/dev/null || ( apt-get update -y && apt-get install openssh-client -y )
+  - eval $(ssh-agent -s)
+  - echo "$PRIVATE_DEPLOY_KEY_EMB" | tr -d '\r' | ssh-add -
+
+  # Set up the .ssh directory.
+  - mkdir -p ~/.ssh
+  - chmod 700 ~/.ssh
+
+  # Set the known_hosts to a variable containing the public key of gitlab.sintef.no
+  - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+  - chmod 644 ~/.ssh/known_hosts
+
+  # Test the ssh connection.
+  - ssh -T git@gitlab.sintef.no
+
+  # Add the public General registry.
+  - julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url = "https://github.com/JuliaRegistries/General"))'
+
+
+# Below is the template to run the tests in Julia
+.test_template: &test_definition
+  stage: test
+  script:
+    - echo "Run tests"
+    - julia -e 'using Pkg; Pkg.Registry.status()'
+    - julia --project=. -e 'using Pkg; Pkg.test(; coverage = true);
+        Pkg.add("Coverage");
+        Pkg.instantiate();
+        using Coverage;
+        processed = process_folder();
+        covered_lines, total_lines = get_summary(processed);
+        percentage = covered_lines / total_lines * 100;
+        return println("Code coverage $(percentage)%")'
+  coverage: '/Code coverage \d+\.\d+/'
+  rules:
+    - when: always
+
+
+test:1.9:
+  image: julia:1.9
+  <<: *test_definition
