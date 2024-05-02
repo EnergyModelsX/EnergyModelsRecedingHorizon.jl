@@ -6,7 +6,11 @@ horizon framework for stress testing the invested energy system in an operationa
 module EnergyModelsRecHorizon
 
 using EnergyModelsBase
+using JuMP
 using TimeStruct
+
+const EMB = EnergyModelsBase
+const TS = TimeStruct
 
 include("datastructures.jl")
 include("model.jl")
