@@ -1,0 +1,7 @@
+[deps]
+EnergyModelsRecHorizon = "37ec17de-8561-4b6b-83ee-0529988fea82"
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+TimeStruct = "f9ed5ce0-9f41-4eaa-96da-f38ab8df101c"

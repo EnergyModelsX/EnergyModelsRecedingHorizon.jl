@@ -23,3 +23,5 @@ Manifest.toml
 
 # MacOS
 .DS_Store
+.vscode
+src/Code.code-workspace
