@@ -31,11 +31,35 @@ end =#
 
 
 """
-Provides initialization for storages.
+Provides initialization for storages. An `InitData` should be defined
+for each `Storage{RefAccumulating}` instance.
 
 # Fields
 - **`init_level::Real`**: initial value for storage level.
 """
 struct InitData <: EMB.Data
     init_level::Real
+    # init_level::Dict(EMB.Storage => Real) # if data is used for full case
 end
+
+"""
+    is_init_data(data)
+
+Checks whether the argument `data` has initialization settings.
+"""
+is_init_data(data) = (typeof(data) <: InitData)
+
+"""
+    init_level(n::Storage{RefAccumulating})
+
+Gets initialization values for the Storage node `n` from its data fields.
+"""
+function init_level(n::Storage{RefAccumulating})
+    initdata = filter(is_init_data, n.data)
+    @assert (length(initdata) == 1) "InitData badly defined"
+    return first(initdata).init_level
+end
+
+# function constraints_data(m, n::Storage, 𝒯, 𝒫, modeltype, data::InitData) = nothing
+# # define if data is used for full case
+# end

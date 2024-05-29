@@ -24,5 +24,5 @@ function EMB.previous_level(
 )
 
     # Previous storage level, as there are no changes
-    return n.data[1].init_level
+    return init_level(n)
 end

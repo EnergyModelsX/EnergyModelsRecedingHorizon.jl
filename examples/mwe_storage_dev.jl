@@ -76,7 +76,10 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
             power, # stor_res::T
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
-            Vector([EMRH.InitData(init_state)])
+            Vector([
+                EMRH.InitData(init_state), 
+                EMB.EmptyData() # testing multiple data
+            ])
         ),
         EMB.RefSink(
             "electricity demand", #node ID or name
@@ -105,34 +108,34 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
         :T => T
     )
 
+    check_timeprofiles=true
+    m = EMB.create_model(case, model; check_timeprofiles)
+    JP.@expression(m, cost_RH, -0*sum((m[:stor_level]))) # TODO: incentive to stay at given level? Quadratic problem?
+    # cost_RH = -100*sum((m[:stor_level]-2.5)) 
+
     #Can choose different ways of running the case study. 
     if case_config == "cost_to_go_scalar" #we simply add a scalar to the cost function (the scalar is the cost to go)
-        check_timeprofiles=true
+        
+        cost_to_go = 0 #this should obviously be changed - it should be a function taking some input (e.g. storage capacity at the end of the operational period)
+        cost_RH += cost_to_go
 
-        cost_to_go = 1 #this should obviously be changed - it should be a function taking some input (e.g. storage capacity at the end of the operational period)
-        m = EMB.create_model(case, model; check_timeprofiles)
-        # EMRH.initialize_states(case, m, init_state)
-        EMRH.update_objective(m, cost_to_go)
-
-    elseif case_config == "cost_to_go_func" #use the defined cost_to_go_func
-        check_timeprofiles=true
-        m = EMB.create_model(case, model; check_timeprofiles)
-        # EMRH.initialize_states(case, m, init_state)
+    elseif case_config == "cost_to_go_func" # does not work for storage
 
         #optimization variable at the end of the operating period
         vars_ref_emb = case[:nodes]
         opt_vars_input = [m[:cap_use][vars_ref_emb[i],end] for i=1:length(vars_ref_emb)] 
 
         cost_to_go = cost_to_go_func(opt_vars_input)
+        cost_RH += cost_to_go
 
         EMRH.update_objective(m, cost_to_go)
     elseif case_config == "standard" #No cost-to-go: it is as in standard EMB
-        m = EMB.create_model(case, model)
-        # EMRH.initialize_states(case, m, init_state)
-        # TODO: incentive to stay at given level?
+        nothing
     else
         throw(MethodError(case_config, "Not implemented"))
     end
+
+    EMRH.update_objective(m, cost_RH)
 
     return case, nodes, m
 end
@@ -174,7 +177,7 @@ cost_rec_horizon = zeros(op_number) #store the solution of the receding horizon 
 for i = 1:(op_number-n_hor+1)
     demand_hor = demand_profile[i:i+n_hor-1]
     price_hor = price_profile[i:i+n_hor-1]
-    # case_i, nodes_i, m_i = create_case(n_hor, demand_hor, case_config = "cost_to_go_func")
+    # case_i, nodes_i, m_i = create_case(n_hor, demand_hor, price_hor, case_config = "cost_to_go_func", init_state=init_level_vec[i])
     case_i, nodes_i, m_i = create_case(n_hor, demand_hor, price_hor, case_config = "cost_to_go_scalar", init_state=init_level_vec[i])
     JP.set_optimizer(m_i, optimizer)
     JP.set_optimizer_attribute(m_i, JP.MOI.Silent(), silent_flag)
