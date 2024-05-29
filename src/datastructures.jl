@@ -2,9 +2,16 @@
 This file can be used for introducing new `types` that are required in the receding horizon
 framework.
 """
-struct RefAccumulating <: EMB.Accumulating end
 
 """
+    RefAccumulating <: Accumulating
+
+`StorageBehavior` which accumulates all inflow witin a strategic period.
+`RefAccumulating` allows for initializing level values for the storages.
+"""
+struct RefAccumulating <: EMB.Accumulating end
+
+#= """
     StorCapOpexFixedInit <: AbstractStorageParameters
 
 A storage parameter type for including a capacity and fixed operational expenditures.
@@ -19,5 +26,16 @@ It includes additionally a value for initialization.
 struct StorCapOpexFixedInit <: EMB.AbstractStorageParameters
     capacity::TimeProfile
     opex_fixed::TimeProfile
+    init_level::Real
+end =#
+
+
+"""
+Provides initialization for storages.
+
+# Fields
+- **`init_level::Real`**: initial value for storage level.
+"""
+struct InitData <: EMB.Data
     init_level::Real
 end

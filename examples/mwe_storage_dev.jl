@@ -72,10 +72,11 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
         EMB.RefStorage{EMRH.RefAccumulating}(
             "electricity storage",
             EMB.StorCapOpexVar(TS.FixedProfile(100), TS.FixedProfile(100)), # rate_cap, opex_var
-            EMRH.StorCapOpexFixedInit(TS.FixedProfile(10), TS.FixedProfile(100),init_state), # stor_cap, opex_fixed
+            EMRH.StorCapOpexFixed(TS.FixedProfile(10), TS.FixedProfile(100)), # stor_cap, opex_fixed
             power, # stor_res::T
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
+            Vector([EMRH.InitData(init_state)])
         ),
         EMB.RefSink(
             "electricity demand", #node ID or name
@@ -164,6 +165,8 @@ println("Original objective is: \n$original_objective \n\n")
 #receding horizon
 println("Receding horizon implementation")
 n_hor = 2
+init_level_vec = zeros(op_number)
+init_level_vec[1] = x0
 out_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
 stor_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
 sol_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
@@ -172,7 +175,7 @@ for i = 1:(op_number-n_hor+1)
     demand_hor = demand_profile[i:i+n_hor-1]
     price_hor = price_profile[i:i+n_hor-1]
     # case_i, nodes_i, m_i = create_case(n_hor, demand_hor, case_config = "cost_to_go_func")
-    case_i, nodes_i, m_i = create_case(n_hor, demand_hor, price_hor, case_config = "cost_to_go_scalar")
+    case_i, nodes_i, m_i = create_case(n_hor, demand_hor, price_hor, case_config = "cost_to_go_scalar", init_state=init_level_vec[i])
     JP.set_optimizer(m_i, optimizer)
     JP.set_optimizer_attribute(m_i, JP.MOI.Silent(), silent_flag)
     JP.optimize!(m_i)
@@ -183,6 +186,7 @@ for i = 1:(op_number-n_hor+1)
     out_rec_horizon[i:i+n_hor-1] = JP.value.(m_i[:flow_in][sink_i, :, power_i]).data.vals
     cost_rec_horizon[i] = JP.objective_value(m_i)
 
+    init_level_vec[i+1] = JP.value.(m_i[:stor_level][stor_i,first(case_i[:T])])
     ctg_objective = JP.objective_function(m_i)
     if i == 1
         println(ctg_objective)
