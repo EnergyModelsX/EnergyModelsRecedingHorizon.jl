@@ -25,7 +25,7 @@ function cost_to_go_func(opt_vars_input::Vector{JP.VariableRef})
     return cost_to_go[1] #there is probably a more elegant way of converting a 1-element Vector into a number instead of using [1] (so that the number can be used in the objective function of the optimization problem)
 end
 
-function create_case(op_number, demand_profile; case_config = "standard")
+function create_case(op_number, demand_profile, price_profile; case_config = "standard", init_state = 0)
     #Define resources with their emission intensities
     power = EMB.ResourceCarrier("power", 0.0)  #tCO2/MWh
     co2 = EMB.ResourceEmit("co2", 1.0) #tCO2/MWh
@@ -61,12 +61,21 @@ function create_case(op_number, demand_profile; case_config = "standard")
 
     #create individual nodes of the system
     nodes = [
+        EMB.GenAvailability("Availability", products),
         EMB.RefSource(
             "electricity source", #Node id or name
             TS.FixedProfile(1e12), #Capacity in MW (Time profile)
-            TS.FixedProfile(30), #variable OPEX (time structure) in EUR/MW
+            TS.OperationalProfile(price_profile), #variable OPEX (time structure) in EUR/MW
             TS.FixedProfile(0), #Fixed OPEN in EUR/8h
             Dict(power => 1), #output from the node 
+        ),
+        EMB.RefStorage{EMRH.RefAccumulating}(
+            "electricity storage",
+            EMB.StorCapOpexVar(TS.FixedProfile(100), TS.FixedProfile(100)), # rate_cap, opex_var
+            EMRH.StorCapOpexFixedInit(TS.FixedProfile(10), TS.FixedProfile(100),init_state), # stor_cap, opex_fixed
+            power, # stor_res::T
+            Dict(power => 1), # input::Dict{<:Resource, <:Real}
+            Dict(power => 1), # output::Dict{<:Resource, <:Real}
         ),
         EMB.RefSink(
             "electricity demand", #node ID or name
@@ -74,16 +83,18 @@ function create_case(op_number, demand_profile; case_config = "standard")
             # OperationalProfile([20, 30, 40, 30]), #demand in MW (time profile)
             Dict(:surplus => TS.FixedProfile(0), :deficit => TS.FixedProfile(1e6)), #surplus and deficit penalty for the node in EUR/MWh
             Dict(power => 1), #energy demand and corresponding ratio
-        )
+        ),
     ]
 
     #connect the nodes with links
-    links = [EMB.Direct(
-        "source-demand",
-        nodes[1],
-        nodes[2],
-        EMB.Linear()
-    )]
+    links = [
+        EMB.Direct("av-source",   nodes[1], nodes[2], EMB.Linear() ),
+        EMB.Direct("av-storage",  nodes[1], nodes[3], EMB.Linear() ),
+        EMB.Direct("av-demand",   nodes[1], nodes[4], EMB.Linear() ),
+        EMB.Direct("source-av",   nodes[2], nodes[1], EMB.Linear() ),
+        EMB.Direct("storage-av",  nodes[3], nodes[1], EMB.Linear() ),
+        EMB.Direct("demand-av",   nodes[4], nodes[1], EMB.Linear() ),
+    ]
 
     #WIP(?) data structure
     case = Dict(
@@ -99,11 +110,13 @@ function create_case(op_number, demand_profile; case_config = "standard")
 
         cost_to_go = 1 #this should obviously be changed - it should be a function taking some input (e.g. storage capacity at the end of the operational period)
         m = EMB.create_model(case, model; check_timeprofiles)
+        # EMRH.initialize_states(case, m, init_state)
         EMRH.update_objective(m, cost_to_go)
 
     elseif case_config == "cost_to_go_func" #use the defined cost_to_go_func
         check_timeprofiles=true
         m = EMB.create_model(case, model; check_timeprofiles)
+        # EMRH.initialize_states(case, m, init_state)
 
         #optimization variable at the end of the operating period
         vars_ref_emb = case[:nodes]
@@ -114,6 +127,8 @@ function create_case(op_number, demand_profile; case_config = "standard")
         EMRH.update_objective(m, cost_to_go)
     elseif case_config == "standard" #No cost-to-go: it is as in standard EMB
         m = EMB.create_model(case, model)
+        # EMRH.initialize_states(case, m, init_state)
+        # TODO: incentive to stay at given level?
     else
         throw(MethodError(case_config, "Not implemented"))
     end
@@ -128,39 +143,58 @@ optimizer = JP.optimizer_with_attributes(HiGHS.Optimizer, JP.MOI.Silent() => sil
 #all-in-one
 op_number = 8
 demand_profile = [20, 30, 40, 30, 10, 50, 35, 20]
+price_profile = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
+x0 = 5
 @assert length(demand_profile) == op_number
-case, nodes, m = create_case(op_number, demand_profile)
+@assert length(price_profile) == op_number
+case, nodes, m = create_case(op_number, demand_profile, price_profile, init_state=x0)
 JP.set_optimizer(m, optimizer)
 JP.set_optimizer_attribute(m, JP.MOI.Silent(), silent_flag)
 JP.optimize!(m)
-source, sink = case[:nodes]
+av, source, stor, sink = case[:nodes]
+power, co2 = case[:products]
 solution_full_problem = JP.value.(m[:cap_use][source,:]).data
+out_full_problem = JP.value.(m[:flow_in][sink, :, power]).data.vals
+stor_full_problem = JP.value.(m[:stor_level][stor,:]).data
 cost_full_problem = JP.objective_value(m)
 
 original_objective = JP.objective_function(m)
-println("Original objective is: $original_objective \n\n")
+println("Original objective is: \n$original_objective \n\n")
 
 #receding horizon
 println("Receding horizon implementation")
 n_hor = 2
+out_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
+stor_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
 sol_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
 cost_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
 for i = 1:(op_number-n_hor+1)
     demand_hor = demand_profile[i:i+n_hor-1]
+    price_hor = price_profile[i:i+n_hor-1]
     # case_i, nodes_i, m_i = create_case(n_hor, demand_hor, case_config = "cost_to_go_func")
-    case_i, nodes_i, m_i = create_case(n_hor, demand_hor, case_config = "cost_to_go_scalar")
+    case_i, nodes_i, m_i = create_case(n_hor, demand_hor, price_hor, case_config = "cost_to_go_scalar")
     JP.set_optimizer(m_i, optimizer)
     JP.set_optimizer_attribute(m_i, JP.MOI.Silent(), silent_flag)
     JP.optimize!(m_i)
-    source_i, sink_i = case_i[:nodes]
+    av_i, source_i, stor_i, sink_i = case_i[:nodes]
+    power_i, co2_i = case_i[:products]
     sol_rec_horizon[i:i+n_hor-1] = JP.value.(m_i[:cap_use][source_i,:]).data
+    stor_rec_horizon[i:i+n_hor-1] = JP.value.(m_i[:stor_level][stor_i,:]).data
+    out_rec_horizon[i:i+n_hor-1] = JP.value.(m_i[:flow_in][sink_i, :, power_i]).data.vals
     cost_rec_horizon[i] = JP.objective_value(m_i)
 
     ctg_objective = JP.objective_function(m_i)
     if i == 1
         println(ctg_objective)
     end
-end
+end # TODO: include final state as initial to next
 
-@assert solution_full_problem == sol_rec_horizon
-println("\n\nReceding horizon and original problem have same solution: $sol_rec_horizon")
+# @assert solution_full_problem == sol_rec_horizon
+println("\n\nReceding horizon source usage: $sol_rec_horizon")
+println("\nOriginal problem source usage: $solution_full_problem")
+
+println("\n\nReceding horizon demand delivery: $out_rec_horizon")
+println("\nOriginal problem demand delivery: $out_full_problem")
+
+println("\n\nReceding horizon storage level: $stor_rec_horizon")
+println("\nOriginal problem storage level: $stor_full_problem")

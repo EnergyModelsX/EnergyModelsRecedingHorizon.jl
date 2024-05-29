@@ -16,4 +16,6 @@ include("datastructures.jl")
 include("model.jl")
 include("utils.jl")
 
+export StorCapOpexFixedInit, RefAccumulating
+
 end # module EnergyModelsRecHorizon

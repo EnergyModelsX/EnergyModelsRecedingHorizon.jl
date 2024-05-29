@@ -39,3 +39,19 @@ end
 #= function EMB.run_model(case::Dict, model::EnergyModel, optimizer; check_timeprofiles=true)
     throw MethodError(2, "This method should is not used in EMRH")
 end =#
+
+# function initialize_states(case, m, x0)
+    # t0 = first(case[:T])
+    # 𝒩 = case[:nodes]
+    # 𝒩ˢᵗᵒʳ = filter(EMB.is_storage, 𝒩)
+    # # m[:stor_level][:,collect(t0)]
+    # for n ∈ 𝒩ˢᵗᵒʳ
+    #     # @constraint(m, init_level, x0 <= m[:stor_level][n,t0] <= x0)
+    #     @constraint(m, init_level, x0 <= m[:stor_level][n, t0] - m[:stor_level_Δ_op][n, t0] * duration(t0) <= x0)
+    # end
+# end
+
+# function constraints_level(m, n::Storage, 𝒯, 𝒫, modeltype::EnergyModel)
+#     EMB.constraints_level(m, n, 𝒯, 𝒫, modeltype)
+#     println("called")
+# end
