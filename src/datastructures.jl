@@ -37,7 +37,7 @@ for each `Storage{RefAccumulating}` instance.
 # Fields
 - **`init_level::Real`**: initial value for storage level.
 """
-struct InitData <: EMB.Data
+struct InitData <: EMB.Data # TODO: RecHorData with init and cost_to_go
     init_level::Real
     # init_level::Dict(EMB.Storage => Real) # if data is used for full case
 end
@@ -56,10 +56,13 @@ Gets initialization values for the Storage node `n` from its data fields.
 """
 function init_level(n::Storage{RefAccumulating})
     initdata = filter(is_init_data, n.data)
-    @assert (length(initdata) == 1) "InitData badly defined"
+    @assert (length(initdata) == 1) "InitData badly defined" # TODO: check data elsewhere
     return first(initdata).init_level
 end
 
 # function constraints_data(m, n::Storage, 𝒯, 𝒫, modeltype, data::InitData) = nothing
 # # define if data is used for full case
 # end
+
+# is_initializable(n) = # (typeof(data) <: InitData)
+# TODO: check has_emissions

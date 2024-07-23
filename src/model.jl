@@ -26,6 +26,7 @@ jp.optimize!(m)
     println("objective_function is now: $(objective_function(m))")
  =#
 end =#
+# TODO: cost to go defined for each node
 
 function update_objective(m, cost_to_go)
     # println("in emrh.objective with obj.func: $(objective_function(m))")

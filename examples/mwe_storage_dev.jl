@@ -57,7 +57,7 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
         EMB.RefStorage{EMRH.RefAccumulating}(
             "electricity storage",
             EMB.StorCapOpexVar(TS.FixedProfile(100), TS.FixedProfile(100)), # rate_cap, opex_var
-            EMRH.StorCapOpexFixed(TS.FixedProfile(10), TS.FixedProfile(100)), # stor_cap, opex_fixed
+            EMRH.StorCapOpexFixed(TS.FixedProfile(10), TS.FixedProfile(0)), # stor_cap, opex_fixed
             power, # stor_res::T
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
@@ -94,7 +94,9 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
 
     check_timeprofiles=true
     m = EMB.create_model(case, model; check_timeprofiles)
-    cost_RH = -10*sum(( m[:stor_level].data .- 2.0).^2) # JP.@expression(m, cost_RH, -10*sum(( m[:stor_level].data .- 2.0).^2) )
+    cost_RH = 0
+    # cost_RH = -10*sum(( m[:stor_level].data .- 2.0).^2) # JP.@expression(m, cost_RH, -10*sum(( m[:stor_level].data .- 2.0).^2) )
+    # TODO? implement all explicitly as stage costs?
 
     #Can choose different ways of running the case study. 
     if case_config == "cost_to_go"
@@ -121,7 +123,7 @@ optimizer = JP.optimizer_with_attributes(HiGHS.Optimizer, JP.MOI.Silent() => sil
 op_number = 8
 demand_profile = [20, 30, 40, 30, 10, 50, 35, 20]
 price_profile = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
-x0 = 5
+x0 = 3
 @assert length(demand_profile) == op_number
 @assert length(price_profile) == op_number
 case, nodes, m = create_case(op_number, demand_profile, price_profile, init_state=x0)
@@ -140,7 +142,7 @@ println("Original objective is: \n$original_objective \n\n")
 
 #receding horizon
 println("Receding horizon implementation")
-n_hor = 2
+n_hor = 4
 init_level_vec = zeros(op_number)
 init_level_vec[1] = x0
 #vectors for storing the solution of the receding horizon implementation
@@ -150,6 +152,7 @@ sol_rec_horizon = zeros(op_number)
 cost_rec_horizon = zeros(op_number)
 for i = 1:(op_number-n_hor+1)
     # updating inputs
+    # TODO: implementation horizon
     demand_hor = demand_profile[i:i+n_hor-1]
     price_hor = price_profile[i:i+n_hor-1]
     x0_hor = init_level_vec[i]
