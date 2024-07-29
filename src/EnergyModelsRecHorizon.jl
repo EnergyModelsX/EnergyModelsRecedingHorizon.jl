@@ -8,6 +8,7 @@ module EnergyModelsRecHorizon
 using EnergyModelsBase
 using JuMP
 using TimeStruct
+using CSV
 
 const EMB = EnergyModelsBase
 const TS = TimeStruct
@@ -16,7 +17,16 @@ include("datastructures.jl")
 include("model.jl")
 include("utils.jl")
 
+export RecHorOperationalModel
+
+export run_model_RH
+export opt_horizon, impl_horizon
+
 export RefAccumulating
+
+export InitData
+
+export has_init, is_init_data
 
 # export previous_level
 

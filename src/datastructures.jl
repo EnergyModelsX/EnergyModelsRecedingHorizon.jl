@@ -37,10 +37,16 @@ for each `Storage{RefAccumulating}` instance.
 # Fields
 - **`init_level::Real`**: initial value for storage level.
 """
-struct InitData <: EMB.Data # TODO: RecHorData with init and cost_to_go
+struct InitData <: EMB.Data
     init_level::Real
     # init_level::Dict(EMB.Storage => Real) # if data is used for full case
 end
+# TODO: RecHorData with init and cost_to_go; cost_to_go defined for each node
+# Julian's example:
+# struct InitData <: EMB.Data
+#     init_state_var::Vector        # variable labels (ex: ":stor_level")
+#     init_state_value::Vector      # initial value
+# end
 
 """
     is_init_data(data)
@@ -55,7 +61,7 @@ is_init_data(data) = (typeof(data) <: InitData)
 Gets initialization values for the Storage node `n` from its data fields.
 """
 function init_level(n::Storage{RefAccumulating})
-    initdata = filter(is_init_data, n.data)
+    initdata = filter(is_init_data, node_data(n))
     @assert (length(initdata) == 1) "InitData badly defined" # TODO: check data elsewhere
     return first(initdata).init_level
 end
@@ -65,4 +71,10 @@ end
 # end
 
 # is_initializable(n) = # (typeof(data) <: InitData)
-# TODO: check has_emissions
+# TODO: expand nodes that are initializable; is_initializable same as has_init?
+"""
+has_init(n::Node)
+
+Checks whether the Node `n` has initialization data.
+"""
+has_init(n::EMB.Node) = any(is_init_data(data) for data ∈ node_data(n))
