@@ -17,8 +17,7 @@ problem will be defined. If no input is provided, it should return the full prob
  - `:products::Vector{Resource}`
  - `:T::TimeStructure`
 
- `model` is an instance of `RecHorOperationalModel` if no argument is provided, or an instance
- of `EnergyModel` if a TimeStructure instance is provided as input.
+ `model` is an instance of `RecHorOperationalModel`.
 """
 function run_model_RH(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
     case, model = case_model_builder()
@@ -36,6 +35,8 @@ function run_model_RH(case_model_builder::Function, optimizer; check_timeprofile
         for n in 𝒩ⁱⁿⁱᵗ ) # index of init_data in nodes: depends on init data being unique
     init_data₀ = map((n,i)->node_data(n)[i], 𝒩ⁱⁿⁱᵗ,𝒾ⁱⁿⁱᵗ)
 
+    # initializing loop variables
+    results = Dict{Symbol, AbstractArray{Float64}}()
     init_data = copy(init_data₀)
 
     iter_𝒯 = collect(chunk(𝒯, opt_horizon(model)))[1:impl_horizon(model):end]
@@ -55,7 +56,7 @@ function run_model_RH(case_model_builder::Function, optimizer; check_timeprofile
         end
 
         # create and solve model
-        m = create_model(case_RH, model_RH; check_timeprofiles) # EnergyModel dispatch
+        m = create_model(case_RH, model_RH; check_timeprofiles) # using EnergyModel dispatch
         if !isnothing(optimizer)
             set_optimizer(m, optimizer)
             set_optimizer_attribute(m, MOI.Silent(), true)
@@ -63,8 +64,7 @@ function run_model_RH(case_model_builder::Function, optimizer; check_timeprofile
         else
             @warn "No optimizer given"
         end
-        save_results(m; directory=joinpath(pwd(),"csv_files","$idx"))
-        # TODO: store results in a better way
+        update_results!(results, m, case_RH, case, 𝒯ᴿᴴ)
 
         # get initialization data from nodes
         t_impl = collect(𝒯_RH)[impl_horizon(model)]
@@ -72,72 +72,9 @@ function run_model_RH(case_model_builder::Function, optimizer; check_timeprofile
 
     end
 
-    return 0
+    return results, case, model
 end
 
-"""
-    run_model(case::Dict, model::RecHorEnergyModel, optimizer)
-
-Take the `case` data as a dictionary and the `model` and build and optimize the problem in
-a receding horizon fashion as a series of optimization problems.
-
-The dictionary requires the keys:
- - `:nodes::Vector{Node}`
- - `:links::Vector{Link}`
- - `:products::Vector{Resource}`
- - `:T::TimeStructure`
-"""
-function EMB.run_model(case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
-    @debug "Run model" optimizer
-
-    # WIP Data structure
-    𝒯 = case[:T]
-    𝒩 = case[:nodes]
-    # ℒ = case[:links]
-    # 𝒫 = case[:products]
-
-    𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
-    𝒾ⁱⁿⁱᵗ = collect( findfirst(map(is_init_data, node_data(n))) # depends on init data being unique
-        for n in 𝒩ⁱⁿⁱᵗ )
-    init_data₀ = map((n,i)->node_data(n)[i], 𝒩ⁱⁿⁱᵗ,𝒾ⁱⁿⁱᵗ)
-
-    # initializing data for loop
-    init_data = copy(init_data₀)
-    case_RH = copy(case) # deepcopy needed if nodes are to be re-instanced
-
-    iter_𝒯 = collect(chunk(𝒯, opt_horizon(model)))[1:impl_horizon(model):end]
-    # there is probably a more efficient constructor to the iterator
-    for iter_𝒯ᴿᴴ ∈ iter_𝒯
-        𝒯ᴿᴴ = collect(iter_𝒯ᴿᴴ) # TODO: problem with building TimeStructure
-        case_RH[:T] = 𝒯ᴿᴴ
-
-        # place initialization data in nodes
-        for (n,i,init_dataₙ) ∈ zip(𝒩ⁱⁿⁱᵗ,𝒾ⁱⁿⁱᵗ,init_data)
-            node_data(n)[i] = init_dataₙ
-        end
-
-        # create and solve model
-        m = create_model(case_RH, model; check_timeprofiles) # EnergyModel dispatch
-        if !isnothing(optimizer)
-            set_optimizer(m, optimizer)
-            set_optimizer_attribute(m, MOI.Silent(), true)
-            optimize!(m)
-        else
-            @warn "No optimizer given"
-        end
-
-        # get initialization data from nodes
-        init_data = [get_init_state(m, n, 𝒯ᴿᴴ, t_init) for n ∈ 𝒩ⁱⁿⁱᵗ]
-
-    end
-
-
-    # Restoring initialization data for initializable nodes
-    for (n,i,init_dataₙ) = zip(𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ, init_data₀)
-        node_data(n)[i] = init_dataₙ
-    end
-    return m
-end
 
 """
     previous_level(
@@ -166,22 +103,86 @@ end
 
 
 """
-    get_init_state(m, n::Storage{RefAccumulating}, 𝒯ᴿᴴ, t_init)
+    get_init_state(m, n::Storage{RefAccumulating}, 𝒯_RH, t_impl)
 
-Take the solution
-
+Take the optimization solution `m` and find the initialization data of `n` corresponding to
+the model state at `t_impl`. The model `m` is defined for the horizon `𝒯_RH`.
+Returns an instance of `InitData` that can be used to initialize the system.
 """
-function get_init_state(m, n::Storage{RefAccumulating}, 𝒯, t_impl)
+function get_init_state(m, n::Storage{RefAccumulating}, 𝒯_RH, t_impl)
     level_t = value.(m[:stor_level][n,t_impl])
-    return InitData(level_t)
+    return InitStorageData(level_t)
 end
 #= Ideas for implementing initialization constraints:
-1) constraints_data(m, n, 𝒯, 𝒫, modeltype, data::InitData)
+1) constraints_data(m, n, 𝒯, 𝒫, modeltype::RecHorEnergyModel, data::InitData)
     - sets initial state in model from data (not needed for storage, needed for new technologies)
 2) get_init_state(m, n, 𝒯ᴿᴴ, t_init)
     - gets initialization data at t_init from previous solution
 3) constraints_state_time_iter(m, n, 𝒯) # in EnergyModelsHydrogen
 =#
+
+"""
+Update results in `results` given the optimization results `m`. `m` was optimized using the
+problem definition in `case_RH`, which is a slice of the original problem defined by `case`
+at the time period `𝒯ᴿᴴ`. The containers in `results` are indexed by the elements in `case`.
+"""
+function update_results!(results, m, case_RH, case, 𝒯ᴿᴴ)
+    results_RH = Dict(k=>value.(m[k]) for k ∈ keys(object_dictionary(m)))
+    convert_dict = Dict( n_RH => n for sym in [:nodes, :links, :products]
+        for (n,n_RH) in zip(case[sym], case_RH[sym]) ) # depends on elements being in same order
+    if isempty(results)
+        # allocate space in results
+        for k ∈ keys(results_RH)
+            container_type = typeof(results_RH[k])
+            if container_type <: Containers.DenseAxisArray
+                # replace RH references for corresponding references of full problem
+                axes_full = []
+                for ax ∈ axes(results_RH[k])
+                    axtype = eltype(ax)
+                    if axtype <: Union{EMB.Node, EMB.Link, EMB.Resource}
+                        ax_full = [convert_dict[el] for el ∈ ax]
+                    elseif axtype <: TimeStruct.OperationalPeriod
+                        ax_full = collect(case[:T]) # allocate space for full horizon
+                    else
+                        @warn "Ignoring result field $k as it uses $axtype"
+                        axes_full = []
+                        break
+                    end
+                    push!(axes_full, ax_full)
+                end
+                if !isempty(axes_full)
+                    results[k] = Containers.DenseAxisArray{Float64}(undef, axes_full...)
+                end
+            elseif container_type <: Containers.SparseAxisArray
+                # sparse arrays only get type allocation
+                emptydict = JuMP.OrderedDict{eltype(keys(results_RH[k].data)), Float64}()
+                results[k] = Containers.SparseAxisArray(emptydict)
+            else
+                @warn "Ignoring result field $k with unsuported container $container_type"
+            end
+        end
+    end
+    # adding time structure to conversion dictionary - changes at each implementation step
+    for (tᴿᴴₐᵤₓ, tᴿᴴ) ∈ zip(case_RH[:T], 𝒯ᴿᴴ)
+        convert_dict[tᴿᴴₐᵤₓ] = tᴿᴴ
+    end
+    # place values of results_RH into results
+    for k ∈ keys(results)
+        if isempty(results_RH[k])
+            continue
+        end
+        if typeof(results[k]) <: Containers.DenseAxisArray
+            axes_new = tuple(([convert_dict[el] for el ∈ ax]
+                for ax in axes(results_RH[k]))...)
+            results[k][axes_new...] = results_RH[k].data
+        elseif typeof(results[k]) <: Containers.SparseAxisArray
+            for (key, value) ∈ results_RH[k].data
+                key_new = tuple((convert_dict[ax] for ax in key)...)
+                results[k][key_new...] = value
+            end
+        end
+    end
+end
 
 """
     save_results(model::Model; directory=joinpath(pwd(),"csv_files"))

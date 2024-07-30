@@ -29,15 +29,19 @@ struct StorCapOpexFixedInit <: EMB.AbstractStorageParameters
     init_level::Real
 end =#
 
+"""
+Abstract type for initialization data.
+"""
+abstract type InitData <: EMB.Data end
 
 """
-Provides initialization for storages. An `InitData` should be defined
+Provides initialization for storages. An `InitStorageData` should be defined
 for each `Storage{RefAccumulating}` instance.
 
 # Fields
 - **`init_level::Real`**: initial value for storage level.
 """
-struct InitData <: EMB.Data
+struct InitStorageData <: InitData
     init_level::Real
     # init_level::Dict(EMB.Storage => Real) # if data is used for full case
 end

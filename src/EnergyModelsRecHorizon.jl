@@ -24,7 +24,7 @@ export opt_horizon, impl_horizon
 
 export RefAccumulating
 
-export InitData
+export InitData, InitStorageData
 
 export has_init, is_init_data
 

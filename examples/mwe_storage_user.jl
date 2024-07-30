@@ -34,22 +34,19 @@ function create_case(t_RH = nothing; init_state = 0)
     if isnothing(t_RH)
         price_profile = price_profile_full
         demand_profile = demand_profile_full
-        model = RecHorOperationalModel(
-            Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
-            Dict(co2 => FixedProfile(0)), # emission price for CO2 in EUR/t
-            co2,
-            4,  # optimization horizon
-            1   # implementation horizon
-        )
     else
         price_profile = OperationalProfile(price_profile_full)[t_RH]
         demand_profile = OperationalProfile(demand_profile_full)[t_RH]
-        model = OperationalModel(
-            Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
-            Dict(co2 => FixedProfile(0)), # emission price for CO2 in EUR/t
-            co2
-        )
     end
+
+    model = RecHorOperationalModel(
+        Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
+        Dict(co2 => FixedProfile(0)), # emission price for CO2 in EUR/t
+        co2,
+        4,  # optimization horizon
+        1   # implementation horizon
+    )
+
 
     #create individual nodes of the system
     nodes = [
@@ -69,7 +66,7 @@ function create_case(t_RH = nothing; init_state = 0)
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
-                InitData(init_state),
+                InitStorageData(init_state),
                 EmptyData() # testing multiple data
             ])
         ),
@@ -91,7 +88,7 @@ function create_case(t_RH = nothing; init_state = 0)
         Direct("demand-av",   nodes[4], nodes[1], Linear() ),
     ]
 
-    #WIP(?) data structure
+    #WIP(?) data structure - order of vectors (nodes, links, products) MUST NOT CHANGE
     case = Dict(
         :nodes => nodes,
         :links => links,
@@ -115,7 +112,9 @@ out_full_problem = value.(m[:flow_in][sink, :, power]).data.vals
 stor_full_problem = value.(m[:stor_level][stor,:]).data
 cost_full_problem = objective_value(m)
 
-m_RH = run_model_RH((x=nothing)->create_case(x,init_state=x0), optimizer)
+results_EMRH, case_EMRH, model_EMRH = run_model_RH((x=nothing)->create_case(x,init_state=x0), optimizer)
+
+results_full = Dict(k=>value.(m[k]) for k ∈ keys(object_dictionary(m)))
 
 # x0 = 5
 # set_optimizer(m, optimizer)
