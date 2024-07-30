@@ -32,7 +32,7 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
         1, #duration of strategic period
         operational_periods; #operational period
         op_per_strat)
-    else 
+    else
         #purely operational period. However, this does not work for some reason (check_timeprofiles fails)
         T = TS.SimpleTimes(op_number, op_duration)
     end
@@ -41,7 +41,7 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
     model = EMB.OperationalModel(
         Dict(co2 => TS.FixedProfile(10)), #upper bound for CO2 in t/8h
         Dict(co2 => TS.FixedProfile(0)), # emission price for CO2 in EUR/t
-        co2    
+        co2
     )
 
     #create individual nodes of the system
@@ -52,7 +52,7 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
             TS.FixedProfile(1e12), #Capacity in MW (Time profile)
             TS.OperationalProfile(price_profile), #variable OPEX (time structure) in EUR/MW
             TS.FixedProfile(0), #Fixed OPEN in EUR/8h
-            Dict(power => 1), #output from the node 
+            Dict(power => 1), #output from the node
         ),
         EMB.RefStorage{EMRH.RefAccumulating}(
             "electricity storage",
@@ -62,7 +62,7 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
-                EMRH.InitData(init_state), 
+                EMRH.InitStorageData(init_state),
                 EMB.EmptyData() # testing multiple data
             ])
         ),
@@ -98,9 +98,9 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
     # cost_RH = -10*sum(( m[:stor_level].data .- 2.0).^2) # JP.@expression(m, cost_RH, -10*sum(( m[:stor_level].data .- 2.0).^2) )
     # TODO? implement all explicitly as stage costs?
 
-    #Can choose different ways of running the case study. 
+    #Can choose different ways of running the case study.
     if case_config == "cost_to_go"
-        
+
         cost_to_go = 0 # can include a function taking some input (e.g. storage capacity at the end of the operational period)
         cost_RH += cost_to_go
 
@@ -152,7 +152,6 @@ sol_rec_horizon = zeros(op_number)
 cost_rec_horizon = zeros(op_number)
 for i = 1:(op_number-n_hor+1)
     # updating inputs
-    # TODO: implementation horizon
     demand_hor = demand_profile[i:i+n_hor-1]
     price_hor = price_profile[i:i+n_hor-1]
     x0_hor = init_level_vec[i]

@@ -107,34 +107,30 @@ optimize!(m)
 
 av, source, stor, sink = case[:nodes]
 power, co2 = case[:products]
-solution_full_problem = value.(m[:cap_use][source,:]).data
-out_full_problem = value.(m[:flow_in][sink, :, power]).data.vals
-stor_full_problem = value.(m[:stor_level][stor,:]).data
+
+results_full = Dict(k=>value.(m[k]) for k ∈ keys(object_dictionary(m)))
+solution_full_problem = results_full[:cap_use][source,:].data
+out_full_problem = results_full[:flow_in][sink, :, power].data.vals
+stor_full_problem = results_full[:stor_level][stor,:].data
 cost_full_problem = objective_value(m)
 
 results_EMRH, case_EMRH, model_EMRH = run_model_RH((x=nothing)->create_case(x,init_state=x0), optimizer)
 
-results_full = Dict(k=>value.(m[k]) for k ∈ keys(object_dictionary(m)))
+av, source, stor, sink = case_EMRH[:nodes]
+power, co2 = case_EMRH[:products]
 
-# x0 = 5
-# set_optimizer(m, optimizer)
-# optimize!(m)
+solution_rec_horizon = results_EMRH[:cap_use][source,:].data
+out_rec_horizon = results_EMRH[:flow_in][sink, :, power].data.vals
+stor_rec_horizon = results_EMRH[:stor_level][stor,:].data
 
-# av, source, stor, sink = case[:nodes]
-# power, co2 = case[:products]
-# solution_modif_problem = value.(m[:cap_use][source,:]).data
-# out_modif_problem = value.(m[:flow_in][sink, :, power]).data.vals
-# stor_modif_problem = value.(m[:stor_level][stor,:]).data
-# cost_modif_problem = objective_value(m)
-
-# # println("\n\nReceding horizon source usage: $sol_rec_horizon")
+println("\n\nReceding horizon source usage: $solution_rec_horizon")
 println("\nOriginal problem source usage: $solution_full_problem")
 # println("\nModified problem source usage: $solution_modif_problem")
 
-# # println("\n\nReceding horizon demand delivery: $out_rec_horizon")
+println("\n\nReceding horizon demand delivery: $out_rec_horizon")
 println("\nOriginal problem demand delivery: $out_full_problem")
 # println("\nModified problem demand delivery: $out_modif_problem")
 
-# # println("\n\nReceding horizon storage level: $stor_rec_horizon")
+println("\n\nReceding horizon storage level: $stor_rec_horizon")
 println("\nOriginal problem storage level: $stor_full_problem")
 # println("\nModified problem storage level: $stor_modif_problem")

@@ -3,80 +3,6 @@ This file should contain utilities that are used within the framework.
 """
 
 """
-    run_model_RH(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
-
-Take the function `case_model_builder` that returns the tuple (case, model) and optimize the
-problem in a receding horizon fashion as a series of optimization problems.
-
-`case_model_builder` should take as input the TimeStructure for which the receding horizon
-problem will be defined. If no input is provided, it should return the full problem.
-
-`case` is a dictionary that requires the keys:
- - `:nodes::Vector{Node}`
- - `:links::Vector{Link}`
- - `:products::Vector{Resource}`
- - `:T::TimeStructure`
-
- `model` is an instance of `RecHorOperationalModel`.
-"""
-function run_model_RH(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
-    case, model = case_model_builder()
-    # should I require two dispatches? One for full problem, another for RH subproblem
-    # initializing data for loop
-
-    # WIP Data structure
-    𝒯 = case[:T]
-    𝒩 = case[:nodes]
-    # ℒ = case[:links]
-    # 𝒫 = case[:products]
-
-    𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
-    𝒾ⁱⁿⁱᵗ = collect( findfirst(map(is_init_data, node_data(n)))
-        for n in 𝒩ⁱⁿⁱᵗ ) # index of init_data in nodes: depends on init data being unique
-    init_data₀ = map((n,i)->node_data(n)[i], 𝒩ⁱⁿⁱᵗ,𝒾ⁱⁿⁱᵗ)
-
-    # initializing loop variables
-    results = Dict{Symbol, AbstractArray{Float64}}()
-    init_data = copy(init_data₀)
-
-    iter_𝒯 = collect(chunk(𝒯, opt_horizon(model)))[1:impl_horizon(model):end]
-    # there is probably a more efficient constructor to the iterator
-    for (idx,iter_𝒯ᴿᴴ) ∈ enumerate(iter_𝒯)
-        𝒯ᴿᴴ = collect(iter_𝒯ᴿᴴ)
-
-        case_RH, model_RH = case_model_builder(𝒯ᴿᴴ)
-
-        𝒯_RH = case_RH[:T]
-        𝒩_RH = case_RH[:nodes]
-
-        𝒩ⁱⁿⁱᵗ_RH = filter(has_init, 𝒩_RH)
-        # place initialization data in nodes
-        for (n,i,init_dataₙ) ∈ zip(𝒩ⁱⁿⁱᵗ_RH,𝒾ⁱⁿⁱᵗ,init_data)
-            node_data(n)[i] = init_dataₙ
-        end
-
-        # create and solve model
-        m = create_model(case_RH, model_RH; check_timeprofiles) # using EnergyModel dispatch
-        if !isnothing(optimizer)
-            set_optimizer(m, optimizer)
-            set_optimizer_attribute(m, MOI.Silent(), true)
-            optimize!(m)
-        else
-            @warn "No optimizer given"
-        end
-        update_results!(results, m, case_RH, case, 𝒯ᴿᴴ)
-
-        # get initialization data from nodes
-        t_impl = collect(𝒯_RH)[impl_horizon(model)]
-        init_data = [get_init_state(m, n, 𝒯_RH, t_impl) for n ∈ 𝒩ⁱⁿⁱᵗ_RH]
-
-    end
-
-    return results, case, model
-end
-
-
-"""
     previous_level(
         m,
         n::Storage{RefAccumulating},
@@ -116,17 +42,18 @@ end
 #= Ideas for implementing initialization constraints:
 1) constraints_data(m, n, 𝒯, 𝒫, modeltype::RecHorEnergyModel, data::InitData)
     - sets initial state in model from data (not needed for storage, needed for new technologies)
-2) get_init_state(m, n, 𝒯ᴿᴴ, t_init)
+2) get_init_state(m, n, 𝒯ᴿᴴₒᵤₜ, t_init)
     - gets initialization data at t_init from previous solution
 3) constraints_state_time_iter(m, n, 𝒯) # in EnergyModelsHydrogen
+4) constraints_x(m, n, 𝒯, 𝒫, modeltype::RecHorEnergyModel, data::InitData)
 =#
 
 """
 Update results in `results` given the optimization results `m`. `m` was optimized using the
 problem definition in `case_RH`, which is a slice of the original problem defined by `case`
-at the time period `𝒯ᴿᴴ`. The containers in `results` are indexed by the elements in `case`.
+at the time period `𝒯ᴿᴴₒᵤₜ`. The containers in `results` are indexed by the elements in `case`.
 """
-function update_results!(results, m, case_RH, case, 𝒯ᴿᴴ)
+function update_results!(results, m, case_RH, case, 𝒯ᴿᴴₒᵤₜ)
     results_RH = Dict(k=>value.(m[k]) for k ∈ keys(object_dictionary(m)))
     convert_dict = Dict( n_RH => n for sym in [:nodes, :links, :products]
         for (n,n_RH) in zip(case[sym], case_RH[sym]) ) # depends on elements being in same order
@@ -163,7 +90,7 @@ function update_results!(results, m, case_RH, case, 𝒯ᴿᴴ)
         end
     end
     # adding time structure to conversion dictionary - changes at each implementation step
-    for (tᴿᴴₐᵤₓ, tᴿᴴ) ∈ zip(case_RH[:T], 𝒯ᴿᴴ)
+    for (tᴿᴴₐᵤₓ, tᴿᴴ) ∈ zip(case_RH[:T], 𝒯ᴿᴴₒᵤₜ)
         convert_dict[tᴿᴴₐᵤₓ] = tᴿᴴ
     end
     # place values of results_RH into results
