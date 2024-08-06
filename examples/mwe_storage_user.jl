@@ -1,6 +1,8 @@
 using Pkg
 
 Pkg.activate("test") # to use solvers (HiGHS, Ipopt, ...)
+# Use dev version if run as part of tests
+haskey(ENV, "EMX_TEST") && Pkg.develop(path=joinpath(@__DIR__,".."))
 
 using HiGHS
 # using Ipopt
