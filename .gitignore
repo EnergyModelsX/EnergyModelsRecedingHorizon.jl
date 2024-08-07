@@ -20,6 +20,9 @@ Manifest.toml
 
 # Output
 *consistency_log.md
+csv_files/
 
 # MacOS
 .DS_Store
+.vscode
+src/Code.code-workspace

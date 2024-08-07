@@ -13,4 +13,5 @@ const TEST_ATOL = 1e-6
 
 @testset "EnergyModelsRecHorizon" begin
     include("test_general.jl")
+    include("test_examples.jl")
 end
