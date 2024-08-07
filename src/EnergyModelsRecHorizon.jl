@@ -19,10 +19,10 @@ include("utils.jl")
 
 export RecHorOperationalModel
 
-export run_model_RH
+export run_model_rh
 export opt_horizon, impl_horizon
 
-export RefAccumulating
+export RecedingAccumulating
 
 export InitData, InitStorageData
 

@@ -1,23 +1,20 @@
-"""
-This file should contain utilities that are used within the framework.
-"""
 
 """
     previous_level(
         m,
-        n::Storage{RefAccumulating},
+        n::Storage{RecedingAccumulating},
         prev_pers::PreviousPeriods{<:NothingPeriod, Nothing, Nothing},
         cyclic_pers::CyclicPeriods,
         modeltype::EnergyModel,
     )
 
 When the previous operational and representative period are `Nothing` and the storage node
-is an [`RefAccumulating`](@ref) storage node, the function returns the initial level value
+is an [`RecedingAccumulating`](@ref) storage node, the function returns the initial level value
 (defined externally at the `data` field through an `InitData` object).
 """
 function EMB.previous_level(
     m,
-    n::Storage{RefAccumulating},
+    n::Storage{RecedingAccumulating},
     prev_pers::PreviousPeriods{<:EMB.NothingPeriod, Nothing, Nothing},
     cyclic_pers::CyclicPeriods,
     modeltype::EnergyModel,
@@ -29,13 +26,13 @@ end
 
 
 """
-    get_init_state(m, n::Storage{RefAccumulating}, 𝒯_RH, t_impl)
+    get_init_state(m, n::Storage{RecedingAccumulating}, 𝒯_RH, t_impl)
 
 Take the optimization solution `m` and find the initialization data of `n` corresponding to
 the model state at `t_impl`. The model `m` is defined for the horizon `𝒯_RH`.
 Returns an instance of `InitData` that can be used to initialize the system.
 """
-function get_init_state(m, n::Storage{RefAccumulating}, 𝒯_RH, t_impl)
+function get_init_state(m, n::Storage{RecedingAccumulating}, 𝒯_RH, t_impl)
     level_t = value.(m[:stor_level][n,t_impl])
     return InitStorageData(level_t)
 end
@@ -49,7 +46,9 @@ end
 =#
 
 """
-Update results in `results` given the optimization results `m`. `m` was optimized using the
+    update_results!(results, m, case_RH, case, 𝒯ᴿᴴₒᵤₜ)
+
+Update results dictionary `results` given the optimization results `m`. `m` was optimized using the
 problem definition in `case_RH`, which is a slice of the original problem defined by `case`
 at the time period `𝒯ᴿᴴₒᵤₜ`. The containers in `results` are indexed by the elements in `case`.
 """
@@ -59,33 +58,12 @@ function update_results!(results, m, case_RH, case, 𝒯ᴿᴴₒᵤₜ)
         for (n,n_RH) in zip(case[sym], case_RH[sym]) ) # depends on elements being in same order
     if isempty(results)
         # allocate space in results
-        for k ∈ keys(results_RH)
-            container_type = typeof(results_RH[k])
-            if container_type <: Containers.DenseAxisArray
-                # replace RH references for corresponding references of full problem
-                axes_full = []
-                for ax ∈ axes(results_RH[k])
-                    axtype = eltype(ax)
-                    if axtype <: Union{EMB.Node, EMB.Link, EMB.Resource}
-                        ax_full = [convert_dict[el] for el ∈ ax]
-                    elseif axtype <: TimeStruct.OperationalPeriod
-                        ax_full = collect(case[:T]) # allocate space for full horizon
-                    else
-                        @warn "Ignoring result field $k as it uses $axtype"
-                        axes_full = []
-                        break
-                    end
-                    push!(axes_full, ax_full)
-                end
-                if !isempty(axes_full)
-                    results[k] = Containers.DenseAxisArray{Float64}(undef, axes_full...)
-                end
-            elseif container_type <: Containers.SparseAxisArray
-                # sparse arrays only get type allocation
-                emptydict = JuMP.OrderedDict{eltype(keys(results_RH[k].data)), Float64}()
-                results[k] = Containers.SparseAxisArray(emptydict)
+        for (k, container_RH) ∈ results_RH
+            new_container = initialize_container(container_RH, convert_dict, case[:T])
+            if !isnothing(new_container)
+                results[k] = new_container
             else
-                @warn "Ignoring result field $k with unsuported container $container_type"
+                @warn "Ignoring result field $k"
             end
         end
     end
@@ -94,21 +72,63 @@ function update_results!(results, m, case_RH, case, 𝒯ᴿᴴₒᵤₜ)
         convert_dict[tᴿᴴₐᵤₓ] = tᴿᴴ
     end
     # place values of results_RH into results
-    for k ∈ keys(results)
+    for (k,container) ∈ results
         if isempty(results_RH[k])
             continue
         end
-        if typeof(results[k]) <: Containers.DenseAxisArray
+        if typeof(container) <: Containers.DenseAxisArray
             axes_new = tuple(([convert_dict[el] for el ∈ ax]
                 for ax in axes(results_RH[k]))...)
-            results[k][axes_new...] = results_RH[k].data
-        elseif typeof(results[k]) <: Containers.SparseAxisArray
+            container[axes_new...] = results_RH[k].data
+        elseif typeof(container) <: Containers.SparseAxisArray
             for (key, value) ∈ results_RH[k].data
                 key_new = tuple((convert_dict[ax] for ax in key)...)
-                results[k][key_new...] = value
+                container[key_new...] = value
             end
         end
     end
+end
+
+"""
+    initialize_container(container_RH, convert_dict, 𝒯)
+
+Returns an empty container of the same type as `container_RH`, changing its indexing according
+to the mapping in `convert_dict`.
+
+This supports the following container types:
+- **`Containers.DenseAxisArray`**: An array is initialized for the whole period 𝒯.\n
+- **`Containers.SparseAxisArray`**: This only requires type initialization.\n
+"""
+function initialize_container(container_RH::Containers.DenseAxisArray, convert_dict, 𝒯)
+    # replace RH references for corresponding references of full problem
+    axes_full = []
+    for ax ∈ axes(container_RH)
+        axtype = eltype(ax)
+        if axtype <: Union{EMB.Node, EMB.Link, EMB.Resource}
+            ax_full = [convert_dict[el] for el ∈ ax]
+        elseif axtype <: TimeStruct.OperationalPeriod
+            ax_full = collect(𝒯) # allocate space for full horizon
+        else
+            @warn "Unsuported indexing of type $axtype"
+            return nothing
+        end
+        push!(axes_full, ax_full)
+    end
+    # if !isempty(axes_full)
+    new_container = Containers.DenseAxisArray{Float64}(undef, axes_full...)
+    # end
+    return new_container
+end
+function initialize_container(container_RH::Containers.SparseAxisArray, convert_dict, 𝒯)
+    # sparse arrays only get type allocation
+    emptydict = JuMP.OrderedDict{eltype(keys(container_RH.data)), Float64}()
+    new_container = Containers.SparseAxisArray(emptydict)
+    return new_container
+end
+function initialize_container(container_RH, convert_dict, 𝒯)
+    container_type = typeof(container_RH)
+    @warn "Unsuported container type $container_type"
+    return nothing
 end
 
 """

@@ -1,15 +1,11 @@
-"""
-This file can be used for introducing new `types` that are required in the receding horizon
-framework.
-"""
 
 """
-    RefAccumulating <: Accumulating
+    RecedingAccumulating <: Accumulating
 
 `StorageBehavior` which accumulates all inflow witin a strategic period.
-`RefAccumulating` allows for initializing level values for the storages.
+`RecedingAccumulating` allows for initializing level values for the storages.
 """
-struct RefAccumulating <: EMB.Accumulating end
+struct RecedingAccumulating <: EMB.Accumulating end
 
 #= """
     StorCapOpexFixedInit <: AbstractStorageParameters
@@ -36,7 +32,7 @@ abstract type InitData <: EMB.Data end
 
 """
 Provides initialization for storages. An `InitStorageData` should be defined
-for each `Storage{RefAccumulating}` instance.
+for each `Storage{RecedingAccumulating}` instance.
 
 # Fields
 - **`init_level::Real`**: initial value for storage level.
@@ -60,11 +56,11 @@ Checks whether the argument `data` has initialization settings.
 is_init_data(data) = (typeof(data) <: InitData)
 
 """
-    init_level(n::Storage{RefAccumulating})
+    init_level(n::Storage{RecedingAccumulating})
 
 Gets initialization values for the Storage node `n` from its data fields.
 """
-function init_level(n::Storage{RefAccumulating})
+function init_level(n::Storage{RecedingAccumulating})
     initdata = filter(is_init_data, node_data(n))
     @assert (length(initdata) == 1) "InitData badly defined" # TODO: check data elsewhere
     return first(initdata).init_level

@@ -54,7 +54,7 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
             TS.FixedProfile(0), #Fixed OPEN in EUR/8h
             Dict(power => 1), #output from the node
         ),
-        EMB.RefStorage{EMRH.RefAccumulating}(
+        EMB.RefStorage{EMRH.RecedingAccumulating}(
             "electricity storage",
             EMB.StorCapOpexVar(TS.FixedProfile(100), TS.FixedProfile(100)), # rate_cap, opex_var
             EMRH.StorCapOpexFixed(TS.FixedProfile(10), TS.FixedProfile(0)), # stor_cap, opex_fixed

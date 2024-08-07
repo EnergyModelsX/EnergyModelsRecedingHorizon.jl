@@ -58,7 +58,7 @@ function create_case(t_RH = nothing; init_state = 0)
             FixedProfile(0), #Fixed OPEN in EUR/8h
             Dict(power => 1), #output from the node
         ),
-        RefStorage{RefAccumulating}(
+        RefStorage{RecedingAccumulating}(
             "electricity storage",
             StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
             StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
@@ -114,7 +114,7 @@ out_full_problem = results_full[:flow_in][sink, :, power].data.vals
 stor_full_problem = results_full[:stor_level][stor,:].data
 cost_full_problem = objective_value(m)
 
-results_EMRH, case_EMRH, model_EMRH = run_model_RH((x=nothing)->create_case(x,init_state=x0), optimizer)
+results_EMRH, case_EMRH, model_EMRH = run_model_rh((x=nothing)->create_case(x,init_state=x0), optimizer)
 
 av, source, stor, sink = case_EMRH[:nodes]
 power, co2 = case_EMRH[:products]

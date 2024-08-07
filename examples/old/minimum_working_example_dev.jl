@@ -1,9 +1,5 @@
 using Pkg
-
-# Activate the local environment including EnergyModelsBase, HiGHS, PrettyTables
-# Pkg.activate(@__DIR__)
-# Install the dependencies.
-Pkg.activate("test")
+Pkg.activate(joinpath(@__DIR__,"..","..","test"))
 
 using HiGHS
 using PrettyTables
@@ -17,10 +13,10 @@ import EnergyModelsRecHorizon as EMRH
 silent_flag = true
 
 function cost_to_go_func(opt_vars_input::Vector{JP.VariableRef})
-    
+
     #Any of these cost-to-go functions work
     # cost_to_go = zeros(1, length(opt_vars_input))*opt_vars_input
-    cost_to_go = ones(1, length(opt_vars_input))*opt_vars_input    
+    cost_to_go = ones(1, length(opt_vars_input))*opt_vars_input
 
     return cost_to_go[1] #there is probably a more elegant way of converting a 1-element Vector into a number instead of using [1] (so that the number can be used in the objective function of the optimization problem)
 end
@@ -47,7 +43,7 @@ function create_case(op_number, demand_profile; case_config = "standard")
         op_per_strat)
 
         T2 = TS.TwoLevel([operational_periods, operational_periods])
-    else 
+    else
         #purely operational period. However, this does not work for some reason (check_timeprofiles fails)
         T = TS.SimpleTimes(op_number, op_duration)
     end
@@ -56,7 +52,7 @@ function create_case(op_number, demand_profile; case_config = "standard")
     model = EMB.OperationalModel(
         Dict(co2 => TS.FixedProfile(10)), #upper bound for CO2 in t/8h
         Dict(co2 => TS.FixedProfile(0)), # emission price for CO2 in EUR/t
-        co2    
+        co2
     )
 
     #create individual nodes of the system
@@ -66,7 +62,7 @@ function create_case(op_number, demand_profile; case_config = "standard")
             TS.FixedProfile(1e12), #Capacity in MW (Time profile)
             TS.FixedProfile(30), #variable OPEX (time structure) in EUR/MW
             TS.FixedProfile(0), #Fixed OPEN in EUR/8h
-            Dict(power => 1), #output from the node 
+            Dict(power => 1), #output from the node
         ),
         EMB.RefSink(
             "electricity demand", #node ID or name
@@ -93,7 +89,7 @@ function create_case(op_number, demand_profile; case_config = "standard")
         :T => T
     )
 
-    #Can choose different ways of running the case study. 
+    #Can choose different ways of running the case study.
     if case_config == "cost_to_go_scalar" #we simply add a scalar to the cost function (the scalar is the cost to go)
         check_timeprofiles=true
 
@@ -107,7 +103,7 @@ function create_case(op_number, demand_profile; case_config = "standard")
 
         #optimization variable at the end of the operating period
         vars_ref_emb = case[:nodes]
-        opt_vars_input = [m[:cap_use][vars_ref_emb[i],end] for i=1:length(vars_ref_emb)] 
+        opt_vars_input = [m[:cap_use][vars_ref_emb[i],end] for i=1:length(vars_ref_emb)]
 
         cost_to_go = cost_to_go_func(opt_vars_input)
 

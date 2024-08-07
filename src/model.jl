@@ -1,9 +1,6 @@
-"""
-This file should contain the core code of the receding horizon framework.
-"""
 
 """
-    run_model_RH(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
+    run_model_rh(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
 
 Take the function `case_model_builder` that returns the tuple (case, model) and optimize the
 problem in a receding horizon fashion as a series of optimization problems.
@@ -23,7 +20,7 @@ Returns `(results, case, model)`, where `results` is a dictionary indexed by the
 variables, with containers indexed by the elements in `case`. The variables `case` and `model`
 refer to the full problem.
 """
-function run_model_RH(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
+function run_model_rh(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
     case, model = case_model_builder()
 
     # WIP Data structure
@@ -77,7 +74,7 @@ function run_model_RH(case_model_builder::Function, optimizer; check_timeprofile
     return results, case, model
 end
 
-"""General model type for receding horizon problems"""
+"""Abstract type for receding horizon models"""
 abstract type RecHorEnergyModel <: EnergyModel end
 
 """
