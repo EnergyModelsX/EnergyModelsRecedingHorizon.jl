@@ -1,8 +1,12 @@
 using Pkg
 
-Pkg.activate("test") # to use solvers (HiGHS, Ipopt, ...)
 # Use dev version if run as part of tests
-haskey(ENV, "EMX_TEST") && Pkg.develop(path=joinpath(@__DIR__,".."))
+# Pkg.develop(path=joinpath(@__DIR__,".."))
+
+if !haskey(ENV, "EMX_TEST")
+    Pkg.activate("test") # to use solvers (HiGHS, Ipopt, ...)
+    Pkg.develop(path=joinpath(@__DIR__,".."))
+end
 
 using HiGHS
 # using Ipopt
@@ -13,12 +17,13 @@ using TimeStruct
 using EnergyModelsRecHorizon
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
 
-op_number = 8
-op_duration = 2 # duration of each operational period
+# op_number = 8
+# op_duration = 2 # duration of each operational period
+op_dur_vec = [1, 2, 1, 4, 1, 3, 1, 3]
 demand_profile_full = [20, 30, 40, 30, 10, 50, 35, 20]
 price_profile_full = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
-@assert length(demand_profile_full) == op_number
-@assert length(price_profile_full) == op_number
+# @assert length(demand_profile_full) == op_number
+# @assert length(price_profile_full) == op_number
 
 # https://sintefore.github.io/TimeStruct.jl/stable/manual/basic/
 
@@ -29,7 +34,7 @@ function create_case(t_RH = nothing; init_state = 0)
     products = [power, co2]
 
     #define time structure
-    T = TwoLevel(1, 1, SimpleTimes(op_number, op_duration))
+    T = TwoLevel(1, 1, SimpleTimes(op_dur_vec))
 
     #define the model depending on input
 
@@ -45,8 +50,7 @@ function create_case(t_RH = nothing; init_state = 0)
         Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
         Dict(co2 => FixedProfile(0)), # emission price for CO2 in EUR/t
         co2,
-        4,  # optimization horizon
-        1   # implementation horizon
+        DurationHorizons([duration(t) for t in T], 8, 4) # optimization and implementation horizons
     )
 
 
@@ -136,3 +140,8 @@ println("\nOriginal problem demand delivery: $out_full_problem")
 println("\n\nReceding horizon storage level: $stor_rec_horizon")
 println("\nOriginal problem storage level: $stor_full_problem")
 # println("\nModified problem storage level: $stor_modif_problem")
+
+if !haskey(ENV, "EMX_TEST")
+    Pkg.rm("EnergyModelsRecHorizon")
+    Pkg.activate(".") # to use solvers (HiGHS, Ipopt, ...)
+end

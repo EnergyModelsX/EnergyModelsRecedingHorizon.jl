@@ -21,7 +21,6 @@ include("utils.jl")
 export RecHorOperationalModel
 
 export run_model_rh
-export opt_horizon, impl_horizon
 
 export RecedingAccumulating
 

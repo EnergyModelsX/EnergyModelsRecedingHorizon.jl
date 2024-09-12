@@ -38,10 +38,10 @@ function run_model_rh(case_model_builder::Function, optimizer; check_timeprofile
     results = Dict{Symbol, AbstractArray{Float64}}()
     init_data = copy(init_data₀)
 
-    iter_𝒯 = collect(chunk(𝒯, opt_horizon(model)))[1:impl_horizon(model):end]
-    # there is probably a more efficient constructor to the iterator
-    for (idx,iter_𝒯ᴿᴴ) ∈ enumerate(iter_𝒯)
-        𝒯ᴿᴴₒᵤₜ = collect(iter_𝒯ᴿᴴ)
+    𝒯_vec = collect(𝒯)
+    for 𝒽 ∈ model.horizons
+        @info "Solving for 𝒽: $𝒽"
+        𝒯ᴿᴴₒᵤₜ = 𝒯_vec[indices_optimization(𝒽)]
 
         case_RH, model_RH = case_model_builder(𝒯ᴿᴴₒᵤₜ)
 
@@ -64,9 +64,10 @@ function run_model_rh(case_model_builder::Function, optimizer; check_timeprofile
             @warn "No optimizer given"
         end
         update_results!(results, m, case_RH, case, 𝒯ᴿᴴₒᵤₜ)
+        # relies on overwriting - saves whole optimization results, not only implementation
 
         # get initialization data from nodes
-        t_impl = collect(𝒯_RH)[impl_horizon(model)]
+        t_impl = collect(𝒯_RH)[length(indices_implementation(𝒽))] # solution for internal time structure
         init_data = [get_init_state(m, n, 𝒯_RH, t_impl) for n ∈ 𝒩ⁱⁿⁱᵗ_RH]
 
     end
@@ -95,11 +96,8 @@ struct RecHorOperationalModel <: RecHorEnergyModel
     emission_limit::Dict{<:ResourceEmit, <:TimeProfile}
     emission_price::Dict{<:ResourceEmit, <:TimeProfile}
     co2_instance::ResourceEmit
-    opt_horizon::Integer
-    impl_horizon::Integer
+    horizons::AbstractHorizons
 end
-opt_horizon(model::RecHorEnergyModel) = model.opt_horizon
-impl_horizon(model::RecHorEnergyModel) = model.impl_horizon
 
 function update_objective(m, cost_to_go)
     # println("in emrh.objective with obj.func: $(objective_function(m))")
