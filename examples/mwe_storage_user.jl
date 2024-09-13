@@ -27,7 +27,7 @@ price_profile_full = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
 
 # https://sintefore.github.io/TimeStruct.jl/stable/manual/basic/
 
-function create_case(t_RH = nothing; init_state = 0)
+function create_case(; init_state = 0)
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)  #tCO2/MWh
     co2 = ResourceEmit("co2", 1.0) #tCO2/MWh
@@ -38,13 +38,8 @@ function create_case(t_RH = nothing; init_state = 0)
 
     #define the model depending on input
 
-    if isnothing(t_RH)
-        price_profile = price_profile_full
-        demand_profile = demand_profile_full
-    else
-        price_profile = OperationalProfile(price_profile_full)[t_RH]
-        demand_profile = OperationalProfile(demand_profile_full)[t_RH]
-    end
+    price_profile = price_profile_full
+    demand_profile = demand_profile_full
 
     model = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
@@ -99,13 +94,13 @@ function create_case(t_RH = nothing; init_state = 0)
         :nodes => nodes,
         :links => links,
         :products => products,
-        :T => isnothing(t_RH) ? T : TwoLevel(1, 1, SimpleTimes([duration(t) for t in t_RH]))
+        :T => T
     )
 
     return case, model
 end
 
-x0 = 3
+x0 = 5
 case, model = create_case(init_state=x0)
 m = create_model(case, model)
 set_optimizer(m, optimizer)
@@ -120,10 +115,10 @@ out_full_problem = results_full[:flow_in][sink, :, power].data.vals
 stor_full_problem = results_full[:stor_level][stor,:].data
 cost_full_problem = objective_value(m)
 
-results_EMRH, case_EMRH, model_EMRH = run_model_rh((x=nothing)->create_case(x,init_state=x0), optimizer)
+results_EMRH = run_model_rh(case, model, optimizer)
 
-av, source, stor, sink = case_EMRH[:nodes]
-power, co2 = case_EMRH[:products]
+# av, source, stor, sink = case_EMRH[:nodes]
+# power, co2 = case_EMRH[:products]
 
 solution_rec_horizon = results_EMRH[:cap_use][source,:].data
 out_rec_horizon = results_EMRH[:flow_in][sink, :, power].data.vals

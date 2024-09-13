@@ -1,12 +1,9 @@
 
 """
-    run_model_rh(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
+    run_model_rh(case, model, optimizer; check_timeprofiles::Bool=true)
 
-Take the function `case_model_builder` that returns the tuple (case, model) and optimize the
-problem in a receding horizon fashion as a series of optimization problems.
-
-`case_model_builder` should take as input the TimeStructure for which the receding horizon
-problem will be defined. If no input is provided, it should return the full problem.
+Take the variables `case` and `model` and optimize the problem in a receding horizon fashion
+as a series of optimization problems.
 
 `case` is a dictionary that requires the keys:
  - `:nodes::Vector{Node}`
@@ -14,14 +11,12 @@ problem will be defined. If no input is provided, it should return the full prob
  - `:products::Vector{Resource}`
  - `:T::TimeStructure`
 
- `model` is an instance of `RecHorOperationalModel`.
+`model` is an instance of `RecHorEnergyModel`.
 
-Returns `(results, case, model)`, where `results` is a dictionary indexed by the model
-variables, with containers indexed by the elements in `case`. The variables `case` and `model`
-refer to the full problem.
+Returns `results` as a dictionary indexed by the model variables.
 """
-function run_model_rh(case_model_builder::Function, optimizer; check_timeprofiles::Bool=true)
-    case, model = case_model_builder()
+function run_model_rh(case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
+    # TODO: dispatch over `EMB.run_model` in future releases
 
     # WIP Data structure
     𝒯 = case[:T]
@@ -43,16 +38,11 @@ function run_model_rh(case_model_builder::Function, optimizer; check_timeprofile
         @info "Solving for 𝒽: $𝒽"
         𝒯ᴿᴴₒᵤₜ = 𝒯_vec[indices_optimization(𝒽)]
 
-        case_RH, model_RH = case_model_builder(𝒯ᴿᴴₒᵤₜ)
+        case_RH, model_RH = get_RH_case_model(case, model, 𝒯ᴿᴴₒᵤₜ, init_data)
 
         𝒯_RH = case_RH[:T]
         𝒩_RH = case_RH[:nodes]
-
         𝒩ⁱⁿⁱᵗ_RH = filter(has_init, 𝒩_RH)
-        # place initialization data in nodes
-        for (n,i,init_dataₙ) ∈ zip(𝒩ⁱⁿⁱᵗ_RH,𝒾ⁱⁿⁱᵗ,init_data)
-            node_data(n)[i] = init_dataₙ
-        end
 
         # create and solve model
         m = create_model(case_RH, model_RH; check_timeprofiles)
@@ -72,31 +62,7 @@ function run_model_rh(case_model_builder::Function, optimizer; check_timeprofile
 
     end
 
-    return results, case, model
-end
-
-"""Abstract type for receding horizon models"""
-abstract type RecHorEnergyModel <: EnergyModel end
-
-"""
-Operational Energy Model without investments, receding horizon implementation.
-
-# Fields
-- **`emission_limit::Dict{<:ResourceEmit, <:TimeProfile}`** is a dictionary with \
-individual emission limits as `TimeProfile` for each emission resource `ResourceEmit`.\n
-- **`emission_price::Dict{<:ResourceEmit, <:TimeProfile}`** are the prices for the \
-different emissions types considered.\n
-- **`co2_instance`** is a `ResourceEmit` and corresponds to the type used for CO₂.\n
-- **`opt_horizon`** corresponds to the horizon for which the problem will be optimized \
-at each iteration.\n
-- **`impl_horizon`** corresponds to the horizon for which each solution will be implemented \
-at each iteration.\n
-"""
-struct RecHorOperationalModel <: RecHorEnergyModel
-    emission_limit::Dict{<:ResourceEmit, <:TimeProfile}
-    emission_price::Dict{<:ResourceEmit, <:TimeProfile}
-    co2_instance::ResourceEmit
-    horizons::AbstractHorizons
+    return results
 end
 
 function update_objective(m, cost_to_go)

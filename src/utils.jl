@@ -1,5 +1,88 @@
 
 """
+    get_RH_case_model(case, model, 𝒯ᴿᴴ, init_data)
+Returns a pair `(case_RH, model_RH)` that corresponds to the receding horizon problem of `(case, model)`
+evaluated at `𝒯ᴿᴴ`, initialized using `init_data`.
+"""
+function get_RH_case_model(case, model, 𝒯ᴿᴴ, init_data=nothing)
+    # only works for operational profiles due to case[:T] definition and dispatches on get_property_RH,
+    # must be improved to deal with more cases
+    case_RH = Dict(
+        :products => case[:products],
+        :T => TwoLevel(1, 1, SimpleTimes([duration(t) for t in 𝒯ᴿᴴ]))
+    )
+    case_RH[:nodes] = collect(get_object_RH(n, 𝒯ᴿᴴ) for n ∈ case[:nodes])
+    map_nodes = Dict(case[:nodes][i] => case_RH[:nodes][i] for i ∈ 1:length(case[:nodes]))
+    case_RH[:links] = collect(get_new_link(l, map_nodes) for l in case[:links])
+
+    model_RH = get_object_RH(model, 𝒯ᴿᴴ)
+
+    if !isnothing(init_data)
+        𝒩ⁱⁿⁱᵗ_RH = filter(has_init, case_RH[:nodes])
+        𝒾ⁱⁿⁱᵗ = collect( findfirst(map(is_init_data, node_data(n)))
+            for n in 𝒩ⁱⁿⁱᵗ_RH ) # index of init_data in nodes: depends on init data being unique
+        # place initialization data in nodes
+        for (n,i,init_dataₙ) ∈ zip(𝒩ⁱⁿⁱᵗ_RH,𝒾ⁱⁿⁱᵗ,init_data)
+            node_data(n)[i] = init_dataₙ
+        end
+    end
+
+    return (case_RH, model_RH)
+end
+
+"""
+    get_new_link(l, map_nodes)
+Returns a new link related to `l` linking the new nodes returned by `map_nodes`.
+"""
+function get_new_link(l, map_nodes)
+    fields_link = []
+    for field_sym in fieldnames(typeof(l))
+        field_val = getfield(l, field_sym)
+        push!(fields_link, (field_val ∈ keys(map_nodes)) ? map_nodes[field_val] : field_val )
+    end
+    new_link = typeof(l)(fields_link...)
+    return new_link
+end
+
+"""
+    get_object_RH(obj, 𝒯ᴿᴴ)
+Returns a new object derived from `obj` instantiated at the time steps `𝒯ᴿᴴ`.
+"""
+function get_object_RH(obj, 𝒯ᴿᴴ)
+    fields_obj_RH = []
+    for field_sym in fieldnames(typeof(obj))
+        field_val = getfield(obj, field_sym)
+        push!(fields_obj_RH, get_property_RH(field_val, 𝒯ᴿᴴ) )
+    end
+    new_obj = typeof(obj)(fields_obj_RH...)
+    return new_obj
+end
+
+
+"""
+    get_property_RH(val, 𝒯ᴿᴴ)
+Returns the property `val` evaluated at the time steps `𝒯ᴿᴴ`.
+"""
+function get_property_RH(val::TS.TimeProfile, 𝒯ᴿᴴ)
+    new_val = TS.OperationalProfile(val[𝒯ᴿᴴ])
+    return new_val
+end
+function get_property_RH(val::TS.FixedProfile, 𝒯ᴿᴴ)
+    new_val = val
+    return new_val
+end
+function get_property_RH(val::Dict, 𝒯ᴿᴴ)
+    new_val = Dict(
+        key => get_property_RH(el, 𝒯ᴿᴴ) for (key,el) ∈ val
+    )
+    return new_val
+end
+function get_property_RH(val::Any, 𝒯ᴿᴴ)
+    new_val = val
+    return new_val
+end
+
+"""
     previous_level(
         m,
         n::Storage{RecedingAccumulating},
