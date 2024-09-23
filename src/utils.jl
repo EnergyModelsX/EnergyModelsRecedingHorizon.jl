@@ -9,20 +9,19 @@ function get_RH_case_model(case, model, 𝒯ᴿᴴ, init_data=nothing)
     # must be improved to deal with more cases
     case_RH = Dict(
         :products => case[:products],
-        :T => TwoLevel(1, 1, SimpleTimes([duration(t) for t in 𝒯ᴿᴴ]))
+        :T => TwoLevel(1, 1, SimpleTimes([duration(t) for t ∈ 𝒯ᴿᴴ])),
     )
     case_RH[:nodes] = collect(get_object_RH(n, 𝒯ᴿᴴ) for n ∈ case[:nodes])
     map_nodes = Dict(case[:nodes][i] => case_RH[:nodes][i] for i ∈ 1:length(case[:nodes]))
-    case_RH[:links] = collect(get_new_link(l, map_nodes) for l in case[:links])
+    case_RH[:links] = collect(get_new_link(l, map_nodes) for l ∈ case[:links])
 
     model_RH = get_object_RH(model, 𝒯ᴿᴴ)
 
     if !isnothing(init_data)
         𝒩ⁱⁿⁱᵗ_RH = filter(has_init, case_RH[:nodes])
-        𝒾ⁱⁿⁱᵗ = collect( findfirst(map(is_init_data, node_data(n)))
-            for n in 𝒩ⁱⁿⁱᵗ_RH ) # index of init_data in nodes: depends on init data being unique
+        𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ_RH) # index of init_data in nodes: depends on init data being unique
         # place initialization data in nodes
-        for (n,i,init_dataₙ) ∈ zip(𝒩ⁱⁿⁱᵗ_RH,𝒾ⁱⁿⁱᵗ,init_data)
+        for (n, i, init_dataₙ) ∈ zip(𝒩ⁱⁿⁱᵗ_RH, 𝒾ⁱⁿⁱᵗ, init_data)
             node_data(n)[i] = init_dataₙ
         end
     end
@@ -36,9 +35,9 @@ Returns a new link related to `l` linking the new nodes returned by `map_nodes`.
 """
 function get_new_link(l, map_nodes)
     fields_link = []
-    for field_sym in fieldnames(typeof(l))
+    for field_sym ∈ fieldnames(typeof(l))
         field_val = getfield(l, field_sym)
-        push!(fields_link, (field_val ∈ keys(map_nodes)) ? map_nodes[field_val] : field_val )
+        push!(fields_link, (field_val ∈ keys(map_nodes)) ? map_nodes[field_val] : field_val)
     end
     new_link = typeof(l)(fields_link...)
     return new_link
@@ -50,14 +49,13 @@ Returns a new object derived from `obj` instantiated at the time steps `𝒯ᴿ�
 """
 function get_object_RH(obj, 𝒯ᴿᴴ)
     fields_obj_RH = []
-    for field_sym in fieldnames(typeof(obj))
+    for field_sym ∈ fieldnames(typeof(obj))
         field_val = getfield(obj, field_sym)
-        push!(fields_obj_RH, get_property_RH(field_val, 𝒯ᴿᴴ) )
+        push!(fields_obj_RH, get_property_RH(field_val, 𝒯ᴿᴴ))
     end
     new_obj = typeof(obj)(fields_obj_RH...)
     return new_obj
 end
-
 
 """
     get_property_RH(val, 𝒯ᴿᴴ)
@@ -72,9 +70,7 @@ function get_property_RH(val::TS.FixedProfile, 𝒯ᴿᴴ)
     return new_val
 end
 function get_property_RH(val::Dict, 𝒯ᴿᴴ)
-    new_val = Dict(
-        key => get_property_RH(el, 𝒯ᴿᴴ) for (key,el) ∈ val
-    )
+    new_val = Dict(key => get_property_RH(el, 𝒯ᴿᴴ) for (key, el) ∈ val)
     return new_val
 end
 function get_property_RH(val::Any, 𝒯ᴿᴴ)
@@ -98,7 +94,7 @@ is an [`RecedingAccumulating`](@ref) storage node, the function returns the init
 function EMB.previous_level(
     m,
     n::Storage{RecedingAccumulating},
-    prev_pers::PreviousPeriods{<:EMB.NothingPeriod, Nothing, Nothing},
+    prev_pers::PreviousPeriods{<:EMB.NothingPeriod,Nothing,Nothing},
     cyclic_pers::CyclicPeriods,
     modeltype::EnergyModel,
 )
@@ -106,7 +102,6 @@ function EMB.previous_level(
     # Previous storage level, as there are no changes
     return init_level(n)
 end
-
 
 """
     get_init_state(m, n::Storage{RecedingAccumulating}, 𝒯_RH, t_impl)
@@ -116,7 +111,7 @@ the model state at `t_impl`. The model `m` is defined for the horizon `𝒯_RH`.
 Returns an instance of `InitData` that can be used to initialize the system.
 """
 function get_init_state(m, n::Storage{RecedingAccumulating}, 𝒯_RH, t_impl)
-    level_t = value.(m[:stor_level][n,t_impl])
+    level_t = value.(m[:stor_level][n, t_impl])
     return InitStorageData(level_t)
 end
 #= Ideas for implementing initialization constraints:
@@ -136,9 +131,11 @@ problem definition in `case_RH`, which is a slice of the original problem define
 at the time period `𝒯ᴿᴴₒᵤₜ`. The containers in `results` are indexed by the elements in `case`.
 """
 function update_results!(results, m, case_RH, case, 𝒯ᴿᴴₒᵤₜ)
-    results_RH = Dict(k=>value.(m[k]) for k ∈ keys(object_dictionary(m)))
-    convert_dict = Dict( n_RH => n for sym in [:nodes, :links, :products]
-        for (n,n_RH) in zip(case[sym], case_RH[sym]) ) # depends on elements being in same order
+    results_RH = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)))
+    convert_dict = Dict(
+        n_RH => n for sym ∈ [:nodes, :links, :products] for
+        (n, n_RH) ∈ zip(case[sym], case_RH[sym])
+    ) # depends on elements being in same order
     if isempty(results)
         # allocate space in results
         for (k, container_RH) ∈ results_RH
@@ -155,17 +152,18 @@ function update_results!(results, m, case_RH, case, 𝒯ᴿᴴₒᵤₜ)
         convert_dict[tᴿᴴₐᵤₓ] = tᴿᴴ
     end
     # place values of results_RH into results
-    for (k,container) ∈ results
+    for (k, container) ∈ results
         if isempty(results_RH[k])
             continue
         end
         if typeof(container) <: Containers.DenseAxisArray
-            axes_new = tuple(([convert_dict[el] for el ∈ ax]
-                for ax in axes(results_RH[k]))...)
+            axes_new = tuple(
+                ([convert_dict[el] for el ∈ ax] for ax ∈ axes(results_RH[k]))...
+            )
             container[axes_new...] = results_RH[k].data
         elseif typeof(container) <: Containers.SparseAxisArray
             for (key, value) ∈ results_RH[k].data
-                key_new = tuple((convert_dict[ax] for ax in key)...)
+                key_new = tuple((convert_dict[ax] for ax ∈ key)...)
                 container[key_new...] = value
             end
         end
@@ -187,7 +185,7 @@ function initialize_container(container_RH::Containers.DenseAxisArray, convert_d
     axes_full = []
     for ax ∈ axes(container_RH)
         axtype = eltype(ax)
-        if axtype <: Union{EMB.Node, EMB.Link, EMB.Resource}
+        if axtype <: Union{EMB.Node,EMB.Link,EMB.Resource}
             ax_full = [convert_dict[el] for el ∈ ax]
         elseif axtype <: TimeStruct.OperationalPeriod
             ax_full = collect(𝒯) # allocate space for full horizon
@@ -204,7 +202,7 @@ function initialize_container(container_RH::Containers.DenseAxisArray, convert_d
 end
 function initialize_container(container_RH::Containers.SparseAxisArray, convert_dict, 𝒯)
     # sparse arrays only get type allocation
-    emptydict = JuMP.OrderedDict{eltype(keys(container_RH.data)), Float64}()
+    emptydict = JuMP.OrderedDict{eltype(keys(container_RH.data)),Float64}()
     new_container = Containers.SparseAxisArray(emptydict)
     return new_container
 end
@@ -220,7 +218,7 @@ Saves the model results of all variables as CSV files. The model results are sav
 If no directory is specified, it will create, if necessary, a new directory "csv_files" in the current
 working directory and save the files in said directory.
 """
-function save_results(model::Model; directory=joinpath(pwd(),"csv_files"))
+function save_results(model::Model; directory=joinpath(pwd(), "csv_files"))
     vars = collect(keys(object_dictionary(model)))
     if !ispath(directory)
         mkpath(directory)
@@ -234,11 +232,13 @@ function save_results(model::Model; directory=joinpath(pwd(),"csv_files"))
 end
 
 # Function for calculating the individual ranges
-_take_range(itr::PeriodHorizons, _::Integer, _::Nothing) = (1:itr.optim, 1:itr.impl, 1)
+_take_range(itr::PeriodHorizons, _::Integer, _::Nothing) = (1:(itr.optim), 1:(itr.impl), 1)
 function _take_range(itr::PeriodHorizons, _::Integer, state)
-    rng_optim = (state*itr.impl)+1:minimum([(state*itr.impl)+itr.optim, length(itr.dur)])
-    rng_impl = (state*itr.impl)+1:minimum([(state*itr.impl)+itr.impl, length(itr.dur)])
-    return rng_optim, rng_impl, state+1
+    rng_optim =
+        ((state * itr.impl) + 1):minimum([(state * itr.impl) + itr.optim, length(itr.dur)])
+    rng_impl =
+        ((state * itr.impl) + 1):minimum([(state * itr.impl) + itr.impl, length(itr.dur)])
+    return rng_optim, rng_impl, state + 1
 end
 
 function _take_range(itr::DurationHorizons, _::Integer, _::Nothing)
@@ -249,18 +249,13 @@ end
 function _take_range(itr::DurationHorizons, init::Integer, state)
     rng_optim = collect(take_horizon(Iterators.rest(itr.dur, init...), itr.optim))
     rng_impl = collect(take_horizon(Iterators.rest(itr.dur, init...), itr.impl))
-    return rng_optim, rng_impl, state+1
+    return rng_optim, rng_impl, state + 1
 end
 
 # Function for defining the individual SingleHorizon when interating through an AbstractHorizons
-function Base.iterate(itr::AbstractHorizons, state = (1, nothing))
+function Base.iterate(itr::AbstractHorizons, state=(1, nothing))
     state[2] === length(itr) && return nothing
     rng_optim, rng_impl, next = _take_range(itr, state[1], state[2])
-    horizon = SingleHorizon(
-        next,
-        itr.dur[rng_optim],
-        collect(rng_optim),
-        collect(rng_impl)
-    )
-    return  horizon, (rng_impl[end]+1, next)
+    horizon = SingleHorizon(next, itr.dur[rng_optim], collect(rng_optim), collect(rng_impl))
+    return horizon, (rng_impl[end] + 1, next)
 end

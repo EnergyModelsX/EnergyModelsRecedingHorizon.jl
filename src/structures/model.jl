@@ -17,8 +17,8 @@ at each iteration.\n
 at each iteration.\n
 """
 struct RecHorOperationalModel <: RecHorEnergyModel
-    emission_limit::Dict{<:ResourceEmit, <:TimeProfile}
-    emission_price::Dict{<:ResourceEmit, <:TimeProfile}
+    emission_limit::Dict{<:ResourceEmit,<:TimeProfile}
+    emission_price::Dict{<:ResourceEmit,<:TimeProfile}
     co2_instance::ResourceEmit
     horizons::AbstractHorizons
 end

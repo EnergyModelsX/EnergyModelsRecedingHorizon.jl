@@ -29,10 +29,10 @@ end
         @test_throws ArgumentError PeriodHorizons(16, [2], 4, 2)
         @test_throws ArgumentError PeriodHorizons(16, ones(16), 4, 6)
         @test_throws ArgumentError PeriodHorizons(16, 3, 4, 2)
-        @test_throws ArgumentError PeriodHorizons(ones(16)*.3, 4, 2)
+        @test_throws ArgumentError PeriodHorizons(ones(16) * 0.3, 4, 2)
         @test PeriodHorizons(16, 1, 4, 2).dur == ones(Int64, 16)
         @test PeriodHorizons(ones(Int64, 16), 4, 2).len == 16
-        @test PeriodHorizons(ones(Int64, 16)*2, 4, 2).len ≠ 16
+        @test PeriodHorizons(ones(Int64, 16) * 2, 4, 2).len ≠ 16
     end
 
     # Test that the utilities are working
@@ -69,9 +69,9 @@ end
         # Test of the previous periods
         @test isnothing(single_horizons[1][1])
         @test sum(
-            single_horizons[k+1][1] == single_horizons[k][2]
-            for k ∈ range(1, length(per_horizons)-1)
-        ) == length(per_horizons)-1
+            single_horizons[k + 1][1] == single_horizons[k][2] for
+            k ∈ range(1, length(per_horizons) - 1)
+        ) == length(per_horizons) - 1
     end
 end
 
@@ -82,10 +82,10 @@ end
         @test_throws ArgumentError DurationHorizons(16, [2], 4, 2)
         @test_throws ArgumentError DurationHorizons(16, ones(16), 4, 6)
         @test_throws ArgumentError DurationHorizons(16, 3, 4, 2)
-        @test_throws ArgumentError DurationHorizons(ones(16)*.3, 4, 2)
+        @test_throws ArgumentError DurationHorizons(ones(16) * 0.3, 4, 2)
         @test DurationHorizons(16, 1, 4, 2).dur == ones(Int64, 16)
         @test DurationHorizons(ones(Int64, 16), 4, 2).len == 16
-        @test DurationHorizons(ones(Int64, 16)*2, 4, 2).len ≠ 16
+        @test DurationHorizons(ones(Int64, 16) * 2, 4, 2).len ≠ 16
     end
 
     # Test that the utilities are working
@@ -124,8 +124,8 @@ end
         # Test of the previous periods
         @test isnothing(single_horizons[1][1])
         @test sum(
-            single_horizons[k+1][1] == single_horizons[k][2]
-            for k ∈ range(1, length(dur_horizons)-1)
-        ) == length(dur_horizons)-1
+            single_horizons[k + 1][1] == single_horizons[k][2] for
+            k ∈ range(1, length(dur_horizons) - 1)
+        ) == length(dur_horizons) - 1
     end
 end

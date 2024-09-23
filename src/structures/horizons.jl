@@ -8,12 +8,12 @@ Base.IteratorSize(::Type{<:TakeHorizon}) = Base.SizeUnknown()
 Base.eltype(::Type{TakeHorizon{I}}) where {I} = Base.eltype(I)
 Base.IteratorEltype(::Type{TakeHorizon{I}}) where {I} = Base.IteratorEltype(I)
 
-function Base.iterate(it::TakeHorizon, state = (it.duration,))
+function Base.iterate(it::TakeHorizon, state=(it.duration,))
     dur, rest = state[1], Base.tail(state)
     dur <= 0 && return nothing
     y = iterate(it.xs, rest...)
     y === nothing && return nothing
-    return y[2]-1, (dur - y[1], y[2])
+    return y[2] - 1, (dur - y[1], y[2])
 end
 
 """
@@ -24,7 +24,6 @@ required parameters for a receding horizon optimization.
 """
 abstract type AbstractHorizons{T<:Real} end
 Base.show(io::IO, w::AbstractHorizons) = print(io, "horizons_$(w.len)_$(w.optim)_$(w.impl)")
-
 
 """
     PeriodHorizons{T} <: AbstractHorizons{T}
@@ -55,17 +54,23 @@ struct PeriodHorizons{T} <: AbstractHorizons{T}
     dur::Vector{T}
     optim::Int64
     impl::Int64
-    function PeriodHorizons(len::Int64, dur::Vector{T}, optim::Int64, impl::Int64) where {T<:Real}
+    function PeriodHorizons(
+        len::Int64, dur::Vector{T}, optim::Int64, impl::Int64
+    ) where {T<:Real}
         if optim < impl
-            throw(ArgumentError(
-                "The optimization horizon ($(optim)) cannot be shorter than the " *
-                "implementation horizon ($(impl))."
-            ))
+            throw(
+                ArgumentError(
+                    "The optimization horizon ($(optim)) cannot be shorter than the " *
+                    "implementation horizon ($(impl)).",
+                ),
+            )
         elseif length(dur) < impl
-            throw(ArgumentError(
-                "The duration vector ($(length(dur))) cannot be shorter than the " *
-                "implementation horizon ($(impl))."
-            ))
+            throw(
+                ArgumentError(
+                    "The duration vector ($(length(dur))) cannot be shorter than the " *
+                    "implementation horizon ($(impl)).",
+                ),
+            )
         else
             new{T}(len, dur, optim, impl)
         end
@@ -79,7 +84,7 @@ periods. The field `len` mmust be a multiple of the field `dur`.
 """
 function PeriodHorizons(len::Int64, dur::Real, optim::Int64, impl::Int64)
     if len % dur == 0
-        return PeriodHorizons(len, fill(dur, Integer(len/dur)), optim, impl)
+        return PeriodHorizons(len, fill(dur, Integer(len / dur)), optim, impl)
     else
         throw(ArgumentError("The field `len` must be a multiple of the field `dur`"))
     end
@@ -98,7 +103,7 @@ function PeriodHorizons(dur::Vector{T}, optim::Int64, impl::Int64) where {T<:Rea
     end
 end
 
-Base.length(w::PeriodHorizons) = Integer(ceil(length(w.dur)/w.impl))
+Base.length(w::PeriodHorizons) = Integer(ceil(length(w.dur) / w.impl))
 Base.eltype(::Type{PeriodHorizons{T}}) where {T} = SingleHorizon{T}
 
 """
@@ -131,17 +136,23 @@ struct DurationHorizons{T} <: AbstractHorizons{T}
     dur::Vector{T}
     optim::Int64
     impl::Int64
-    function DurationHorizons(len::Int64, dur::Vector{T}, optim::Int64, impl::Int64) where {T<:Real}
+    function DurationHorizons(
+        len::Int64, dur::Vector{T}, optim::Int64, impl::Int64
+    ) where {T<:Real}
         if optim < impl
-            throw(ArgumentError(
-                "The optimization horizon ($(optim)) cannot be shorter than the " *
-                "implementation horizon ($(impl))."
-            ))
+            throw(
+                ArgumentError(
+                    "The optimization horizon ($(optim)) cannot be shorter than the " *
+                    "implementation horizon ($(impl)).",
+                ),
+            )
         elseif length(dur) < impl
-            throw(ArgumentError(
-                "The duration vector ($(length(dur))) cannot be shorter than the " *
-                "implementation horizon ($(impl))."
-            ))
+            throw(
+                ArgumentError(
+                    "The duration vector ($(length(dur))) cannot be shorter than the " *
+                    "implementation horizon ($(impl)).",
+                ),
+            )
         else
             new{T}(len, dur, optim, impl)
         end
@@ -155,7 +166,7 @@ periods. The field `len` mmust be a multiple of the field `dur`.
 """
 function DurationHorizons(len::Int64, dur::Real, optim::Int64, impl::Int64)
     if len % dur == 0
-        return DurationHorizons(len, fill(dur, Integer(ceil(len/dur))), optim, impl)
+        return DurationHorizons(len, fill(dur, Integer(ceil(len / dur))), optim, impl)
     else
         throw(ArgumentError("The field `len` must be a multiple of the field `dur`"))
     end
@@ -179,13 +190,12 @@ function Base.length(w::DurationHorizons)
     tmp = 0
     rng = collect(take_horizon(w.dur, w.impl))
     while sum(w.dur[rng]) ≥ w.impl
-        rng = collect(take_horizon(Iterators.rest(w.dur, rng[end]+1...), w.impl))
+        rng = collect(take_horizon(Iterators.rest(w.dur, rng[end] + 1...), w.impl))
         tmp += 1
     end
     return tmp
 end
 Base.eltype(::Type{DurationHorizons{T}}) where {T} = SingleHorizon{T}
-
 
 """
     SingleHorizon{T}
@@ -208,26 +218,29 @@ struct SingleHorizon{T}
     idx_optim::Vector{Int64}
     idx_impl::Vector{Int64}
     function SingleHorizon(
-        ind::Int64,
-        dur::Vector{T},
-        idx_optim::Vector{Int64},
-        idx_impl::Vector{Int64},
+        ind::Int64, dur::Vector{T}, idx_optim::Vector{Int64}, idx_impl::Vector{Int64}
     ) where {T<:Real}
         if length(dur) ≠ length(idx_optim)
-            throw(ArgumentError(
-                "The duration vector length ($(length(dur))) has to be equal to the " *
-                "optimization horizon vector length ($(length(idx_optim)))."
-            ))
+            throw(
+                ArgumentError(
+                    "The duration vector length ($(length(dur))) has to be equal to the " *
+                    "optimization horizon vector length ($(length(idx_optim))).",
+                ),
+            )
         elseif length(idx_optim) < length(idx_impl)
-            throw(ArgumentError(
-                "The optimization horizon ($(length(idx_optim))) cannot be shorter than " *
-                "the implementation horizon ($(length(idx_impl)))."
-            ))
+            throw(
+                ArgumentError(
+                    "The optimization horizon ($(length(idx_optim))) cannot be shorter than " *
+                    "the implementation horizon ($(length(idx_impl))).",
+                ),
+            )
         elseif !isempty(setdiff(idx_impl, idx_optim))
-            throw(ArgumentError(
-                "The indices in the implementation horizon have to be included in the " *
-                "indices of the optimization horizon."
-            ))
+            throw(
+                ArgumentError(
+                    "The indices in the implementation horizon have to be included in the " *
+                    "indices of the optimization horizon.",
+                ),
+            )
         else
             new{T}(ind, dur, idx_optim, idx_impl)
         end

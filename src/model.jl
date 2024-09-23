@@ -15,7 +15,9 @@ as a series of optimization problems.
 
 Returns `results` as a dictionary indexed by the model variables.
 """
-function run_model_rh(case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
+function run_model_rh(
+    case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true
+)
     # TODO: dispatch over `EMB.run_model` in future releases
 
     # WIP Data structure
@@ -25,12 +27,11 @@ function run_model_rh(case::Dict, model::RecHorEnergyModel, optimizer; check_tim
     # 𝒫 = case[:products]
 
     𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
-    𝒾ⁱⁿⁱᵗ = collect( findfirst(map(is_init_data, node_data(n)))
-        for n in 𝒩ⁱⁿⁱᵗ ) # index of init_data in nodes: depends on init data being unique
-    init_data₀ = map((n,i)->node_data(n)[i], 𝒩ⁱⁿⁱᵗ,𝒾ⁱⁿⁱᵗ)
+    𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ) # index of init_data in nodes: depends on init data being unique
+    init_data₀ = map((n, i) -> node_data(n)[i], 𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ)
 
     # initializing loop variables
-    results = Dict{Symbol, AbstractArray{Float64}}()
+    results = Dict{Symbol,AbstractArray{Float64}}()
     init_data = copy(init_data₀)
 
     𝒯_vec = collect(𝒯)
@@ -59,7 +60,6 @@ function run_model_rh(case::Dict, model::RecHorEnergyModel, optimizer; check_tim
         # get initialization data from nodes
         t_impl = collect(𝒯_RH)[length(indices_implementation(𝒽))] # solution for internal time structure
         init_data = [get_init_state(m, n, 𝒯_RH, t_impl) for n ∈ 𝒩ⁱⁿⁱᵗ_RH]
-
     end
 
     return results
@@ -70,7 +70,7 @@ function update_objective(m, cost_to_go)
     original_objective = objective_function(m) #this is a JuMP function
     new_objective = @expression(m, original_objective + cost_to_go) #JuMP function/macro
     set_objective_function(m, new_objective) #this is a JuMP function
-    m_obj = objective_function(m) #this is a JuMP function
+    return m_obj = objective_function(m) #this is a JuMP function
     # println("objective_function is now: $(objective_function(m))")
 end
 

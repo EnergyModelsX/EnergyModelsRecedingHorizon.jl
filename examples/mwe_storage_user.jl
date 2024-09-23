@@ -5,7 +5,7 @@ using Pkg
 
 if !haskey(ENV, "EMX_TEST")
     Pkg.activate("test") # to use solvers (HiGHS, Ipopt, ...)
-    Pkg.develop(path=joinpath(@__DIR__,".."))
+    Pkg.develop(path=joinpath(@__DIR__, ".."))
 end
 
 using HiGHS
@@ -27,7 +27,7 @@ price_profile_full = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
 
 # https://sintefore.github.io/TimeStruct.jl/stable/manual/basic/
 
-function create_case(; init_state = 0)
+function create_case(; init_state=0)
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)  #tCO2/MWh
     co2 = ResourceEmit("co2", 1.0) #tCO2/MWh
@@ -45,9 +45,8 @@ function create_case(; init_state = 0)
         Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
         Dict(co2 => FixedProfile(0)), # emission price for CO2 in EUR/t
         co2,
-        DurationHorizons([duration(t) for t in T], 8, 4) # optimization and implementation horizons
+        DurationHorizons([duration(t) for t ∈ T], 8, 4), # optimization and implementation horizons
     )
-
 
     #create individual nodes of the system
     nodes = [
@@ -68,8 +67,8 @@ function create_case(; init_state = 0)
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
                 InitStorageData(init_state),
-                EmptyData() # testing multiple data
-            ])
+                EmptyData(), # testing multiple data
+            ]),
         ),
         RefSink(
             "electricity demand", #node ID or name
@@ -81,21 +80,16 @@ function create_case(; init_state = 0)
 
     #connect the nodes with links
     links = [
-        Direct("av-source",   nodes[1], nodes[2], Linear() ),
-        Direct("av-storage",  nodes[1], nodes[3], Linear() ),
-        Direct("av-demand",   nodes[1], nodes[4], Linear() ),
-        Direct("source-av",   nodes[2], nodes[1], Linear() ),
-        Direct("storage-av",  nodes[3], nodes[1], Linear() ),
-        Direct("demand-av",   nodes[4], nodes[1], Linear() ),
+        Direct("av-source", nodes[1], nodes[2], Linear()),
+        Direct("av-storage", nodes[1], nodes[3], Linear()),
+        Direct("av-demand", nodes[1], nodes[4], Linear()),
+        Direct("source-av", nodes[2], nodes[1], Linear()),
+        Direct("storage-av", nodes[3], nodes[1], Linear()),
+        Direct("demand-av", nodes[4], nodes[1], Linear()),
     ]
 
     #WIP(?) data structure - order of vectors (nodes, links, products) MUST NOT CHANGE
-    case = Dict(
-        :nodes => nodes,
-        :links => links,
-        :products => products,
-        :T => T
-    )
+    case = Dict(:nodes => nodes, :links => links, :products => products, :T => T)
 
     return case, model
 end
@@ -109,10 +103,10 @@ optimize!(m)
 av, source, stor, sink = case[:nodes]
 power, co2 = case[:products]
 
-results_full = Dict(k=>value.(m[k]) for k ∈ keys(object_dictionary(m)))
-solution_full_problem = results_full[:cap_use][source,:].data
+results_full = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)))
+solution_full_problem = results_full[:cap_use][source, :].data
 out_full_problem = results_full[:flow_in][sink, :, power].data.vals
-stor_full_problem = results_full[:stor_level][stor,:].data
+stor_full_problem = results_full[:stor_level][stor, :].data
 cost_full_problem = objective_value(m)
 
 results_EMRH = run_model_rh(case, model, optimizer)
@@ -120,9 +114,9 @@ results_EMRH = run_model_rh(case, model, optimizer)
 # av, source, stor, sink = case_EMRH[:nodes]
 # power, co2 = case_EMRH[:products]
 
-solution_rec_horizon = results_EMRH[:cap_use][source,:].data
+solution_rec_horizon = results_EMRH[:cap_use][source, :].data
 out_rec_horizon = results_EMRH[:flow_in][sink, :, power].data.vals
-stor_rec_horizon = results_EMRH[:stor_level][stor,:].data
+stor_rec_horizon = results_EMRH[:stor_level][stor, :].data
 
 println("\n\nReceding horizon source usage: $solution_rec_horizon")
 println("\nOriginal problem source usage: $solution_full_problem")
