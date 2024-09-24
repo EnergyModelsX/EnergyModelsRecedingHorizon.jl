@@ -3,33 +3,33 @@
     T = TS.SimpleTimes([2, 3, 1, 3, 4, 2])
     T_twolevel = TS.TwoLevel(1, 1, T)
     sl = 3:4
-    t_RH = collect(T_twolevel)[sl]
+    t_rh = collect(T_twolevel)[sl]
     vec1 = [6, 5, 4, 3, 2, 1]
     P1 = TS.OperationalProfile(vec1)
-    @test (EMRH.get_property_RH(P1, t_RH)).vals == vec1[sl]
+    @test (EMRH.get_property_rh(P1, t_rh)).vals == vec1[sl]
 
-    @test (EMRH.get_property_RH(Dict(:k => P1), t_RH))[:k].vals == vec1[sl]
+    @test (EMRH.get_property_rh(Dict(:k => P1), t_rh))[:k].vals == vec1[sl]
 
-    t_RH = collect(T)[sl]
-    @test (EMRH.get_property_RH(P1, t_RH)).vals == vec1[sl]
+    t_rh = collect(T)[sl]
+    @test (EMRH.get_property_rh(P1, t_rh)).vals == vec1[sl]
 
     Pf = TS.FixedProfile(7)
-    @test (EMRH.get_property_RH(Pf, t_RH)).val == 7
+    @test (EMRH.get_property_rh(Pf, t_rh)).val == 7
 
     Tbig = TS.SimpleTimes(8, 2)
-    t_RH = collect(Tbig)[7:7]
-    @test (EMRH.get_property_RH(P1, t_RH).vals) == [1] # TODO: should this throw a BoundsError error instead?
+    t_rh = collect(Tbig)[7:7]
+    @test (EMRH.get_property_rh(P1, t_rh).vals) == [1] # TODO: should this throw a BoundsError error instead?
 
-    t_RH = collect(Tbig)[4]
-    @test_throws MethodError EMRH.get_property_RH(P1, t_RH) # only allows t_RH as vector
-    t_RH = collect(Tbig)[4:4]
-    @test (EMRH.get_property_RH(P1, t_RH)).vals == [3]
+    t_rh = collect(Tbig)[4]
+    @test_throws MethodError EMRH.get_property_rh(P1, t_rh) # only allows t_rh as vector
+    t_rh = collect(Tbig)[4:4]
+    @test (EMRH.get_property_rh(P1, t_rh)).vals == [3]
 
-    t_RH = collect(Tbig)[1:2]
-    @test EMRH.get_property_RH(:something, t_RH) == :something
+    t_rh = collect(Tbig)[1:2]
+    @test EMRH.get_property_rh(:something, t_rh) == :something
 
     T = TS.SimpleTimes([6, 7, 8, 9])
-    t_RH = collect(T)[3:4]
+    t_rh = collect(T)[3:4]
     power = ResourceCarrier("power", 0.0)
     n_sink = RefSink(
         "sink", # id
@@ -40,17 +40,17 @@
         ), # penalty
         Dict(power => 1), # input
     )
-    n_sink_RH = EMRH.get_object_RH(n_sink, t_RH)
-    @test n_sink.cap.vals[3] == n_sink_RH.cap.vals[1]
-    @test n_sink.penalty[:surplus].vals[3] == n_sink_RH.penalty[:surplus].vals[1]
+    n_sink_rh = EMRH.get_object_rh(n_sink, t_rh)
+    @test n_sink.cap.vals[3] == n_sink_rh.cap.vals[1]
+    @test n_sink.penalty[:surplus].vals[3] == n_sink_rh.penalty[:surplus].vals[1]
 
     n_av = GenAvailability("av", [power])
-    n_av_RH = EMRH.get_object_RH(n_av, t_RH)
-    # @test n_av == n_av_RH # same concrete object
+    n_av_rh = EMRH.get_object_rh(n_av, t_rh)
+    # @test n_av == n_av_rh # same concrete object
     l_orig = Direct("av-source", n_av, n_sink, Linear())
-    map_nodes = Dict(n_av => n_av_RH, n_sink => n_sink_RH)
-    l_RH = EMRH.get_new_link(l_orig, map_nodes)
-    @test l_RH.to == n_sink_RH
+    map_nodes = Dict(n_av => n_av_rh, n_sink => n_sink_rh)
+    l_rh = EMRH.get_new_link(l_orig, map_nodes)
+    @test l_rh.to == n_sink_rh
 end
 
 @testset "Result containers" begin
@@ -59,12 +59,10 @@ end
     products = [power, co2]
 
     T = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
+    hor = PeriodHorizons([duration(t) for t ∈ T], 2, 1)
 
     model = RecHorOperationalModel(
-        Dict(co2 => FixedProfile(10)),
-        Dict(co2 => FixedProfile(0)),
-        co2,
-        PeriodHorizons([duration(t) for t ∈ T], 2, 1),
+        Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2
     )
 
     nodes = [
@@ -105,20 +103,22 @@ end
         Direct("demand-av", nodes[4], nodes[1], Linear()),
     ]
 
-    case = Dict(:nodes => nodes, :links => links, :products => products, :T => T)
+    case = Dict(
+        :nodes => nodes, :links => links, :products => products, :T => T, :horizons => hor
+    )
 
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-    𝒯ᴿᴴ = collect(T)[indices_optimization(first(model.horizons))]
-    case_RH, model_RH = get_RH_case_model(case, model, 𝒯ᴿᴴ)
+    hor_test = first(hor)
+    case_rh, model_rh = get_rh_case_model(case, model, hor_test)
 
-    m_RH1 = run_model(case_RH, model_RH, optimizer)
-    @test termination_status(m_RH1) == MOI.OPTIMAL
+    m_rh1 = run_model(case_rh, model_rh, optimizer)
+    @test termination_status(m_rh1) == MOI.OPTIMAL
 
     m_EMB = run_model(case, model, optimizer)
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
     results_EMRH = Dict{Symbol,AbstractArray{Float64}}()
-    EMRH.update_results!(results_EMRH, m_RH1, case_RH, case, 𝒯ᴿᴴ)
+    EMRH.update_results!(results_EMRH, m_rh1, case_rh, case, hor_test)
     results_EMB = Dict(k => value.(m_EMB[k]) for k ∈ keys(object_dictionary(m_EMB)))
     @test Set(keys(results_EMB)) == union(
         keys(results_EMRH),

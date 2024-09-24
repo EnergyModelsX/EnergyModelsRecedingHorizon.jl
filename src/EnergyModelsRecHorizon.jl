@@ -23,7 +23,7 @@ include("utils.jl")
 export RecHorOperationalModel
 
 export run_model_rh
-export get_RH_case_model
+export get_rh_case_model
 
 export RecedingAccumulating
 

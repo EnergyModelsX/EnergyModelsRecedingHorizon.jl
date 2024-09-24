@@ -5,12 +5,10 @@
     products = [power, co2]
 
     T = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
+    hor = PeriodHorizons([duration(t) for t ∈ T], 2, 1)
 
     model = RecHorOperationalModel(
-        Dict(co2 => FixedProfile(10)),
-        Dict(co2 => FixedProfile(0)),
-        co2,
-        PeriodHorizons([duration(t) for t ∈ T], 2, 1),
+        Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2
     )
 
     nodes = [
@@ -51,7 +49,9 @@
         Direct("demand-av", nodes[4], nodes[1], Linear()),
     ]
 
-    case = Dict(:nodes => nodes, :links => links, :products => products, :T => T)
+    case = Dict(
+        :nodes => nodes, :links => links, :products => products, :T => T, :horizons => hor
+    )
 
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
@@ -74,17 +74,17 @@
         results_EMRH[:flow_in][case[:nodes][4], :, power].data.vals
 end
 
-# ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run as part of the tests
-# @testset "Run examples folder" begin
-#     exdir = joinpath(@__DIR__, "..", "examples")
-#     files = filter(endswith(".jl"), readdir(exdir))
-#     for file ∈ files
-#         @testset "Example $file" begin
-#             redirect_stdio(stdout=devnull, stderr=devnull) do
-#                 include(joinpath(exdir, file))
-#             end
-#             @test termination_status(m) == MOI.OPTIMAL # not a good test flag for EMRH
-#         end
-#     end
-#     Pkg.activate(@__DIR__)
-# end
+ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run as part of the tests
+@testset "Run examples folder" begin
+    exdir = joinpath(@__DIR__, "..", "examples")
+    files = filter(endswith(".jl"), readdir(exdir))
+    for file ∈ files
+        @testset "Example $file" begin
+            redirect_stdio(stdout=devnull, stderr=devnull) do
+                include(joinpath(exdir, file))
+            end
+            @test termination_status(m) == MOI.OPTIMAL # not a good test flag for EMRH
+        end
+    end
+    Pkg.activate(@__DIR__)
+end

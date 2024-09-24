@@ -1,29 +1,22 @@
 using Pkg
-
+# Activate the local environment including EnergyModelsBase, HiGHS, PrettyTables
+Pkg.activate(@__DIR__)
 # Use dev version if run as part of tests
-# Pkg.develop(path=joinpath(@__DIR__,".."))
-
-if !haskey(ENV, "EMX_TEST")
-    Pkg.activate("test") # to use solvers (HiGHS, Ipopt, ...)
-    Pkg.develop(path=joinpath(@__DIR__, ".."))
-end
+haskey(ENV, "EMX_TEST") && Pkg.develop(path=joinpath(@__DIR__, ".."))
+# Install the dependencies.
+Pkg.instantiate()
 
 using HiGHS
 # using Ipopt
-using PrettyTables
 using JuMP
 using EnergyModelsBase
 using TimeStruct
 using EnergyModelsRecHorizon
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
 
-# op_number = 8
-# op_duration = 2 # duration of each operational period
 op_dur_vec = [1, 2, 1, 4, 1, 3, 1, 3]
 demand_profile_full = [20, 30, 40, 30, 10, 50, 35, 20]
 price_profile_full = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
-# @assert length(demand_profile_full) == op_number
-# @assert length(price_profile_full) == op_number
 
 # https://sintefore.github.io/TimeStruct.jl/stable/manual/basic/
 
@@ -35,6 +28,7 @@ function create_case(; init_state=0)
 
     #define time structure
     T = TwoLevel(1, 1, SimpleTimes(op_dur_vec))
+    hor = DurationHorizons([duration(t) for t ∈ T], 8, 4) # optimization and implementation horizons
 
     #define the model depending on input
 
@@ -45,7 +39,6 @@ function create_case(; init_state=0)
         Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
         Dict(co2 => FixedProfile(0)), # emission price for CO2 in EUR/t
         co2,
-        DurationHorizons([duration(t) for t ∈ T], 8, 4), # optimization and implementation horizons
     )
 
     #create individual nodes of the system
@@ -89,7 +82,9 @@ function create_case(; init_state=0)
     ]
 
     #WIP(?) data structure - order of vectors (nodes, links, products) MUST NOT CHANGE
-    case = Dict(:nodes => nodes, :links => links, :products => products, :T => T)
+    case = Dict(
+        :nodes => nodes, :links => links, :products => products, :T => T, :horizons => hor
+    )
 
     return case, model
 end
@@ -129,8 +124,3 @@ println("\nOriginal problem demand delivery: $out_full_problem")
 println("\n\nReceding horizon storage level: $stor_rec_horizon")
 println("\nOriginal problem storage level: $stor_full_problem")
 # println("\nModified problem storage level: $stor_modif_problem")
-
-if !haskey(ENV, "EMX_TEST")
-    Pkg.rm("EnergyModelsRecHorizon")
-    Pkg.activate(".") # to use solvers (HiGHS, Ipopt, ...)
-end

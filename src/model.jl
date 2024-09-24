@@ -10,6 +10,7 @@ as a series of optimization problems.
  - `:links::Vector{Link}`
  - `:products::Vector{Resource}`
  - `:T::TimeStructure`
+ - `:horizons::AbstractHorizons`
 
 `model` is an instance of `RecHorEnergyModel`.
 
@@ -25,6 +26,7 @@ function run_model_rh(
     𝒩 = case[:nodes]
     # ℒ = case[:links]
     # 𝒫 = case[:products]
+    ℋ = case[:horizons]
 
     𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
     𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ) # index of init_data in nodes: depends on init data being unique
@@ -34,19 +36,17 @@ function run_model_rh(
     results = Dict{Symbol,AbstractArray{Float64}}()
     init_data = copy(init_data₀)
 
-    𝒯_vec = collect(𝒯)
-    for 𝒽 ∈ model.horizons
+    for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
-        𝒯ᴿᴴₒᵤₜ = 𝒯_vec[indices_optimization(𝒽)]
 
-        case_RH, model_RH = get_RH_case_model(case, model, 𝒯ᴿᴴₒᵤₜ, init_data)
+        case_rh, model_rh = get_rh_case_model(case, model, 𝒽, init_data)
 
-        𝒯_RH = case_RH[:T]
-        𝒩_RH = case_RH[:nodes]
-        𝒩ⁱⁿⁱᵗ_RH = filter(has_init, 𝒩_RH)
+        𝒯_rh = case_rh[:T]
+        𝒩_rh = case_rh[:nodes]
+        𝒩ⁱⁿⁱᵗ_rh = filter(has_init, 𝒩_rh)
 
         # create and solve model
-        m = create_model(case_RH, model_RH; check_timeprofiles)
+        m = create_model(case_rh, model_rh; check_timeprofiles)
         if !isnothing(optimizer)
             set_optimizer(m, optimizer)
             set_optimizer_attribute(m, MOI.Silent(), true)
@@ -54,12 +54,11 @@ function run_model_rh(
         else
             @warn "No optimizer given"
         end
-        update_results!(results, m, case_RH, case, 𝒯ᴿᴴₒᵤₜ)
+        update_results!(results, m, case_rh, case, 𝒽)
         # relies on overwriting - saves whole optimization results, not only implementation
 
         # get initialization data from nodes
-        t_impl = collect(𝒯_RH)[length(indices_implementation(𝒽))] # solution for internal time structure
-        init_data = [get_init_state(m, n, 𝒯_RH, t_impl) for n ∈ 𝒩ⁱⁿⁱᵗ_RH]
+        init_data = [get_init_state(m, n, 𝒯_rh, 𝒽) for n ∈ 𝒩ⁱⁿⁱᵗ_rh]
     end
 
     return results
