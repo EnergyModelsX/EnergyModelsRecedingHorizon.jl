@@ -14,6 +14,8 @@ const EMB = EnergyModelsBase
 const TS = TimeStruct
 
 include(joinpath("structures", "horizons.jl"))
+include(joinpath("structures", "model.jl"))
+
 include("datastructures.jl")
 include("model.jl")
 include("utils.jl")
@@ -21,7 +23,7 @@ include("utils.jl")
 export RecHorOperationalModel
 
 export run_model_rh
-export opt_horizon, impl_horizon
+export get_rh_case_model
 
 export RecedingAccumulating
 

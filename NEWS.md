@@ -1,7 +1,14 @@
 # Release notes
 
 
-## Unversioned
+## Version 0.3.0
+
+### Improved input requirements from user
+
+* Requires from user a `(case, model)` pair definition for the full problem horizon,
+similar to other EMX packages.
+  * Includes auxiliary functions for slicing full problem for each horizon, currently
+  relying on re-instancing nodes and links from `case`.
 
 ### Time iterators for the horizon
 

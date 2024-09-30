@@ -12,7 +12,9 @@ import EnergyModelsRecHorizon as EMRH
 
 silent_flag = true
 
-function create_case(op_number, demand_profile, price_profile; case_config = "standard", init_state = 0)
+function create_case(
+    op_number, demand_profile, price_profile; case_config="standard", init_state=0
+)
     #Define resources with their emission intensities
     power = EMB.ResourceCarrier("power", 0.0)  #tCO2/MWh
     co2 = EMB.ResourceEmit("co2", 1.0) #tCO2/MWh
@@ -23,15 +25,17 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
     operational_periods = TS.SimpleTimes(op_number, op_duration)
 
     #number of operational periods within one strategic period
-    op_per_strat = op_duration*op_number
+    op_per_strat = op_duration * op_number
     @assert op_per_strat == sum(operational_periods.duration)
 
     if true
         #create time structure
-        T = TS.TwoLevel(1, #number of strategic periods
-        1, #duration of strategic period
-        operational_periods; #operational period
-        op_per_strat)
+        T = TS.TwoLevel(
+            1, #number of strategic periods
+            1, #duration of strategic period
+            operational_periods; #operational period
+            op_per_strat,
+        )
     else
         #purely operational period. However, this does not work for some reason (check_timeprofiles fails)
         T = TS.SimpleTimes(op_number, op_duration)
@@ -41,7 +45,7 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
     model = EMB.OperationalModel(
         Dict(co2 => TS.FixedProfile(10)), #upper bound for CO2 in t/8h
         Dict(co2 => TS.FixedProfile(0)), # emission price for CO2 in EUR/t
-        co2
+        co2,
     )
 
     #create individual nodes of the system
@@ -63,8 +67,8 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
                 EMRH.InitStorageData(init_state),
-                EMB.EmptyData() # testing multiple data
-            ])
+                EMB.EmptyData(), # testing multiple data
+            ]),
         ),
         EMB.RefSink(
             "electricity demand", #node ID or name
@@ -76,23 +80,18 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
 
     #connect the nodes with links
     links = [
-        EMB.Direct("av-source",   nodes[1], nodes[2], EMB.Linear() ),
-        EMB.Direct("av-storage",  nodes[1], nodes[3], EMB.Linear() ),
-        EMB.Direct("av-demand",   nodes[1], nodes[4], EMB.Linear() ),
-        EMB.Direct("source-av",   nodes[2], nodes[1], EMB.Linear() ),
-        EMB.Direct("storage-av",  nodes[3], nodes[1], EMB.Linear() ),
-        EMB.Direct("demand-av",   nodes[4], nodes[1], EMB.Linear() ),
+        EMB.Direct("av-source", nodes[1], nodes[2], EMB.Linear()),
+        EMB.Direct("av-storage", nodes[1], nodes[3], EMB.Linear()),
+        EMB.Direct("av-demand", nodes[1], nodes[4], EMB.Linear()),
+        EMB.Direct("source-av", nodes[2], nodes[1], EMB.Linear()),
+        EMB.Direct("storage-av", nodes[3], nodes[1], EMB.Linear()),
+        EMB.Direct("demand-av", nodes[4], nodes[1], EMB.Linear()),
     ]
 
     #WIP(?) data structure
-    case = Dict(
-        :nodes => nodes,
-        :links => links,
-        :products => products,
-        :T => T
-    )
+    case = Dict(:nodes => nodes, :links => links, :products => products, :T => T)
 
-    check_timeprofiles=true
+    check_timeprofiles = true
     m = EMB.create_model(case, model; check_timeprofiles)
     cost_RH = 0
     # cost_RH = -10*sum(( m[:stor_level].data .- 2.0).^2) # JP.@expression(m, cost_RH, -10*sum(( m[:stor_level].data .- 2.0).^2) )
@@ -100,7 +99,6 @@ function create_case(op_number, demand_profile, price_profile; case_config = "st
 
     #Can choose different ways of running the case study.
     if case_config == "cost_to_go"
-
         cost_to_go = 0 # can include a function taking some input (e.g. storage capacity at the end of the operational period)
         cost_RH += cost_to_go
 
@@ -132,9 +130,9 @@ JP.set_optimizer_attribute(m, JP.MOI.Silent(), silent_flag)
 JP.optimize!(m)
 av, source, stor, sink = case[:nodes]
 power, co2 = case[:products]
-solution_full_problem = JP.value.(m[:cap_use][source,:]).data
+solution_full_problem = JP.value.(m[:cap_use][source, :]).data
 out_full_problem = JP.value.(m[:flow_in][sink, :, power]).data.vals
-stor_full_problem = JP.value.(m[:stor_level][stor,:]).data
+stor_full_problem = JP.value.(m[:stor_level][stor, :]).data
 cost_full_problem = JP.objective_value(m)
 
 original_objective = JP.objective_function(m)
@@ -150,25 +148,28 @@ out_rec_horizon = zeros(op_number)
 stor_rec_horizon = zeros(op_number)
 sol_rec_horizon = zeros(op_number)
 cost_rec_horizon = zeros(op_number)
-for i = 1:(op_number-n_hor+1)
+for i ∈ 1:(op_number - n_hor + 1)
     # updating inputs
-    demand_hor = demand_profile[i:i+n_hor-1]
-    price_hor = price_profile[i:i+n_hor-1]
+    demand_hor = demand_profile[i:(i + n_hor - 1)]
+    price_hor = price_profile[i:(i + n_hor - 1)]
     x0_hor = init_level_vec[i]
     # creating and solving model
-    case_i, nodes_i, m_i = create_case(n_hor, demand_hor, price_hor, case_config = "cost_to_go", init_state=x0_hor)
+    case_i, nodes_i, m_i = create_case(
+        n_hor, demand_hor, price_hor, case_config="cost_to_go", init_state=x0_hor
+    )
     JP.set_optimizer(m_i, optimizer)
     JP.set_optimizer_attribute(m_i, JP.MOI.Silent(), silent_flag)
     JP.optimize!(m_i)
     # storing parameters
     av_i, source_i, stor_i, sink_i = case_i[:nodes]
     power_i, co2_i = case_i[:products]
-    sol_rec_horizon[i:i+n_hor-1] = JP.value.(m_i[:cap_use][source_i,:]).data
-    stor_rec_horizon[i:i+n_hor-1] = JP.value.(m_i[:stor_level][stor_i,:]).data
-    out_rec_horizon[i:i+n_hor-1] = JP.value.(m_i[:flow_in][sink_i, :, power_i]).data.vals
+    sol_rec_horizon[i:(i + n_hor - 1)] = JP.value.(m_i[:cap_use][source_i, :]).data
+    stor_rec_horizon[i:(i + n_hor - 1)] = JP.value.(m_i[:stor_level][stor_i, :]).data
+    out_rec_horizon[i:(i + n_hor - 1)] =
+        JP.value.(m_i[:flow_in][sink_i, :, power_i]).data.vals
     cost_rec_horizon[i] = JP.objective_value(m_i)
 
-    init_level_vec[i+1] = JP.value.(m_i[:stor_level][stor_i,first(case_i[:T])])
+    init_level_vec[i + 1] = JP.value.(m_i[:stor_level][stor_i, first(case_i[:T])])
     ctg_objective = JP.objective_function(m_i)
     if i == 1
         println(ctg_objective)
