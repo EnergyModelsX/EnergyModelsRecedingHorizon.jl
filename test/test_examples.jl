@@ -28,7 +28,7 @@
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
-                InitStorageData(0),
+                InitStorageData(0.5),
                 EmptyData(), # testing multiple data
             ]),
         ),
@@ -63,7 +63,7 @@
     @test results_EMRH[:flow_in][case[:nodes][4], :, power].data.vals ==
         [3.0, 4.0, 5.0, 6.0, 3.0]
     @test results_EMRH[:flow_out][case[:nodes][2], :, power].data.vals ==
-        [3.75, 3.5, 5.375, 5.25, 3.0]
+        [3.5, 3.5, 5.375, 5.25, 3.0]
 
     results_EMB = Dict(k => value.(m_EMB[k]) for k ∈ keys(object_dictionary(m_EMB)))
     @test results_EMB[:flow_out][case[:nodes][2], :, power].data.vals ==
@@ -72,6 +72,8 @@
         results_EMRH[:stor_level][case[:nodes][3], :].data
     @test results_EMB[:flow_in][case[:nodes][4], :, power].data.vals ==
         results_EMRH[:flow_in][case[:nodes][4], :, power].data.vals
+
+    @test case[:nodes][3].data[1].init_level == 0.5 # InitStorageData object unchanged
 end
 
 ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run as part of the tests
