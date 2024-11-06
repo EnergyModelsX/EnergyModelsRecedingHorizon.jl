@@ -58,7 +58,6 @@ function get_object_rh(obj, 𝒯ᴿᴴ)
     return new_obj
 end
 # TODO: same as get_property_RH(val, 𝒯ᴿᴴ) with val::EMB.Node ?
-# TODO: add Data behavior
 
 """
     get_property_rh(val, 𝒯ᴿᴴ)
@@ -74,6 +73,10 @@ function get_property_rh(val::TS.FixedProfile, 𝒯ᴿᴴ)
 end
 function get_property_rh(val::Dict, 𝒯ᴿᴴ)
     new_val = Dict(key => get_property_rh(el, 𝒯ᴿᴴ) for (key, el) ∈ val)
+    return new_val
+end
+function get_property_rh(val::Vector, 𝒯ᴿᴴ)
+    new_val = deepcopy(val)
     return new_val
 end
 function get_property_rh(val::Any, 𝒯ᴿᴴ)
