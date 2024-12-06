@@ -62,7 +62,7 @@ end
     hor = PeriodHorizons([duration(t) for t ∈ T], 2, 1)
 
     model = RecHorOperationalModel(
-        Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2
+        Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2,
     )
 
     nodes = [
@@ -83,7 +83,7 @@ end
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
                 InitStorageData(0),
-                EmptyData(), # testing multiple data
+                EmptyData() # testing multiple data
             ]),
         ),
         RefSink(
@@ -104,7 +104,8 @@ end
     ]
 
     case = Dict(
-        :nodes => nodes, :links => links, :products => products, :T => T, :horizons => hor
+        :nodes => nodes, :links => links, :products => products, :T => T,
+        :horizons => hor,
     )
 
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
@@ -134,4 +135,155 @@ end
     for (k_EMRH, _) ∈ sparse_containers(results_EMRH)
         @test Set(results_EMRH[k_EMRH].data.keys) ⊆ Set(results_EMB[k_EMRH].data.keys) # not all values are allocated initially
     end
+end
+
+@testset "Check nodes for OperationalProfile" begin
+    el = ResourceCarrier("el", 0.2)
+    heat = ResourceCarrier("heat", 0.0)
+    co2 = ResourceEmit("co2", 1.0)
+    resources = [el, heat, co2]
+
+    profile = [1, 2, 3]
+    dim_t = length(profile)
+
+    em_process_oper = EmissionsProcess(Dict(co2 => OperationalProfile(profile)))
+    em_process_fixed = EmissionsProcess(Dict(co2 => FixedProfile(2)))
+
+    data = [
+        EmissionsEnergy(OperationalProfile(profile)),
+        EmissionsProcess(Dict(co2 => OperationalProfile(profile))),
+        EmissionsProcess(Dict(co2 => FixedProfile(2))),
+    ]
+
+    #create individual nodes of the system
+    av = GenAvailability("Availability", resources)
+    source_fixed = RefSource(
+        "electricity source", #Node id or name
+        FixedProfile(1e12), #Capacity
+        FixedProfile(100), #variable OPEX
+        FixedProfile(0), #Fixed OPEN in EUR/8h
+        Dict(el => 1), #output from the node
+    )
+    source_oper = RefSource(
+        "electricity source", #Node id or name
+        FixedProfile(1e12), #Capacity
+        OperationalProfile(profile), #variable OPEX
+        FixedProfile(0), #Fixed OPEN in EUR/8h
+        Dict(el => 1), #output from the node
+    )
+    network = RefNetworkNode(
+        "el_to_heat",
+        FixedProfile(1e12), #cap - This can be OperationalProfile
+        OperationalProfile(profile), #opex variable
+        FixedProfile(0),
+        Dict(el => 1), #input
+        Dict(heat => 1), #output
+        data,
+    )
+    storage = RefStorage{RecedingAccumulating}(
+        "electricity storage",
+        StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
+        StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
+        el, # stor_res::T
+        Dict(el => 1), # input::Dict{<:Resource, <:Real}
+        Dict(el => 1), # output::Dict{<:Resource, <:Real}
+    )
+    storage_data = RefStorage{RecedingAccumulating}(
+        "electricity storage",
+        StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
+        StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
+        el, # stor_res::T
+        Dict(el => 1), # input::Dict{<:Resource, <:Real}
+        Dict(el => 1), # output::Dict{<:Resource, <:Real}
+        data,
+    )
+    storage_charge_oper = RefStorage{RecedingAccumulating}(
+        "electricity storage",
+        StorCapOpexVar(OperationalProfile(profile), FixedProfile(100)), # rate_cap, opex_var
+        StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
+        el, # stor_res::T
+        Dict(el => 1), # input::Dict{<:Resource, <:Real}
+        Dict(el => 1), # output::Dict{<:Resource, <:Real}
+    )
+    storage_level_oper = RefStorage{RecedingAccumulating}(
+        "electricity storage",
+        StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
+        StorCapOpexFixed(OperationalProfile(profile), FixedProfile(0)), # stor_cap, opex_fixed
+        el, # stor_res::T
+        Dict(el => 1), # input::Dict{<:Resource, <:Real}
+        Dict(el => 1), # output::Dict{<:Resource, <:Real}
+    )
+    storage_charge_level_data_oper = RefStorage{RecedingAccumulating}(
+        "electricity storage",
+        StorCapOpexVar(OperationalProfile(profile), FixedProfile(100)), # rate_cap, opex_var
+        StorCapOpexFixed(OperationalProfile(profile), FixedProfile(0)), # stor_cap, opex_fixed
+        el, # stor_res::T
+        Dict(el => 1), # input::Dict{<:Resource, <:Real}
+        Dict(el => 1), # output::Dict{<:Resource, <:Real}
+        data,
+    )
+    sink = RefSink(
+        "heat demand", #node ID or name
+        OperationalProfile(profile), #demand in MW (time profile)
+        Dict(
+            :surplus => FixedProfile(0),
+            :deficit => OperationalProfile(1e6 * ones(dim_t)),
+        ), #surplus and deficit penalty
+        Dict(heat => 1), #energy demand and corresponding ratio
+    )
+
+    @test all(EMRH._fields_with_operational_profile(network) .== [:opex_var, :data])
+    @test all(EMRH._fields_with_operational_profile(source_oper) .== [:opex_var])
+    @test all(EMRH._fields_with_operational_profile(source_fixed) .== Symbol[])
+    @test all(EMRH._fields_with_operational_profile(av) .== Symbol[])
+    @test all(EMRH._fields_with_operational_profile(storage) .== Symbol[])
+    @test all(EMRH._fields_with_operational_profile(storage_data) .== [:data])
+    @test all(EMRH._fields_with_operational_profile(storage_charge_oper) .== [:charge])
+    @test all(EMRH._fields_with_operational_profile(storage_level_oper) .== [:level])
+    @test all(
+        EMRH._fields_with_operational_profile(storage_charge_level_data_oper) .==
+        [:charge, :level, :data],
+    )
+end
+
+@testset "EMRH._has_field_operational_profile" begin
+    @test EMRH._has_field_operational_profile(OperationalProfile([1]))
+    @test EMRH._has_field_operational_profile(
+        Dict(:a => Dict(:b => Dict(:c => OperationalProfile([1])))),
+    ) # true
+    @test !EMRH._has_field_operational_profile(
+        Dict(:a => Dict(:b => Dict(:c => FixedProfile(1)))),
+    ) # false
+    @test_throws ErrorException EMRH._has_field_operational_profile(
+        Dict(:a => StrategicProfile([1, 2])),
+    ) # raises Error. EMRH should not be used with StrategicProfile
+
+    #test for various Data
+    @test !EMRH._has_field_operational_profile(EmissionsEnergy(OperationalProfile([1]))) #EmissionsEnergy accepts any input arguments, but does not use it.
+    @test EMRH._has_field_operational_profile(
+        EmissionsProcess(Dict(co2 => OperationalProfile([1]))),
+    )
+    @test !EMRH._has_field_operational_profile(
+        EmissionsProcess(Dict(co2 => FixedProfile(2))),
+    )
+    @test !EMRH._has_field_operational_profile(EmptyData())
+    @test !EMRH._has_field_operational_profile(InitStorageData(4.0))
+
+    #test for various AbstractStorageParameters
+    @test EMRH._has_field_operational_profile(
+        StorCapOpexFixed(OperationalProfile([1]), FixedProfile(0)),
+    )
+    @test !EMRH._has_field_operational_profile(
+        StorCapOpexFixed(FixedProfile(1), FixedProfile(0)),
+    )
+    @test EMRH._has_field_operational_profile(
+        StorCapOpexVar(OperationalProfile([1]), FixedProfile(0)),
+    )
+    @test !EMRH._has_field_operational_profile(
+        StorCapOpexVar(FixedProfile(1), FixedProfile(0)),
+    )
+    @test EMRH._has_field_operational_profile(StorOpexVar(OperationalProfile([1])))
+    @test !EMRH._has_field_operational_profile(StorOpexVar(FixedProfile(1)))
+    @test EMRH._has_field_operational_profile(StorCap(OperationalProfile([1])))
+    @test !EMRH._has_field_operational_profile(StorCap(FixedProfile(1)))
 end

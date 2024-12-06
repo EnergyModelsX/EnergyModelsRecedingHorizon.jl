@@ -8,6 +8,7 @@ function get_rh_case_model(case, model, 𝒽, init_data=nothing)
     # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
     # must be improved to deal with more cases
     𝒯ᴿᴴ = optimization_time_ref(case[:T], 𝒽)
+    println("𝒯ᴿᴴ = $(𝒯ᴿᴴ)")
     case_rh = Dict(
         :products => case[:products],
         :T => TwoLevel(1, 1, SimpleTimes([duration(t) for t ∈ 𝒯ᴿᴴ])),
@@ -279,3 +280,96 @@ function Base.iterate(itr::AbstractHorizons, state=(1, nothing))
     horizon = SingleHorizon(next, itr.dur[rng_optim], collect(rng_optim), collect(rng_impl))
     return horizon, (rng_impl[end] + 1, next)
 end
+
+"""
+_fields_with_operational_profile(n::Union{NetworkNode, Source, Sink})
+_fields_with_operational_profile(n::Storage)
+_fields_with_operational_profile(n::Availability)
+_fields_with_operational_profile(n::EMB.Node)
+
+Function for returning the fields in a node containing an `OperationalProfile`. If no fields are found, it returns `Symbol[]`.
+
+    Ex:
+    el = ResourceCarrier("el", 0.2)
+    heat = ResourceCarrier("heat", 0.0)
+    co2 = ResourceEmit("co2", 1.0)
+    n = RefNetworkNode(
+        "my_id", :id
+        FixedProfile(1e12), # :cap
+        OperationalProfile([1,2]), # :opex_var
+        FixedProfile(0), # :opex_fixed
+        Dict(el => 1), # :input
+        Dict(heat => 1), # :output
+        [EmissionsProcess(Dict(co2 => OperationalProfile([2,2])))] # :data
+    )
+    _fields_with_operational_profile(n) # returns [:opex_var, :data]
+"""
+function _fields_with_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
+    return [fn for fn ∈ fieldnames(typeof(n)) if _has_field_operational_profile(getfield(n, fn))]
+end
+
+function _fields_with_operational_profile(n::Availability)
+    return Symbol[]
+end
+
+function _fields_with_operational_profile(n::EMB.Node)
+    error("We assume only subtypes of NetworkNode, Source, Sink and Storage.")
+    return nothing
+end
+
+
+"""
+    _has_field_operational_profile(field::OperationalProfile)
+    _has_field_operational_profile(field::StrategicProfile)
+    _has_field_operational_profile(field::Vector{Data})
+    _has_field_operational_profile(field::Data)
+    _has_field_operational_profile(field::EMB.AbstractStorageParameters)
+    _has_field_operational_profile(field::Dict)
+    _has_field_operational_profile(field)
+
+Function for recursively checking if `field` contains an `OperationalProfile`, returning
+true or false
+
+# Examples
+```julia
+
+co2 = ResourceEmit("co2", 1.0)
+
+# The following calls return true
+_has_field_operational_profile(OperationalProfile([1]))
+_has_field_operational_profile(EmissionsProcess(Dict(co2 => OperationalProfile(profile))))
+_has_field_operational_profile(StorCapOpexFixed(OperationalProfile([1]), FixedProfile(0)))
+_has_field_operational_profile(Dict(:a => Dict(:b => Dict(:c => OperationalProfile([1])))))
+
+# The following calls return false
+_has_field_operational_profile(Dict(:a => Dict(:b => Dict(:c => FixedProfile(1)))))
+_has_field_operational_profile(EmissionsProcess(Dict(co2 => FixedProfile(2))))
+_has_field_operational_profile(EmptyData())
+_has_field_operational_profile(InitStorageData(4.0))
+
+_has_field_operational_profile(EmissionsEnergy(OperationalProfile([1])))
+# EmissionsEnergy accepts any inputs, but does not store `OperationalProfiles`
+
+# The following calls return an error
+_has_field_operational_profile(StrategicProfile([1]))
+_has_field_operational_profile(Dict(:a => StrategicProfile([1, 2])))
+```
+"""
+_has_field_operational_profile(field::OperationalProfile) = true
+function _has_field_operational_profile(field::StrategicProfile)
+    error("EMRH should not be used with strategic profiles")
+    return nothing
+end
+function _has_field_operational_profile(field::Vector{<:Data})
+    return any([_has_field_operational_profile(d) for d ∈ field])
+end
+function _has_field_operational_profile(field::Data)
+    return any([_has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))])
+end
+function _has_field_operational_profile(field::Dict)
+    return any([_has_field_operational_profile(val) for (key, val) ∈ field])
+end
+function _has_field_operational_profile(field::EMB.AbstractStorageParameters)
+    return any([_has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))])
+end
+_has_field_operational_profile(field) = false
