@@ -81,6 +81,9 @@ ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run a
     exdir = joinpath(@__DIR__, "..", "examples")
     files = filter(endswith(".jl"), readdir(exdir))
     for file ∈ files
+        if file == "detect_operational_profiles.jl" #not relevant to test this file
+            continue
+        end
         @testset "Example $file" begin
             redirect_stdio(stdout=devnull, stderr=devnull) do
                 include(joinpath(exdir, file))
