@@ -98,7 +98,7 @@ optimize!(m)
 av, source, stor, sink = case[:nodes]
 power, co2 = case[:products]
 
-results_full = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)))
+results_full = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if (k != :stor_level_Δ_sp))
 solution_full_problem = results_full[:cap_use][source, :].data
 out_full_problem = results_full[:flow_in][sink, :, power].data.vals
 stor_full_problem = results_full[:stor_level][stor, :].data

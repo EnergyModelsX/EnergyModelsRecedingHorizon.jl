@@ -141,7 +141,7 @@ at the time period `𝒽`. The containers in `results` are indexed by the elemen
 """
 function update_results!(results, m, case_rh, case, 𝒽)
     𝒯ᴿᴴₒᵤₜ = optimization_time_ref(case[:T], 𝒽)
-    results_rh = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)))
+    results_rh = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if (k != :stor_level_Δ_sp))
     convert_dict = Dict(
         n_rh => n for sym ∈ [:nodes, :links, :products] for
         (n, n_rh) ∈ zip(case[sym], case_rh[sym])
@@ -373,3 +373,92 @@ function _has_field_operational_profile(field::EMB.AbstractStorageParameters)
     return any([_has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))])
 end
 _has_field_operational_profile(field) = false
+
+"""
+_find_paths_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
+_find_paths_operational_profile(field::Union{NetworkNode, Source, Sink, Storage}, current_path::Vector{Any}, all_paths::Vector{Any})
+_find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
+_find_paths_operational_profile(field::Union{Data, EMB.AbstractStorageParameters}, current_path::Vector{Any}, all_paths::Vector{Any})
+_find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
+_find_paths_operational_profile(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+_find_paths_operational_profile(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+_find_paths_operational_profile(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
+
+Function for returning the fields in a node containing an `OperationalProfile`, returning a list of the path.
+
+
+# Examples
+```julia
+
+co2 = ResourceEmit("co2", 1.0) 
+sink = RefSink(
+    "a_sink", # :id
+    FixedProfile(1e5), # :cap
+    Dict(:surplus => OperationalProfile(zeros(dim_t)), :deficit => OperationalProfile(1e6*ones(dim_t))), # :penalty
+    Dict(heat => 1), # :input
+    [EmptyData(), EmissionsProcess(Dict(co2 => OperationalProfile(profile)))] # :data
+)
+
+ EMRH._find_paths_operational_profile(sink)
+# returns a 3-element Vector{Any}:
+#  Any[:penalty, :deficit]
+#  Any[:penalty, :surplus]
+#  Any[:data, "idx_2", :emissions, co2]
+
+# The function can also be used for checking other `types`:
+all_paths = []
+current_path = Any[:a_path]
+a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])), :b2 => OperationalProfile([1]), :b3 => [1]))
+EMRH._find_paths(a_dict, current_path, all_paths)
+
+#all_paths are now a 2-element Vector{Any}: [Any[:my_path, :a, :b2], Any[:my_path, :a, :b1, :c]]
+
+```
+"""
+
+function _find_paths_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
+    all_paths = []  # To store the paths to lists
+    # Start recursion
+    _find_paths_operational_profile(n, [], all_paths)
+    return all_paths
+end
+
+function _find_paths_operational_profile(field::Union{NetworkNode, Source, Sink, Storage}, current_path::Vector{Any}, all_paths::Vector{Any})
+    for f in fieldnames(typeof(field))
+        new_path = vcat(current_path, f)
+        _find_paths_operational_profile(getfield(field, f), new_path, all_paths)
+    end
+end
+
+function _find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
+    for (i, d) in enumerate(field)
+        new_path = vcat(current_path, ["idx_$(i)"]) 
+        _find_paths_operational_profile(d, new_path, all_paths)  
+    end
+end
+
+function _find_paths_operational_profile(field::Union{Data, EMB.AbstractStorageParameters}, current_path::Vector{Any}, all_paths::Vector{Any})
+    for f in fieldnames(typeof(field))
+        new_path = vcat(current_path, f)
+        _find_paths_operational_profile(getfield(field, f), new_path, all_paths)
+    end
+end
+
+function _find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
+    for (key, value) in field
+        new_path = vcat(current_path, key) 
+        _find_paths_operational_profile(value, new_path, all_paths)  
+    end
+end
+
+function _find_paths_operational_profile(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+    push!(all_paths, current_path)  # Add current_path to all_paths
+end
+
+function _find_paths_operational_profile(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+    error("EMRH should not be used with strategic profiles")
+end
+
+function _find_paths_operational_profile(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
+    # No action needed
+end
