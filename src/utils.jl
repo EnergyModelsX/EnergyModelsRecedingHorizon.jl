@@ -464,5 +464,6 @@ function _find_paths_operational_profile(field::Any, current_path::Vector{Any}, 
 end
 
 function get_results(m::JuMP.Model)
-    return Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if (k != :stor_level_Δ_sp)) #NB! Added if.. block after updating EMB
+    types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray}
+    return Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if !(typeof(m[k]) <: types_not_supported))
 end
