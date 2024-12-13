@@ -233,6 +233,21 @@ end
         Dict(heat => 1), #energy demand and corresponding ratio
     )
 
+    @test issetequal(EMRH._find_paths_operational_profile(source_fixed), Any[])
+    @test issetequal(EMRH._find_paths_operational_profile(source_oper), [[:opex_var]])
+    @test issetequal(EMRH._find_paths_operational_profile(sink), [[:cap], [:penalty, :deficit]])
+    @test issetequal(EMRH._find_paths_operational_profile(storage_charge_level_data_oper), 
+        [[:charge, :capacity],
+        [:level, :capacity],
+        [:data, "idx_2", :emissions, co2]]
+    )
+
+    all_paths = []
+    current_path = Any[:a_path]
+    a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])), :b2 => OperationalProfile([1]), :b3 => [1]))
+    EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
+    @test issetequal(all_paths, [[:a_path, :a, :b2], [:a_path, :a, :b1, :c]])
+
     @test all(EMRH._fields_with_operational_profile(network) .== [:opex_var, :data])
     @test all(EMRH._fields_with_operational_profile(source_oper) .== [:opex_var])
     @test all(EMRH._fields_with_operational_profile(source_fixed) .== Symbol[])
@@ -245,6 +260,8 @@ end
         EMRH._fields_with_operational_profile(storage_charge_level_data_oper) .==
         [:charge, :level, :data],
     )
+
+
 end
 
 @testset "EMRH._has_field_operational_profile" begin

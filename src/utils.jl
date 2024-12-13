@@ -409,9 +409,9 @@ sink = RefSink(
 all_paths = []
 current_path = Any[:a_path]
 a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])), :b2 => OperationalProfile([1]), :b3 => [1]))
-EMRH._find_paths(a_dict, current_path, all_paths)
+EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
 
-#all_paths are now a 2-element Vector{Any}: [Any[:my_path, :a, :b2], Any[:my_path, :a, :b1, :c]]
+#all_paths are now a 2-element Vector{Any}: [Any[:a_path, :a, :b2], Any[:a_path, :a, :b1, :c]]
 
 ```
 """
