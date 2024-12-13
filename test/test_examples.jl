@@ -65,7 +65,7 @@
     @test results_EMRH[:flow_out][case[:nodes][2], :, power].data.vals ==
         [3.5, 3.5, 5.375, 5.25, 3.0]
 
-    results_EMB = Dict(k => value.(m_EMB[k]) for k ∈ keys(object_dictionary(m_EMB)))
+    results_EMB = EMRH.get_results(m_EMB) 
     @test results_EMB[:flow_out][case[:nodes][2], :, power].data.vals ==
         results_EMRH[:flow_out][case[:nodes][2], :, power].data.vals
     @test results_EMB[:stor_level][case[:nodes][3], :].data ==

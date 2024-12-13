@@ -53,89 +53,90 @@
     @test l_rh.to == n_sink_rh
 end
 
-# @testset "Result containers" begin
-#     power = ResourceCarrier("power", 0.0)
-#     co2 = ResourceEmit("co2", 1.0)
-#     products = [power, co2]
+@testset "Result containers" begin
+    power = ResourceCarrier("power", 0.0)
+    co2 = ResourceEmit("co2", 1.0)
+    products = [power, co2]
 
-#     T = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
-#     hor = PeriodHorizons([duration(t) for t ∈ T], 2, 1)
+    T = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
+    hor = PeriodHorizons([duration(t) for t ∈ T], 2, 1)
 
-#     model = RecHorOperationalModel(
-#         Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2,
-#     )
+    model = RecHorOperationalModel(
+        Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2,
+    )
 
-#     nodes = [
-#         GenAvailability("Availability", products),
-#         RefSource(
-#             "electricity source", # id
-#             FixedProfile(1e12), # cap
-#             OperationalProfile([1, 10, 1, 10, 1]), # opex_var
-#             FixedProfile(0), # opex_fixed
-#             Dict(power => 1), # output
-#         ),
-#         RefStorage{RecedingAccumulating}(
-#             "electricity storage", # id
-#             StorCapOpexVar(FixedProfile(100), FixedProfile(0.01)), # rate_cap, opex_var
-#             StorCapOpexFixed(FixedProfile(1.5), FixedProfile(0)), # stor_cap, opex_fixed
-#             power, # stor_res::T
-#             Dict(power => 1), # input::Dict{<:Resource, <:Real}
-#             Dict(power => 1), # output::Dict{<:Resource, <:Real}
-#             Vector([
-#                 InitStorageData(0),
-#                 EmptyData() # testing multiple data
-#             ]),
-#         ),
-#         RefSink(
-#             "electricity demand", # id
-#             OperationalProfile([3, 4, 5, 6, 3]), # cap
-#             Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e6)), # penalty
-#             Dict(power => 1), # input
-#         ),
-#     ]
+    nodes = [
+        GenAvailability("Availability", products),
+        RefSource(
+            "electricity source", # id
+            FixedProfile(1e12), # cap
+            OperationalProfile([1, 10, 1, 10, 1]), # opex_var
+            FixedProfile(0), # opex_fixed
+            Dict(power => 1), # output
+        ),
+        RefStorage{RecedingAccumulating}(
+            "electricity storage", # id
+            StorCapOpexVar(FixedProfile(100), FixedProfile(0.01)), # rate_cap, opex_var
+            StorCapOpexFixed(FixedProfile(1.5), FixedProfile(0)), # stor_cap, opex_fixed
+            power, # stor_res::T
+            Dict(power => 1), # input::Dict{<:Resource, <:Real}
+            Dict(power => 1), # output::Dict{<:Resource, <:Real}
+            Vector([
+                InitStorageData(0),
+                EmptyData() # testing multiple data
+            ]),
+        ),
+        RefSink(
+            "electricity demand", # id
+            OperationalProfile([3, 4, 5, 6, 3]), # cap
+            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e6)), # penalty
+            Dict(power => 1), # input
+        ),
+    ]
 
-#     links = [
-#         Direct("av-source", nodes[1], nodes[2], Linear()),
-#         Direct("av-storage", nodes[1], nodes[3], Linear()),
-#         Direct("av-demand", nodes[1], nodes[4], Linear()),
-#         Direct("source-av", nodes[2], nodes[1], Linear()),
-#         Direct("storage-av", nodes[3], nodes[1], Linear()),
-#         Direct("demand-av", nodes[4], nodes[1], Linear()),
-#     ]
+    links = [
+        Direct("av-source", nodes[1], nodes[2], Linear()),
+        Direct("av-storage", nodes[1], nodes[3], Linear()),
+        Direct("av-demand", nodes[1], nodes[4], Linear()),
+        Direct("source-av", nodes[2], nodes[1], Linear()),
+        Direct("storage-av", nodes[3], nodes[1], Linear()),
+        Direct("demand-av", nodes[4], nodes[1], Linear()),
+    ]
 
-#     case = Dict(
-#         :nodes => nodes, :links => links, :products => products, :T => T,
-#         :horizons => hor,
-#     )
+    case = Dict(
+        :nodes => nodes, :links => links, :products => products, :T => T,
+        :horizons => hor,
+    )
 
-#     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-#     hor_test = first(hor)
-#     case_rh, model_rh = get_rh_case_model(case, model, hor_test)
+    optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+    hor_test = first(hor)
+    case_rh, model_rh = get_rh_case_model(case, model, hor_test)
 
-#     m_rh1 = run_model(case_rh, model_rh, optimizer)
-#     @test termination_status(m_rh1) == MOI.OPTIMAL
+    m_rh1 = run_model(case_rh, model_rh, optimizer)
+    @test termination_status(m_rh1) == MOI.OPTIMAL
 
-#     m_EMB = run_model(case, model, optimizer)
-#     @test termination_status(m_EMB) == MOI.OPTIMAL
+    m_EMB = run_model(case, model, optimizer)
+    @test termination_status(m_EMB) == MOI.OPTIMAL
 
-#     results_EMRH = Dict{Symbol,AbstractArray{Float64}}()
-#     EMRH.update_results!(results_EMRH, m_rh1, case_rh, case, hor_test)
-#     results_EMB = Dict(k => value.(m_EMB[k]) for k ∈ keys(object_dictionary(m_EMB)))
-#     @test Set(keys(results_EMB)) == union(
-#         keys(results_EMRH),
-#         [:opex_var, :emissions_strategic, :opex_fixed], # fields for strategic horizons - to be implemented
-#     )
-#     dense_containers(cont) =
-#         filter(kv -> (typeof(kv[2]) <: Containers.DenseAxisArray), cont)
-#     for (k_EMRH, _) ∈ dense_containers(results_EMRH)
-#         @test size(results_EMRH[k_EMRH].data) == size(results_EMB[k_EMRH].data)
-#     end
-#     sparse_containers(cont) =
-#         filter(kv -> (typeof(kv[2]) <: Containers.SparseAxisArray), cont)
-#     for (k_EMRH, _) ∈ sparse_containers(results_EMRH)
-#         @test Set(results_EMRH[k_EMRH].data.keys) ⊆ Set(results_EMB[k_EMRH].data.keys) # not all values are allocated initially
-#     end
-# end
+    results_EMRH = Dict{Symbol,AbstractArray{Float64}}()
+    EMRH.update_results!(results_EMRH, m_rh1, case_rh, case, hor_test)
+    results_EMB = EMRH.get_results(m_EMB) 
+    @test Set(keys(results_EMB)) == union(
+        keys(results_EMRH),
+        [:opex_var, :emissions_strategic, :opex_fixed, # fields for strategic horizons - to be implemented
+        :link_opex_fixed, :link_opex_var], #NEW fields when updated EMB. Are these important? Check with Julian
+    )
+    dense_containers(cont) =
+        filter(kv -> (typeof(kv[2]) <: Containers.DenseAxisArray), cont)
+    for (k_EMRH, _) ∈ dense_containers(results_EMRH)
+        @test size(results_EMRH[k_EMRH].data) == size(results_EMB[k_EMRH].data)
+    end
+    sparse_containers(cont) =
+        filter(kv -> (typeof(kv[2]) <: Containers.SparseAxisArray), cont)
+    for (k_EMRH, _) ∈ sparse_containers(results_EMRH)
+        @test Set(results_EMRH[k_EMRH].data.keys) ⊆ Set(results_EMB[k_EMRH].data.keys) # not all values are allocated initially
+    end
+end
 
 @testset "Check nodes for OperationalProfile" begin
     el = ResourceCarrier("el", 0.2)

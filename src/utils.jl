@@ -141,7 +141,7 @@ at the time period `𝒽`. The containers in `results` are indexed by the elemen
 """
 function update_results!(results, m, case_rh, case, 𝒽)
     𝒯ᴿᴴₒᵤₜ = optimization_time_ref(case[:T], 𝒽)
-    results_rh = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if (k != :stor_level_Δ_sp))
+    results_rh = get_results(m) 
     convert_dict = Dict(
         n_rh => n for sym ∈ [:nodes, :links, :products] for
         (n, n_rh) ∈ zip(case[sym], case_rh[sym])
@@ -461,4 +461,8 @@ end
 
 function _find_paths_operational_profile(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
     # No action needed
+end
+
+function get_results(m::JuMP.Model)
+    return Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if (k != :stor_level_Δ_sp)) #NB! Added if.. block after updating EMB
 end
