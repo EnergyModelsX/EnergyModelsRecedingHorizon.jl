@@ -4,10 +4,13 @@ using HiGHS
 using JuMP
 using Test
 using TimeStruct
+using ParametricOptInterface
+using Accessors
 
 const EMRH = EnergyModelsRecHorizon
 const EMB = EnergyModelsBase
 const TS = TimeStruct
+const POI = ParametricOptInterface
 
 const TEST_ATOL = 1e-6
 

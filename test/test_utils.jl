@@ -120,7 +120,7 @@ end
 
     results_EMRH = Dict{Symbol,AbstractArray{Float64}}()
     EMRH.update_results!(results_EMRH, m_rh1, case_rh, case, hor_test)
-    results_EMB = EMRH.get_results(m_EMB) 
+    results_EMB = EMRH.get_results(m_EMB)
     @test Set(keys(results_EMB)) == union(
         keys(results_EMRH),
         [:opex_var, :emissions_strategic, :opex_fixed, # fields for strategic horizons - to be implemented
@@ -236,7 +236,7 @@ end
     @test issetequal(EMRH._find_paths_operational_profile(source_fixed), Any[])
     @test issetequal(EMRH._find_paths_operational_profile(source_oper), [[:opex_var]])
     @test issetequal(EMRH._find_paths_operational_profile(sink), [[:cap], [:penalty, :deficit]])
-    @test issetequal(EMRH._find_paths_operational_profile(storage_charge_level_data_oper), 
+    @test issetequal(EMRH._find_paths_operational_profile(storage_charge_level_data_oper),
         [[:charge, :capacity],
         [:level, :capacity],
         [:data, "idx_2", :emissions, co2]]

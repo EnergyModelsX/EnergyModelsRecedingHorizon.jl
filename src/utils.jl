@@ -141,7 +141,7 @@ at the time period `𝒽`. The containers in `results` are indexed by the elemen
 """
 function update_results!(results, m, case_rh, case, 𝒽)
     𝒯ᴿᴴₒᵤₜ = optimization_time_ref(case[:T], 𝒽)
-    results_rh = get_results(m) 
+    results_rh = get_results(m)
     convert_dict = Dict(
         n_rh => n for sym ∈ [:nodes, :links, :products] for
         (n, n_rh) ∈ zip(case[sym], case_rh[sym])
@@ -390,7 +390,7 @@ Function for returning the fields in a node containing an `OperationalProfile`, 
 # Examples
 ```julia
 
-co2 = ResourceEmit("co2", 1.0) 
+co2 = ResourceEmit("co2", 1.0)
 sink = RefSink(
     "a_sink", # :id
     FixedProfile(1e5), # :cap
@@ -432,8 +432,8 @@ end
 
 function _find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
     for (i, d) in enumerate(field)
-        new_path = vcat(current_path, ["idx_$(i)"]) 
-        _find_paths_operational_profile(d, new_path, all_paths)  
+        new_path = vcat(current_path, ["idx_$(i)"])
+        _find_paths_operational_profile(d, new_path, all_paths)
     end
 end
 
@@ -446,8 +446,8 @@ end
 
 function _find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
     for (key, value) in field
-        new_path = vcat(current_path, key) 
-        _find_paths_operational_profile(value, new_path, all_paths)  
+        new_path = vcat(current_path, key)
+        _find_paths_operational_profile(value, new_path, all_paths)
     end
 end
 
@@ -463,7 +463,69 @@ function _find_paths_operational_profile(field::Any, current_path::Vector{Any}, 
     # No action needed
 end
 
-function get_results(m::JuMP.Model)
-    types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray}
+
+"""
+get_results(m::JuMP.Model; types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray})
+
+Function returning the values of the optimized model `m`. It does, however, not extract values if the type is in `types_not_supported`.
+
+"""
+
+function get_results(m::JuMP.Model; types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray})
     return Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if !(typeof(m[k]) <: types_not_supported))
+end
+
+"""
+_set_POI_par_as_operational_profile(m::JuMP.Model, field::OperationalProfile, n::Union{Sink}, case::Dict)
+
+Function which converts `field` from a "standard" OperationalProfile to an OperationalProfile containing POI-parameters.
+
+Specifically, iy converts `field` from a type of `OperationalProfile{<:Real}` to `OperationalProfile{MathOptInterface.Parameter{Int64}}`
+
+"""
+
+function _set_POI_par_as_operational_profile(m::JuMP.Model, field::OperationalProfile, n::Union{Sink}, case::Dict)
+
+    @assert n ∈ case[:nodes] "Node $(n) is not found in case[:nodes] = $(case[:nodes])"
+    T = case[:T]
+
+    profile = field.vals
+    println("in _set_POI_par, have original profile = $(profile)")
+
+    # println("field.vals = $(field.vals)")
+    @assert typeof(profile) <: Vector{<:Real} "typeof(profile) = $(typeof(profile)), expected Vector{<:Real}"
+    par_profile = OperationalProfile(MOI.Parameter.(profile)) #parametric profile with same values
+
+    n_paths_to_oper_prof = _find_paths_operational_profile(n)
+    n_path = n_paths_to_oper_prof[1]
+
+    #using POI provides unexpected behavior
+    # @variable(m, poi_var[[n], T] ∈ par_profile[collect(T)]) #this gives [8x8] matrix with VariableRef..
+    # @variable(m, poi_var[[n], T] >= 0) #this gives expected behavior: [1x8] matrix (POI not used)
+    # @variable(m, poi_var[T] ∈ par_profile[collect(T)]) #this works, but it is a special case for 1 OperationalProfile
+
+    #work-around: defining a new set. This does, however, not follow the EMB naming convention.
+    my_set = [(n, n_path..., t) for t in T]
+    @variable(m, poi_var[my_set] ∈ par_profile[collect(T)]) #this works, but does not follow classic EMB naming conventions
+
+    println("in _set_POI_par, have par_profile = $(par_profile)")
+    new_profile = OperationalProfile([poi_var[(n, n_path..., t)] for t ∈ T])
+
+
+    @reset case[:nodes][end].cap = new_profile
+
+    return case
+end
+
+function _set_values_operational_profile(m::JuMP.Model, new_values::Vector{<:Real}, n::Union{Sink}, case)
+    n_paths_to_oper_prof = _find_paths_operational_profile(n)
+    n_path = n_paths_to_oper_prof[1]
+
+    println("m[:poi_var] = $(m[:poi_var])")
+    println("new_values = $(new_values)")
+    println("n_path = $(n_path)")
+    for (i,t) in enumerate(case[:T])
+        MOI.set(m, POI.ParameterValue(), m[:poi_var][(n, n_path..., t)], new_values[i])
+    end
+    return m
 end
