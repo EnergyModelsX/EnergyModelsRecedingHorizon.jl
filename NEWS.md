@@ -1,14 +1,26 @@
 # Release notes
 
 
-## Version 0.3.0
+## Version 0.3.2 (2025-01-08)
+
+### Introduced documentation; added example of node initialization
+
+* Current documentation has the basic information for EMX users to create EMRH-compliant nodes. Still needs improvement, especially for first-time users.
+* New example for node initialization that does not rely on `Storage`-specific functionality.
+* Introduced functions for checking for `OperationalProfile`s, which will be used to implement `ParametricOptInterface` in the future.
+
+## Version 0.3.1 (2024-11-06)
+
+### Bug fix
+
+Initialization data provided by user is no longer changed when model runs.
+
+## Version 0.3.0 (2024-09-30)
 
 ### Improved input requirements from user
 
-* Requires from user a `(case, model)` pair definition for the full problem horizon,
-similar to other EMX packages.
-  * Includes auxiliary functions for slicing full problem for each horizon, currently
-  relying on re-instancing nodes and links from `case`.
+* Requires from user a `(case, model)` pair definition for the full problem horizon, similar to other EMX packages.
+* Includes auxiliary functions for slicing full problem for each horizon, currently relying on re-instancing nodes and links from `case`.
 
 ### Time iterators for the horizon
 
