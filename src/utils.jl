@@ -375,14 +375,14 @@ end
 _has_field_operational_profile(field) = false
 
 """
-_find_paths_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
-_find_paths_operational_profile(field::Union{NetworkNode, Source, Sink, Storage}, current_path::Vector{Any}, all_paths::Vector{Any})
-_find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
-_find_paths_operational_profile(field::Union{Data, EMB.AbstractStorageParameters}, current_path::Vector{Any}, all_paths::Vector{Any})
-_find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
-_find_paths_operational_profile(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
-_find_paths_operational_profile(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
-_find_paths_operational_profile(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
+    _find_paths_operational_profile(field::Union{NetworkNode, Source, Sink, Storage}, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::Union{Data, EMB.AbstractStorageParameters}, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
 
 Function for returning the fields in a node containing an `OperationalProfile`, returning a list of the path.
 
@@ -415,7 +415,6 @@ EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
 
 ```
 """
-
 function _find_paths_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
     all_paths = []  # To store the paths to lists
     # Start recursion
@@ -465,18 +464,17 @@ end
 
 
 """
-get_results(m::JuMP.Model; types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray})
+    get_results(m::JuMP.Model; types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray})
 
 Function returning the values of the optimized model `m`. It does, however, not extract values if the type is in `types_not_supported`.
 
 """
-
 function get_results(m::JuMP.Model; types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray})
     return Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if !(typeof(m[k]) <: types_not_supported))
 end
 
 """
-_set_POI_par_as_operational_profile(m::JuMP.Model, field::OperationalProfile, n::Union{Sink}, case::Dict)
+    _set_POI_par_as_operational_profile(m::JuMP.Model, field::OperationalProfile, n::Union{Sink}, case::Dict)
 
 Function which converts `field` from a "standard" OperationalProfile to an OperationalProfile containing POI-parameters.
 
@@ -484,6 +482,11 @@ Specifically, iy converts `field` from a type of `OperationalProfile{<:Real}` to
 
 """
 
+"""
+    _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_copy::Dict)
+Function which iterates through the nodes, find all 'OperationalProfile{Real}' and changes them to 'OperationalProfile{VariableRef}'
+
+"""
 function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_copy::Dict)
 
     update_dict = Dict{EMB.Node, Dict}()
@@ -521,8 +524,8 @@ function _merge_path(oprof_path::Vector)
     end
     return path
 end
-_path_type(val::Symbol) = "." * String(val)
 
+_path_type(val::Symbol) = "." * String(val)
 function _path_type(val::String)
     _, idx = split(val, "_")
     return parse(Int64, idx)
@@ -532,8 +535,12 @@ function _path_type(val::Resource)
     return "[res]"
 end
 
+"""
+    _set_values_operational_profile(m::JuMP.Model, case_copy, n::EMB.Node, update_dict::Dict{EMB.Node, Dict}, lens_dict::Dict{EMB.Node, Dict}; multiplier = 1)
 
-function _set_values_operational_profile(m::JuMP.Model, n::EMB.Node, update_dict, case_copy, lens_dict; multiplier = 1)
+Updates the value of the POI parameter for node 'n' based on the values of the node 'n' in 'case_copy' for the period '𝒽'.
+"""
+function _set_values_operational_profile(m::JuMP.Model, case_copy, n::EMB.Node, update_dict::Dict{EMB.Node, Dict}, lens_dict::Dict{EMB.Node, Dict}; multiplier = 1)
     n_paths_to_oper_prof = _find_paths_operational_profile(n)
     for n_path ∈ n_paths_to_oper_prof
         new_values = _get_new_POI_values(n, lens_dict[n][n_path]; multiplier = multiplier)
@@ -545,16 +552,31 @@ function _set_values_operational_profile(m::JuMP.Model, n::EMB.Node, update_dict
     return m
 end
 
+"""
+    _get_new_POI_values(n::EMB.Node, lens, 𝒽; multiplier = 1)
+Currently, it returns the value lens(n).vals.
+
+NB: The idea is to slice the currently received value based on the horizon 𝒽. The 'multiplier' is there for testing puroposes.
+
+"""
 function _get_new_POI_values(n::EMB.Node, lens, 𝒽; multiplier = 1)
     return _get_new_POI_values(n, lens; multiplier = multiplier) #TODO: slice this based on h
 end
-
 function _get_new_POI_values(n::EMB.Node, lens; multiplier = 1)
     return lens(n).vals .* multiplier
 end
 
+"""
+    _get_node_index(needle::EMB.Node, haystack::Vector{<:EMB.Node})
+Returns the index of 'needle' in 'haystack', checking that the field 'id' are equal.
+
+"""
 function _get_node_index(needle::EMB.Node, haystack::Vector{<:EMB.Node})
     haystack_id = [h.id for h ∈ haystack]
     @assert _has_unique_strings(haystack_id) "'haystack' = $(haystack) has non-unique strings."
     return findfirst(isequal(needle.id), haystack_id)
+end
+
+function _has_unique_strings(v::Vector{String})
+    return length(v) == length(Set(v)) #Set(v) contains only unique elements
 end

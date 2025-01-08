@@ -305,3 +305,166 @@ end
     @test EMRH._has_field_operational_profile(StorCap(OperationalProfile([1])))
     @test !EMRH._has_field_operational_profile(StorCap(FixedProfile(1)))
 end
+
+
+@testset "POI in OperationalProfile" begin
+
+    optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
+
+    function check_equal_flows_av_node(m1, case1, m2, case2)
+        @assert is_solved_and_feasible(m1) "We assume optimized models."
+        @assert is_solved_and_feasible(m2) "We assume optimized models."
+
+        av1 = case1[:nodes][1]
+        av2 = case2[:nodes][1]
+
+        #result dictionary
+        res1 = EMRH.get_results(m1)
+        res2 = EMRH.get_results(m2)
+
+        for (r1, r2) ∈ zip(case1[:products], case2[:products])
+            @assert r1.id == r2.id
+
+            equal_in = (res1[:flow_in][av1, :, r1] .== res2[:flow_in][av2, :, r2])
+            equal_out = (res1[:flow_out][av1, :, r1] .== res2[:flow_out][av2, :, r2])
+
+            if ! (all(equal_in) && all(equal_out))
+                error("results are not equal for r1=$(r1) and r2=$(r2)")
+            end
+        end
+        return true #no errors have been thrown
+    end
+
+    function solve_EMB_case(demand_profile, price_profile)
+        println("demand profile = $(demand_profile)")
+        case_EMB, modeltype_EMB = create_case(demand_profile, price_profile;
+        init_state=5, modeltype = OperationalModel
+        )
+        @assert typeof(modeltype_EMB) <: OperationalModel
+        m_EMB = run_model(case_EMB, modeltype_EMB, optimizer)
+        termination_status(m_EMB)
+        return m_EMB, case_EMB
+    end
+
+    function create_case(demand_profile, price_profile; init_state=0, modeltype = RecHorOperationalModel)
+        #Define resources with their emission intensities
+        power = ResourceCarrier("power", 0.0)  #tCO2/MWh
+        co2 = ResourceEmit("co2", 1.0) #tCO2/MWh
+        products = [power, co2]
+
+        #define time structure
+        op_dur_vec = [1, 2, 1]
+        T = TwoLevel(1, 1, SimpleTimes(op_dur_vec))
+        hor = DurationHorizons([duration(t) for t ∈ T], 3, 3) # optimization and implementation horizons
+
+        model = modeltype(
+            Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
+            Dict(co2 => FixedProfile(0)), # emission price for CO2 in EUR/t
+            co2,
+        )
+
+        #create individual nodes of the system
+        av = GenAvailability("Availability", products)
+        source = RefSource(
+            "electricity source", #Node id or name
+            FixedProfile(1e7), #Capacity in MW (Time profile)
+            OperationalProfile(price_profile), #variable OPEX (time structure) in EUR/MW
+            FixedProfile(0), #Fixed OPEN in EUR/8h
+            Dict(power => 1), #output from the node
+        )
+        storage = RefStorage{RecedingAccumulating}(
+            "electricity storage",
+            StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
+            StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
+            power, # stor_res::T
+            Dict(power => 1), # input::Dict{<:Resource, <:Real}
+            Dict(power => 1), # output::Dict{<:Resource, <:Real}
+            Vector([
+                InitStorageData(init_state),
+                EmptyData(), # testing multiple data
+            ]),
+        )
+        sink = RefSink(
+            "electricity demand", #node ID or name
+            OperationalProfile(demand_profile), #demand in MW (time profile)
+            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e12)), #surplus and deficit penalty for the node in EUR/MWh
+            Dict(power => 1), #energy demand and corresponding ratio
+        )
+        nodes = [
+            av,
+            source,
+            storage,
+            sink
+        ]
+        links = create_links_from_nodes(nodes)
+        case = Dict(
+            :nodes => nodes, :links => links, :products => products, :T => T#, :horizons => hor
+        )
+
+        return case, model
+    end
+
+    function create_links_from_nodes(nodes::Vector{<:EMB.Node})
+        (av,
+        source,
+        storage,
+        sink) = nodes
+        #connect the nodes with links
+        links = [
+            Direct("source-av", source, av, Linear()),
+            Direct("av-sink", av, sink, Linear()),
+            Direct("av-storage", av, storage, Linear()),
+            Direct("storage-av", storage, av, Linear()),
+        ]
+        return links
+    end
+
+    #provide data
+    demand_prof = [20, 300, 40]
+    price_prof = [1e3, 1e3, 1e3]
+
+    case_rh, modeltype_rh = create_case(demand_prof, price_prof;
+        init_state=5, modeltype = RecHorOperationalModel
+        )
+    @assert typeof(modeltype_rh) <: RecHorOperationalModel
+    case_rh_copy = deepcopy(case_rh)
+
+    # Define JuMP.Model
+    m_rh = Model(() -> ParametricOptInterface.Optimizer(HiGHS.Optimizer()))
+
+    #change to paramtric OperationalProfiles
+    case_rh, update_dict, lens_dict = EMRH._set_POI_par_as_operational_profile(m_rh, case_rh, case_rh_copy) #this function is hard-coded to change :cap
+
+    # Regenerate links after modifying nodes
+    case_rh[:links] = create_links_from_nodes(case_rh[:nodes])
+
+    # Create model and optimize
+    EMB.create_model(case_rh, modeltype_rh, m_rh; check_any_data = false)
+    optimize!(m_rh)
+
+    # check we get same values as EMB
+    m_EMB1, case_EMB1 = solve_EMB_case(demand_prof, price_prof)
+    @assert check_equal_flows_av_node(m_rh, case_rh, m_EMB1, case_EMB1)
+
+    # change parameter values and re-optimize
+    multiplier = 2
+    n_example = case_rh_copy[:nodes][end]
+
+    # check that EMRH._get_new_POI_values returns the same values as originally provided
+    orig_cap_prof = EMRH._get_new_POI_values(n_example, lens_dict[n_example][Any[:cap]])
+    @test all(demand_prof .== orig_cap_prof)
+
+    demand_prof2 = EMRH._get_new_POI_values(
+        n_example,
+        lens_dict[n_example][Any[:cap]]; multiplier = multiplier)
+
+    @test all(demand_prof2 .== (multiplier .* demand_prof)) #the multiplier works as intended
+
+    #change values of the POI parameters and re-optimize
+    m_rh = EMRH._set_values_operational_profile(m_rh, case_rh_copy, case_rh_copy[:nodes][end], update_dict, lens_dict; multiplier = multiplier)
+    optimize!(m_rh)
+
+    #check that we get the same values as EMB again
+    m_EMB2, case_EMB2 = solve_EMB_case(demand_prof2, price_prof)
+    @test check_equal_flows_av_node(m_rh, case_rh, m_EMB2, case_EMB2)
+end
