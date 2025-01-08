@@ -73,7 +73,7 @@
     @test results_EMB[:flow_in][case[:nodes][4], :, power].data.vals ==
         results_EMRH[:flow_in][case[:nodes][4], :, power].data.vals
 
-    @test case[:nodes][3].data[1].init_level == 0.5 # InitStorageData object unchanged
+    @test case[:nodes][3].data[1].val == 0.5 # InitStorageData object unchanged
 end
 
 ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run as part of the tests

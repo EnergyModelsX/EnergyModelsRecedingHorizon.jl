@@ -247,22 +247,23 @@ struct SingleHorizon{T}
     end
 end
 TS.isfirst(sh::SingleHorizon) = sh.id == 1
+
 """
     durations(single_hor::SingleHorizon)
 
 Extracts the fiels `dur` from the `SingleHorizon` single_hor corresponding to a vector of
 the durations of the individual time periods.
 """
-
 durations(single_hor::SingleHorizon) = single_hor.dur
+
 """
     indices_optimization(single_hor::SingleHorizon)
 
 Extracts the fiels `idx_optim` from the `SingleHorizon` single_hor corresponding to a vector
 of the indices of the **_optimization_** horizon.
 """
-
 indices_optimization(single_hor::SingleHorizon) = single_hor.idx_optim
+
 """
     indices_implementation(single_hor::SingleHorizon)
 
