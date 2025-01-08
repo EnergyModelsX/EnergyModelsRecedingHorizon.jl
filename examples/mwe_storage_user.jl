@@ -12,6 +12,9 @@ using JuMP
 using EnergyModelsBase
 using TimeStruct
 using EnergyModelsRecHorizon
+
+const EMRH = EnergyModelsRecHorizon
+
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
 
 op_dur_vec = [1, 2, 1, 4, 1, 3, 1, 3]

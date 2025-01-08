@@ -484,48 +484,77 @@ Specifically, iy converts `field` from a type of `OperationalProfile{<:Real}` to
 
 """
 
-function _set_POI_par_as_operational_profile(m::JuMP.Model, field::OperationalProfile, n::Union{Sink}, case::Dict)
+function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_copy::Dict)
 
-    @assert n ∈ case[:nodes] "Node $(n) is not found in case[:nodes] = $(case[:nodes])"
-    T = case[:T]
+    update_dict = Dict{EMB.Node, Dict}()
+    lens_dict = Dict{EMB.Node, Dict}()
+    for k ∈ 1:length(case[:nodes])
+        n_new = case[:nodes][k]
+        n_old = case_copy[:nodes][k]
+        @assert n_new.id == n_old.id
 
-    profile = field.vals
-    println("in _set_POI_par, have original profile = $(profile)")
+        T = case[:T]
+        update_dict[n_old] = Dict{Any, Any}()
+        lens_dict[n_old] = Dict{Any, Any}()
+        paths_oper = _find_paths_operational_profile(n_new)
 
-    # println("field.vals = $(field.vals)")
-    @assert typeof(profile) <: Vector{<:Real} "typeof(profile) = $(typeof(profile)), expected Vector{<:Real}"
-    par_profile = OperationalProfile(MOI.Parameter.(profile)) #parametric profile with same values
+        for field_id ∈ paths_oper #TODO can put this for-loop in separate function
+            str = _merge_path(field_id)
+            global global_str_lens = "@o _" * str
+            lens = eval(Meta.parse(global_str_lens))
+            prof = OperationalProfile(MOI.Parameter.(lens(n_old)[T]))
+            update_dict[n_old][field_id] =
+            @variable(m, [T] ∈ prof[collect(T)])
 
-    n_paths_to_oper_prof = _find_paths_operational_profile(n)
-    n_path = n_paths_to_oper_prof[1]
-
-    #using POI provides unexpected behavior
-    # @variable(m, poi_var[[n], T] ∈ par_profile[collect(T)]) #this gives [8x8] matrix with VariableRef..
-    # @variable(m, poi_var[[n], T] >= 0) #this gives expected behavior: [1x8] matrix (POI not used)
-    # @variable(m, poi_var[T] ∈ par_profile[collect(T)]) #this works, but it is a special case for 1 OperationalProfile
-
-    #work-around: defining a new set. This does, however, not follow the EMB naming convention.
-    my_set = [(n, n_path..., t) for t in T]
-    @variable(m, poi_var[my_set] ∈ par_profile[collect(T)]) #this works, but does not follow classic EMB naming conventions
-
-    println("in _set_POI_par, have par_profile = $(par_profile)")
-    new_profile = OperationalProfile([poi_var[(n, n_path..., t)] for t ∈ T])
-
-
-    @reset case[:nodes][end].cap = new_profile
-
-    return case
+            @reset lens(n_new) = OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
+            lens_dict[n_old][field_id] = lens
+        end
+        case[:nodes][k] = n_new
+    end
+    return case, update_dict, lens_dict
 end
 
-function _set_values_operational_profile(m::JuMP.Model, new_values::Vector{<:Real}, n::Union{Sink}, case)
-    n_paths_to_oper_prof = _find_paths_operational_profile(n)
-    n_path = n_paths_to_oper_prof[1]
+function _merge_path(oprof_path::Vector)
+    path = ""
+    for k ∈ oprof_path
+        path *= _path_type(k)
+    end
+    return path
+end
+_path_type(val::Symbol) = "." * String(val)
 
-    println("m[:poi_var] = $(m[:poi_var])")
-    println("new_values = $(new_values)")
-    println("n_path = $(n_path)")
-    for (i,t) in enumerate(case[:T])
-        MOI.set(m, POI.ParameterValue(), m[:poi_var][(n, n_path..., t)], new_values[i])
+function _path_type(val::String)
+    _, idx = split(val, "_")
+    return parse(Int64, idx)
+end
+function _path_type(val::Resource)
+    global res = val
+    return "[res]"
+end
+
+
+function _set_values_operational_profile(m::JuMP.Model, n::EMB.Node, update_dict, case_copy, lens_dict; multiplier = 1)
+    n_paths_to_oper_prof = _find_paths_operational_profile(n)
+    for n_path ∈ n_paths_to_oper_prof
+        new_values = _get_new_POI_values(n, lens_dict[n][n_path]; multiplier = multiplier)
+
+        for (i,t) in enumerate(case_copy[:T])
+            MOI.set(m, POI.ParameterValue(), update_dict[n][n_path][t], new_values[i])
+        end
     end
     return m
+end
+
+function _get_new_POI_values(n::EMB.Node, lens, 𝒽; multiplier = 1)
+    return _get_new_POI_values(n, lens; multiplier = multiplier) #TODO: slice this based on h
+end
+
+function _get_new_POI_values(n::EMB.Node, lens; multiplier = 1)
+    return lens(n).vals .* multiplier
+end
+
+function _get_node_index(needle::EMB.Node, haystack::Vector{<:EMB.Node})
+    haystack_id = [h.id for h ∈ haystack]
+    @assert _has_unique_strings(haystack_id) "'haystack' = $(haystack) has non-unique strings."
+    return findfirst(isequal(needle.id), haystack_id)
 end
