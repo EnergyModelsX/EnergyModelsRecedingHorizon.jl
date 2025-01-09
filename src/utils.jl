@@ -501,20 +501,82 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
         lens_dict[n_old] = Dict{Any, Any}()
         paths_oper = _find_paths_operational_profile(n_new)
 
-        for field_id ∈ paths_oper #TODO can put this for-loop in separate function
-            str = _merge_path(field_id)
-            global global_str_lens = "@o _" * str
-            lens = eval(Meta.parse(global_str_lens))
+        for field_id ∈ paths_oper
+            lens = _create_lens_for_field(field_id)
             prof = OperationalProfile(MOI.Parameter.(lens(n_old)[T]))
-            update_dict[n_old][field_id] =
-            @variable(m, [T] ∈ prof[collect(T)])
+            update_dict[n_old][field_id] = @variable(m, [T] ∈ prof[collect(T)])
 
-            @reset lens(n_new) = OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
+            # @reset lens(n_new) = OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
+            n_new = _reset_node(n_new, n_old, lens, field_id, update_dict, T)
             lens_dict[n_old][field_id] = lens
         end
         case[:nodes][k] = n_new
     end
     return case, update_dict, lens_dict
+end
+
+"""
+    _reset_node(n_new::Union{Source, Sink, NetworkNode}, n_old::Union{Source, Sink, NetworkNode}, lens, field_id, update_dict, T)
+    _reset_node(n_new::Storage, n_old::Storage, lens, field_id, update_dict, T)
+Function for @reset n_new. Storage nodes are not yet supported.
+"""
+function _reset_node(n_new::Union{Source, Sink, NetworkNode}, n_old::Union{Source, Sink, NetworkNode}, lens, field_id, update_dict, T)
+    @reset lens(n_new) = OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
+    return n_new
+end
+function _reset_node(n_new::Storage, n_old::Storage, lens, field_id, update_dict, T)
+    error("Reset does not work for Storage yet.")
+    return n_new
+end
+
+"""
+    _create_lens_for_field(field_id::Vector{<:Any})
+
+Creates a 'lens', which can be used to inspect or reset variables.
+
+Example:
+```julia
+using Accessors: @reset
+using EnergyModelsBase
+using EnergyModelsRecHorizon
+using TimeStruct
+const EMRH = EnergyModelsRecHorizon
+
+cap_prof = [20, 300]
+price_prof = [1,2]
+power = ResourceCarrier("power", 0.0)
+co2 = ResourceEmit("co2", 1.0)
+
+source = RefSource(
+        "a source", #Node id or name
+        OperationalProfile(cap_prof), # :cap
+        FixedProfile(100), #variable OPEX
+        FixedProfile(0), #Fixed OPEX
+        Dict(power => 1), #output from the node
+        [EmissionsProcess(Dict(co2 => OperationalProfile(price_prof)))]
+    )
+
+paths_oper_source = EMRH._find_paths_operational_profile(source)
+@assert all(paths_oper_source .== Any[[:cap], [:data, "idx_1", :emissions, co2]])
+lens_source_cap = EMRH._create_lens_for_field(paths_oper_source[1])
+lens_source_data = EMRH._create_lens_for_field(paths_oper_source[2])
+
+lens_source_cap(source) #returns OperationalProfile(cap_prof)
+@assert all(cap_prof .== lens_source_cap(source).vals)
+@assert all(price_prof .== lens_source_data(source).vals)
+
+#lens can also be used for @reset
+cap_prof2 = [90,100]
+@reset lens_source_cap(source) = OperationalProfile(cap_prof2)
+@assert all(cap_prof2 .== lens_source_cap(source).vals)
+
+```
+"""
+function _create_lens_for_field(field_id::Vector{<:Any})
+    str = _merge_path(field_id)
+    global global_str_lens = "@o _" * str
+    lens = eval(Meta.parse(global_str_lens))
+    return lens
 end
 
 function _merge_path(oprof_path::Vector)
@@ -528,7 +590,7 @@ end
 _path_type(val::Symbol) = "." * String(val)
 function _path_type(val::String)
     _, idx = split(val, "_")
-    return parse(Int64, idx)
+    return "[" * string(parse(Int64, idx)) * "]" #can return only idx, but this adds an extra check that idx is an int
 end
 function _path_type(val::Resource)
     global res = val
