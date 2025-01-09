@@ -32,4 +32,13 @@ EMRH.save_results
 EMRH.init_level
 EMRH._fields_with_operational_profile
 EMRH._has_field_operational_profile
+EMRH._get_new_POI_values
+EMRH._reset_node
+EMRH._set_values_operational_profile
+EMRH._has_unique_strings 
+EMRH._find_paths_operational_profile  
+EMRH._get_node_index   
+EMRH._create_lens_for_field   
+EMRH.get_results    
+EMRH._set_POI_par_as_operational_profile     
 ```

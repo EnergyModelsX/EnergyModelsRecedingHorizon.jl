@@ -548,6 +548,7 @@ end
         update_dict,
         T)
     _reset_node(n_new::Storage, n_old::Storage, lens, field_id, update_dict, T)
+
 Function for resetting nodes, using @reset. Storage nodes are not yet supported.
 """
 function _reset_node(
@@ -669,11 +670,13 @@ end
 
 """
     _get_new_POI_values(n::EMB.Node, lens, 𝒽; multiplier = 1)
+
 Currently, it returns the value lens(n).vals.
 
-NB: The idea is to slice the currently received value based on the horizon `𝒽`.
-The `multiplier` is there for testing puroposes.
-
+!!! note
+    The idea is to slice the currently received value based on the horizon `𝒽`. This is
+    not implemented yet.
+    The `multiplier` is there for testing puroposes.
 """
 function _get_new_POI_values(n::EMB.Node, lens, 𝒽; multiplier = 1)
     return _get_new_POI_values(n, lens; multiplier = multiplier) #TODO: slice this based on h
