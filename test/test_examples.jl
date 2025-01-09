@@ -82,7 +82,7 @@ ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run a
     exdir = joinpath(@__DIR__, "..", "examples")
     files = filter(endswith(".jl"), readdir(exdir))
     for file ∈ files
-        if file != "mwe_storage_user.jl" #not relevant to test other files
+        if file != "mwe_storage_user.jl"  #mwe_new_node.jl does not work due to EMB version
             continue
         end
         @testset "Example $file" begin

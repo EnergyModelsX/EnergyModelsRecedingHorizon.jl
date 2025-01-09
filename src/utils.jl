@@ -202,9 +202,10 @@ end
 
 """
     save_results(model::Model; directory=joinpath(pwd(),"csv_files"))
-Saves the model results of all variables as CSV files. The model results are saved in a new directory.
-If no directory is specified, it will create, if necessary, a new directory "csv_files" in the current
-working directory and save the files in said directory.
+Saves the model results of all variables as CSV files. The model results are saved in a new
+directory.
+If no directory is specified, it will create, if necessary, a new directory "csv_files" in
+the current working directory and save the files in said directory.
 """
 function save_results(model::Model; directory = joinpath(pwd(), "csv_files"))
     vars = collect(keys(object_dictionary(model)))
@@ -260,12 +261,13 @@ function Base.iterate(itr::AbstractHorizons, state = (1, nothing))
 end
 
 """
-_fields_with_operational_profile(n::Union{NetworkNode, Source, Sink})
-_fields_with_operational_profile(n::Storage)
-_fields_with_operational_profile(n::Availability)
-_fields_with_operational_profile(n::EMB.Node)
+    _fields_with_operational_profile(n::Union{NetworkNode, Source, Sink})
+    _fields_with_operational_profile(n::Storage)
+    _fields_with_operational_profile(n::Availability)
+    _fields_with_operational_profile(n::EMB.Node)
 
-Function for returning the fields in a node containing an `OperationalProfile`. If no fields are found, it returns `Symbol[]`.
+Function for returning the fields in a node containing an `OperationalProfile`.
+If no fields are found, it returns `Symbol[]`.
 
     Ex:
     el = ResourceCarrier("el", 0.2)
@@ -359,15 +361,23 @@ _has_field_operational_profile(field) = false
 
 """
     _find_paths_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
-    _find_paths_operational_profile(field::Union{NetworkNode, Source, Sink, Storage}, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_paths_operational_profile(field::Union{Data, EMB.AbstractStorageParameters}, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_paths_operational_profile(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_paths_operational_profile(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_paths_operational_profile(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::Union{NetworkNode, Source, Sink, Storage},
+        current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any},
+        all_paths::Vector{Any})
+    _find_paths_operational_profile(field::Union{Data, EMB.AbstractStorageParameters},
+        current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any},
+        all_paths::Vector{Any})
+    _find_paths_operational_profile(field::OperationalProfile, current_path::Vector{Any},
+        all_paths::Vector{Any})
+    _find_paths_operational_profile(field::StrategicProfile, current_path::Vector{Any},
+        all_paths::Vector{Any})
+    _find_paths_operational_profile(field::Any, current_path::Vector{Any},
+        all_paths::Vector{Any})
 
-Function for returning the fields in a node containing an `OperationalProfile`, returning a list of the path.
+Function for returning the fields in a node `n` containing an `OperationalProfile`, returning a
+list of the path.
 
 
 # Examples
@@ -377,7 +387,8 @@ co2 = ResourceEmit("co2", 1.0)
 sink = RefSink(
     "a_sink", # :id
     FixedProfile(1e5), # :cap
-    Dict(:surplus => OperationalProfile(zeros(dim_t)), :deficit => OperationalProfile(1e6*ones(dim_t))), # :penalty
+    Dict(:surplus => OperationalProfile(zeros(dim_t)),
+        :deficit => OperationalProfile(1e6*ones(dim_t))), # :penalty
     Dict(heat => 1), # :input
     [EmptyData(), EmissionsProcess(Dict(co2 => OperationalProfile(profile)))] # :data
 )
@@ -391,7 +402,8 @@ sink = RefSink(
 # The function can also be used for checking other `types`:
 all_paths = []
 current_path = Any[:a_path]
-a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])), :b2 => OperationalProfile([1]), :b3 => [1]))
+a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])),
+    :b2 => OperationalProfile([1]), :b3 => [1]))
 EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
 
 #all_paths are now a 2-element Vector{Any}: [Any[:a_path, :a, :b2], Any[:a_path, :a, :b1, :c]]
@@ -474,9 +486,12 @@ function _find_paths_operational_profile(
 end
 
 """
-    get_results(m::JuMP.Model; types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray})
+    get_results(m::JuMP.Model;
+        types_not_supported = Union{EMB.SparseVariables.IndexedVarArray,
+            EMB.SparseVariables.SparseArray})
 
-Function returning the values of the optimized model `m`. It does, however, not extract values if the type is in `types_not_supported`.
+Function returning the values of the optimized model `m`. It does, however, not extract
+values if the type is in `types_not_supported`.
 
 """
 function get_results(
@@ -493,17 +508,9 @@ function get_results(
 end
 
 """
-    _set_POI_par_as_operational_profile(m::JuMP.Model, field::OperationalProfile, n::Union{Sink}, case::Dict)
-
-Function which converts `field` from a "standard" OperationalProfile to an OperationalProfile containing POI-parameters.
-
-Specifically, iy converts `field` from a type of `OperationalProfile{<:Real}` to `OperationalProfile{MathOptInterface.Parameter{Int64}}`
-
-"""
-
-"""
     _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_copy::Dict)
-Function which iterates through the nodes, find all 'OperationalProfile{Real}' and changes them to 'OperationalProfile{VariableRef}'
+Function which iterates through the nodes in `case[:nodes]` and `case_copy[:nodes]`, find all
+`OperationalProfile{Real}` and changes them to `OperationalProfile{VariableRef}`
 
 """
 function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_copy::Dict)
@@ -524,7 +531,6 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
             prof = OperationalProfile(MOI.Parameter.(lens(n_old)[T]))
             update_dict[n_old][field_id] = @variable(m, [T] ∈ prof[collect(T)])
 
-            # @reset lens(n_new) = OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
             n_new = _reset_node(n_new, n_old, lens, field_id, update_dict, T)
             lens_dict[n_old][field_id] = lens
         end
@@ -534,9 +540,15 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
 end
 
 """
-    _reset_node(n_new::Union{Source, Sink, NetworkNode}, n_old::Union{Source, Sink, NetworkNode}, lens, field_id, update_dict, T)
+    _reset_node(
+        n_new::Union{Source,Sink,NetworkNode},
+        n_old::Union{Source,Sink,NetworkNode},
+        lens,
+        field_id,
+        update_dict,
+        T)
     _reset_node(n_new::Storage, n_old::Storage, lens, field_id, update_dict, T)
-Function for @reset n_new. Storage nodes are not yet supported.
+Function for resetting nodes, using @reset. Storage nodes are not yet supported.
 """
 function _reset_node(
     n_new::Union{Source,Sink,NetworkNode},
@@ -557,7 +569,7 @@ end
 """
     _create_lens_for_field(field_id::Vector{<:Any})
 
-Creates a 'lens', which can be used to inspect or reset variables.
+Creates a `lens`, which can be used to inspect or reset variables.
 
 Example:
 ```julia
@@ -615,7 +627,8 @@ end
 _path_type(val::Symbol) = "." * String(val)
 function _path_type(val::String)
     _, idx = split(val, "_")
-    return "[" * string(parse(Int64, idx)) * "]" #can return only idx, but this adds an extra check that idx is an int
+    #can return only idx, but this adds an extra check that idx is an int
+    return "[" * string(parse(Int64, idx)) * "]"
 end
 function _path_type(val::Resource)
     global res = val
@@ -623,9 +636,17 @@ function _path_type(val::Resource)
 end
 
 """
-    _set_values_operational_profile(m::JuMP.Model, case_copy, n::EMB.Node, update_dict::Dict{EMB.Node, Dict}, lens_dict::Dict{EMB.Node, Dict}; multiplier = 1)
+    _set_values_operational_profile(
+        m::JuMP.Model,
+        case_copy,
+        n::EMB.Node,
+        update_dict::Dict{EMB.Node,Dict},
+        lens_dict::Dict{EMB.Node,Dict};
+        multiplier = 1,
+    )
 
-Updates the value of the POI parameter for node 'n' based on the values of the node 'n' in 'case_copy' for the period '𝒽'.
+Updates the value of the POI parameter for node `n` based on the values of the node `n` in
+`case_copy` for the period `𝒽`.
 """
 function _set_values_operational_profile(
     m::JuMP.Model,
@@ -650,7 +671,8 @@ end
     _get_new_POI_values(n::EMB.Node, lens, 𝒽; multiplier = 1)
 Currently, it returns the value lens(n).vals.
 
-NB: The idea is to slice the currently received value based on the horizon 𝒽. The 'multiplier' is there for testing puroposes.
+NB: The idea is to slice the currently received value based on the horizon `𝒽`.
+The `multiplier` is there for testing puroposes.
 
 """
 function _get_new_POI_values(n::EMB.Node, lens, 𝒽; multiplier = 1)
@@ -662,7 +684,7 @@ end
 
 """
     _get_node_index(needle::EMB.Node, haystack::Vector{<:EMB.Node})
-Returns the index of 'needle' in 'haystack', checking that the field 'id' are equal.
+Returns the index of `needle` in `haystack`, checking that the field `id` are equal.
 
 """
 function _get_node_index(needle::EMB.Node, haystack::Vector{<:EMB.Node})
@@ -671,6 +693,11 @@ function _get_node_index(needle::EMB.Node, haystack::Vector{<:EMB.Node})
     return findfirst(isequal(needle.id), haystack_id)
 end
 
+"""
+    _has_unique_strings(v::Vector{String})
+
+Returns `true` if all the strings in `v` are unique, `false` otherwise.
+"""
 function _has_unique_strings(v::Vector{String})
     return length(v) == length(Set(v)) #Set(v) contains only unique elements
 end

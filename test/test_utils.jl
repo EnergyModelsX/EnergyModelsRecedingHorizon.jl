@@ -284,7 +284,8 @@ end
     ) # raises Error. EMRH should not be used with StrategicProfile
 
     #test for various Data
-    @test !EMRH._has_field_operational_profile(EmissionsEnergy(OperationalProfile([1]))) #EmissionsEnergy accepts any input arguments, but does not use it.
+    #EmissionsEnergy accepts any input arguments, but does not use it.
+    @test !EMRH._has_field_operational_profile(EmissionsEnergy(OperationalProfile([1])))
     @test EMRH._has_field_operational_profile(
         EmissionsProcess(Dict(co2 => OperationalProfile([1]))),
     )
@@ -390,7 +391,7 @@ end
 end
 
 @testset "POI in OperationalProfile" begin
-    optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
+    optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
     function check_equal_flows_av_node(m1, case1, m2, case2)
         @assert is_solved_and_feasible(m1) "We assume optimized models."
@@ -434,18 +435,18 @@ end
         modeltype = RecHorOperationalModel,
     )
         #Define resources with their emission intensities
-        power = ResourceCarrier("power", 0.0)  #tCO2/MWh
-        co2 = ResourceEmit("co2", 1.0) #tCO2/MWh
+        power = ResourceCarrier("power", 0.0)
+        co2 = ResourceEmit("co2", 1.0)
         products = [power, co2]
 
         #define time structure
         op_dur_vec = [1, 2, 1]
         T = TwoLevel(1, 1, SimpleTimes(op_dur_vec))
-        hor = DurationHorizons([duration(t) for t ∈ T], 3, 3) # optimization and implementation horizons
+        hor = DurationHorizons([duration(t) for t ∈ T], 3, 3) # optimi and impl horizons
 
         model = modeltype(
-            Dict(co2 => FixedProfile(10)), #upper bound for CO2 in t/8h
-            Dict(co2 => FixedProfile(0)), # emission price for CO2 in EUR/t
+            Dict(co2 => FixedProfile(10)),
+            Dict(co2 => FixedProfile(0)), # emission price for CO2
             co2,
         )
 
@@ -473,7 +474,7 @@ end
         sink = RefSink(
             "electricity demand", #node ID or name
             OperationalProfile(demand_profile), #demand in MW (time profile)
-            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e12)), #surplus and deficit penalty for the node in EUR/MWh
+            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e12)),
             Dict(power => 1), #energy demand and corresponding ratio
         )
         nodes = [
@@ -520,7 +521,7 @@ end
 
     #change to paramtric OperationalProfiles
     case_rh, update_dict, lens_dict =
-        EMRH._set_POI_par_as_operational_profile(m_rh, case_rh, case_rh_copy) #this function is hard-coded to change :cap
+        EMRH._set_POI_par_as_operational_profile(m_rh, case_rh, case_rh_copy)
 
     # Regenerate links after modifying nodes
     case_rh[:links] = create_links_from_nodes(case_rh[:nodes])
