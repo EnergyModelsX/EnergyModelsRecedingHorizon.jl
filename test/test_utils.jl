@@ -124,7 +124,7 @@ end
     @test Set(keys(results_EMB)) == union(
         keys(results_EMRH),
         [:opex_var, :emissions_strategic, :opex_fixed, # fields for strategic horizons - to be implemented
-        :link_opex_fixed, :link_opex_var], #NEW fields when updated EMB. Are these important? Check with Julian
+            :link_opex_fixed, :link_opex_var], #NEW fields when updated EMB. Are these important? Check with Julian
     )
     dense_containers(cont) =
         filter(kv -> (typeof(kv[2]) <: Containers.DenseAxisArray), cont)
@@ -235,16 +235,25 @@ end
 
     @test issetequal(EMRH._find_paths_operational_profile(source_fixed), Any[])
     @test issetequal(EMRH._find_paths_operational_profile(source_oper), [[:opex_var]])
-    @test issetequal(EMRH._find_paths_operational_profile(sink), [[:cap], [:penalty, :deficit]])
+    @test issetequal(
+        EMRH._find_paths_operational_profile(sink),
+        [[:cap], [:penalty, :deficit]],
+    )
     @test issetequal(EMRH._find_paths_operational_profile(storage_charge_level_data_oper),
         [[:charge, :capacity],
-        [:level, :capacity],
-        [:data, "idx_2", :emissions, co2]]
+            [:level, :capacity],
+            [:data, "idx_2", :emissions, co2]],
     )
 
     all_paths = []
     current_path = Any[:a_path]
-    a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])), :b2 => OperationalProfile([1]), :b3 => [1]))
+    a_dict = Dict(
+        :a => Dict(
+            :b1 => Dict(:c => OperationalProfile([1])),
+            :b2 => OperationalProfile([1]),
+            :b3 => [1],
+        ),
+    )
     EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
     @test issetequal(all_paths, [[:a_path, :a, :b2], [:a_path, :a, :b1, :c]])
 
@@ -260,8 +269,6 @@ end
         EMRH._fields_with_operational_profile(storage_charge_level_data_oper) .==
         [:charge, :level, :data],
     )
-
-
 end
 
 @testset "EMRH._has_field_operational_profile" begin
@@ -308,41 +315,41 @@ end
 
 @testset "lenses_and_reset" begin
     cap_prof = [20, 300]
-    price_prof = [1,2]
+    price_prof = [1, 2]
     power = ResourceCarrier("power", 0.0)
     co2 = ResourceEmit("co2", 1.0)
 
     @testset "lenses_and_reset_source" begin
         data_source = Data[
-            # EmissionsEnergy(OperationalProfile(price_profile)),
+        # EmissionsEnergy(OperationalProfile(price_profile)),
             EmissionsProcess(Dict(co2 => OperationalProfile(price_prof))),
-            # EmissionsProcess(Dict(co2 => FixedProfile(2))),
-            ]
-            source = RefSource(
-                "a source", #Node id or name
-                OperationalProfile(cap_prof),
-                FixedProfile(100), #variable OPEX
-                FixedProfile(0), #Fixed OPEX
-                Dict(power => 1), #output from the node
-                data_source
-                )
+        # EmissionsProcess(Dict(co2 => FixedProfile(2))),
+        ]
+        source = RefSource(
+            "a source", #Node id or name
+            OperationalProfile(cap_prof),
+            FixedProfile(100), #variable OPEX
+            FixedProfile(0), #Fixed OPEX
+            Dict(power => 1), #output from the node
+            data_source,
+        )
 
-                #checks for source
-                paths_oper_source = EMRH._find_paths_operational_profile(source)
-                @test all(paths_oper_source .== Any[[:cap], [:data, "idx_1", :emissions, co2]])
+        #checks for source
+        paths_oper_source = EMRH._find_paths_operational_profile(source)
+        @test all(paths_oper_source .== Any[[:cap], [:data, "idx_1", :emissions, co2]])
 
-                lens_source_cap = EMRH._create_lens_for_field(paths_oper_source[1])
-                lens_source_data = EMRH._create_lens_for_field(paths_oper_source[2])
-                @test all(cap_prof .== lens_source_cap(source).vals)
-                @test all(price_prof .== lens_source_data(source).vals)
+        lens_source_cap = EMRH._create_lens_for_field(paths_oper_source[1])
+        lens_source_data = EMRH._create_lens_for_field(paths_oper_source[2])
+        @test all(cap_prof .== lens_source_cap(source).vals)
+        @test all(price_prof .== lens_source_data(source).vals)
 
-                cap_prof2 = [60,32]
-                price_prof2 = [90,80]
-                @reset lens_source_cap(source) = OperationalProfile(cap_prof2)
-                @reset lens_source_data(source) = OperationalProfile(price_prof2)
-                @test all(cap_prof2 .== lens_source_cap(source).vals)
-                @test all(price_prof2 .== lens_source_data(source).vals)
-            end
+        cap_prof2 = [60, 32]
+        price_prof2 = [90, 80]
+        @reset lens_source_cap(source) = OperationalProfile(cap_prof2)
+        @reset lens_source_data(source) = OperationalProfile(price_prof2)
+        @test all(cap_prof2 .== lens_source_cap(source).vals)
+        @test all(price_prof2 .== lens_source_data(source).vals)
+    end
 
     @testset "lenses_and_reset_storage" begin
         #checks for storage
@@ -351,7 +358,7 @@ end
             InitStorageData(init_state),
             EmptyData(),
             EmissionsProcess(Dict(co2 => OperationalProfile(price_prof))),
-            ])
+        ])
         storage = RefStorage{RecedingAccumulating}(
             "a storage",
             StorCapOpexVar(OperationalProfile(cap_prof), FixedProfile(100)), # rate_cap, opex_var
@@ -360,9 +367,12 @@ end
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             data_storage,
-            )
+        )
         paths_oper_storage = EMRH._find_paths_operational_profile(storage)
-        @test all(paths_oper_storage .== Any[[:charge, :capacity], [:data, "idx_3", :emissions, co2]])
+        @test all(
+            paths_oper_storage .==
+            Any[[:charge, :capacity], [:data, "idx_3", :emissions, co2]],
+        )
 
         lens_storage_cap = EMRH._create_lens_for_field(paths_oper_storage[1])
         lens_storage_data = EMRH._create_lens_for_field(paths_oper_storage[2])
@@ -380,7 +390,6 @@ end
 end
 
 @testset "POI in OperationalProfile" begin
-
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
 
     function check_equal_flows_av_node(m1, case1, m2, case2)
@@ -400,7 +409,7 @@ end
             equal_in = (res1[:flow_in][av1, :, r1] .== res2[:flow_in][av2, :, r2])
             equal_out = (res1[:flow_out][av1, :, r1] .== res2[:flow_out][av2, :, r2])
 
-            if ! (all(equal_in) && all(equal_out))
+            if !(all(equal_in) && all(equal_out))
                 error("results are not equal for r1=$(r1) and r2=$(r2)")
             end
         end
@@ -410,7 +419,7 @@ end
     function solve_EMB_case(demand_profile, price_profile)
         println("demand profile = $(demand_profile)")
         case_EMB, modeltype_EMB = create_case(demand_profile, price_profile;
-        init_state=5, modeltype = OperationalModel
+            init_state = 5, modeltype = OperationalModel,
         )
         @assert typeof(modeltype_EMB) <: OperationalModel
         m_EMB = run_model(case_EMB, modeltype_EMB, optimizer)
@@ -418,7 +427,12 @@ end
         return m_EMB, case_EMB
     end
 
-    function create_case(demand_profile, price_profile; init_state=0, modeltype = RecHorOperationalModel)
+    function create_case(
+        demand_profile,
+        price_profile;
+        init_state = 0,
+        modeltype = RecHorOperationalModel,
+    )
         #Define resources with their emission intensities
         power = ResourceCarrier("power", 0.0)  #tCO2/MWh
         co2 = ResourceEmit("co2", 1.0) #tCO2/MWh
@@ -453,7 +467,7 @@ end
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
                 InitStorageData(init_state),
-                EmptyData(), # testing multiple data
+                EmptyData() # testing multiple data
             ]),
         )
         sink = RefSink(
@@ -466,11 +480,11 @@ end
             av,
             source,
             storage,
-            sink
+            sink,
         ]
         links = create_links_from_nodes(nodes)
         case = Dict(
-            :nodes => nodes, :links => links, :products => products, :T => T#, :horizons => hor
+            :nodes => nodes, :links => links, :products => products, :T => T,#, :horizons => hor
         )
 
         return case, model
@@ -478,9 +492,9 @@ end
 
     function create_links_from_nodes(nodes::Vector{<:EMB.Node})
         (av,
-        source,
-        storage,
-        sink) = nodes
+            source,
+            storage,
+            sink) = nodes
         #connect the nodes with links
         links = [
             Direct("source-av", source, av, Linear()),
@@ -496,8 +510,8 @@ end
     price_prof = [1e3, 1e3, 1e3]
 
     case_rh, modeltype_rh = create_case(demand_prof, price_prof;
-        init_state=5, modeltype = RecHorOperationalModel
-        )
+        init_state = 5, modeltype = RecHorOperationalModel,
+    )
     @assert typeof(modeltype_rh) <: RecHorOperationalModel
     case_rh_copy = deepcopy(case_rh)
 
@@ -505,7 +519,8 @@ end
     m_rh = Model(() -> ParametricOptInterface.Optimizer(HiGHS.Optimizer()))
 
     #change to paramtric OperationalProfiles
-    case_rh, update_dict, lens_dict = EMRH._set_POI_par_as_operational_profile(m_rh, case_rh, case_rh_copy) #this function is hard-coded to change :cap
+    case_rh, update_dict, lens_dict =
+        EMRH._set_POI_par_as_operational_profile(m_rh, case_rh, case_rh_copy) #this function is hard-coded to change :cap
 
     # Regenerate links after modifying nodes
     case_rh[:links] = create_links_from_nodes(case_rh[:nodes])
@@ -533,7 +548,14 @@ end
     @test all(demand_prof2 .== (multiplier .* demand_prof)) #the multiplier works as intended
 
     #change values of the POI parameters and re-optimize
-    m_rh = EMRH._set_values_operational_profile(m_rh, case_rh_copy, case_rh_copy[:nodes][end], update_dict, lens_dict; multiplier = multiplier)
+    m_rh = EMRH._set_values_operational_profile(
+        m_rh,
+        case_rh_copy,
+        case_rh_copy[:nodes][end],
+        update_dict,
+        lens_dict;
+        multiplier = multiplier,
+    )
     optimize!(m_rh)
 
     #check that we get the same values as EMB again

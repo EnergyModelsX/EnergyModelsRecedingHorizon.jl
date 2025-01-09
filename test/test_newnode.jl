@@ -9,7 +9,12 @@
     EMB.has_input(n::SampleInitNode) = false
     EMB.has_output(n::SampleInitNode) = false
 
-    function EMB.variables_node(m, 𝒩ˢᵘᵇ::Vector{<:SampleInitNode}, 𝒯, modeltype::EnergyModel)
+    function EMB.variables_node(
+        m,
+        𝒩ˢᵘᵇ::Vector{<:SampleInitNode},
+        𝒯,
+        modeltype::EnergyModel,
+    )
         @variable(m, state[𝒩ˢᵘᵇ, 𝒯])
     end
 
@@ -41,7 +46,14 @@
         end
     end
 
-    function EMB.constraints_data(m, n::SampleInitNode, 𝒯, 𝒫, modeltype::EMRH.RecHorEnergyModel, data::InitData)
+    function EMB.constraints_data(
+        m,
+        n::SampleInitNode,
+        𝒯,
+        𝒫,
+        modeltype::EMRH.RecHorEnergyModel,
+        data::InitData,
+    )
         @constraint(m, m[:state][n, first(𝒯)] == data.val + n.increment)
     end
 
@@ -59,7 +71,7 @@
         :links => Vector{Direct}([]),
         :products => [co2],
         :T => T,
-        :horizons => hor
+        :horizons => hor,
     )
 
     model = RecHorOperationalModel(

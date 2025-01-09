@@ -4,7 +4,7 @@
 Returns a pair `(case_rh, model_rh)` that corresponds to the receding horizon problem of `(case, model)`
 evaluated at the horizon indices `𝒽`, initialized using `init_data`.
 """
-function get_rh_case_model(case, model, 𝒽, init_data=nothing)
+function get_rh_case_model(case, model, 𝒽, init_data = nothing)
     # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
     # must be improved to deal with more cases
     𝒯ᴿᴴ = optimization_time_ref(case[:T], 𝒽)
@@ -146,7 +146,7 @@ function update_results!(results, m, case_rh, case, 𝒽)
         end
         if typeof(container) <: Containers.DenseAxisArray
             axes_new = tuple(
-                ([convert_dict[el] for el ∈ ax] for ax ∈ axes(results_rh[k]))...
+                ([convert_dict[el] for el ∈ ax] for ax ∈ axes(results_rh[k]))...,
             )
             container[axes_new...] = results_rh[k].data
         elseif typeof(container) <: Containers.SparseAxisArray
@@ -206,7 +206,7 @@ Saves the model results of all variables as CSV files. The model results are sav
 If no directory is specified, it will create, if necessary, a new directory "csv_files" in the current
 working directory and save the files in said directory.
 """
-function save_results(model::Model; directory=joinpath(pwd(), "csv_files"))
+function save_results(model::Model; directory = joinpath(pwd(), "csv_files"))
     vars = collect(keys(object_dictionary(model)))
     if !ispath(directory)
         mkpath(directory)
@@ -234,9 +234,9 @@ end
 _take_range(itr::PeriodHorizons, _::Integer, _::Nothing) = (1:(itr.optim), 1:(itr.impl), 1)
 function _take_range(itr::PeriodHorizons, _::Integer, state)
     rng_optim =
-        ((state * itr.impl) + 1):minimum([(state * itr.impl) + itr.optim, length(itr.dur)])
+        ((state*itr.impl)+1):minimum([(state * itr.impl) + itr.optim, length(itr.dur)])
     rng_impl =
-        ((state * itr.impl) + 1):minimum([(state * itr.impl) + itr.impl, length(itr.dur)])
+        ((state*itr.impl)+1):minimum([(state * itr.impl) + itr.impl, length(itr.dur)])
     return rng_optim, rng_impl, state + 1
 end
 
@@ -252,7 +252,7 @@ function _take_range(itr::DurationHorizons, init::Integer, state)
 end
 
 # Function for defining the individual SingleHorizon when interating through an AbstractHorizons
-function Base.iterate(itr::AbstractHorizons, state=(1, nothing))
+function Base.iterate(itr::AbstractHorizons, state = (1, nothing))
     state[2] === length(itr) && return nothing
     rng_optim, rng_impl, next = _take_range(itr, state[1], state[2])
     horizon = SingleHorizon(next, itr.dur[rng_optim], collect(rng_optim), collect(rng_impl))
@@ -282,8 +282,10 @@ Function for returning the fields in a node containing an `OperationalProfile`. 
     )
     _fields_with_operational_profile(n) # returns [:opex_var, :data]
 """
-function _fields_with_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
-    return [fn for fn ∈ fieldnames(typeof(n)) if _has_field_operational_profile(getfield(n, fn))]
+function _fields_with_operational_profile(n::Union{NetworkNode,Source,Sink,Storage})
+    return [
+        fn for fn ∈ fieldnames(typeof(n)) if _has_field_operational_profile(getfield(n, fn))
+    ]
 end
 
 function _fields_with_operational_profile(n::Availability)
@@ -294,7 +296,6 @@ function _fields_with_operational_profile(n::EMB.Node)
     error("We assume only subtypes of NetworkNode, Source, Sink and Storage.")
     return nothing
 end
-
 
 """
     _has_field_operational_profile(field::OperationalProfile)
@@ -342,13 +343,17 @@ function _has_field_operational_profile(field::Vector{<:Data})
     return any([_has_field_operational_profile(d) for d ∈ field])
 end
 function _has_field_operational_profile(field::Data)
-    return any([_has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))])
+    return any([
+        _has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))
+    ])
 end
 function _has_field_operational_profile(field::Dict)
     return any([_has_field_operational_profile(val) for (key, val) ∈ field])
 end
 function _has_field_operational_profile(field::EMB.AbstractStorageParameters)
-    return any([_has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))])
+    return any([
+        _has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))
+    ])
 end
 _has_field_operational_profile(field) = false
 
@@ -393,53 +398,80 @@ EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
 
 ```
 """
-function _find_paths_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
+function _find_paths_operational_profile(n::Union{NetworkNode,Source,Sink,Storage})
     all_paths = []  # To store the paths to lists
     # Start recursion
     _find_paths_operational_profile(n, [], all_paths)
     return all_paths
 end
 
-function _find_paths_operational_profile(field::Union{NetworkNode, Source, Sink, Storage}, current_path::Vector{Any}, all_paths::Vector{Any})
-    for f in fieldnames(typeof(field))
+function _find_paths_operational_profile(
+    field::Union{NetworkNode,Source,Sink,Storage},
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    for f ∈ fieldnames(typeof(field))
         new_path = vcat(current_path, f)
         _find_paths_operational_profile(getfield(field, f), new_path, all_paths)
     end
 end
 
-function _find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
-    for (i, d) in enumerate(field)
+function _find_paths_operational_profile(
+    field::Vector{<:Data},
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    for (i, d) ∈ enumerate(field)
         new_path = vcat(current_path, ["idx_$(i)"])
         _find_paths_operational_profile(d, new_path, all_paths)
     end
 end
 
-function _find_paths_operational_profile(field::Union{Data, EMB.AbstractStorageParameters}, current_path::Vector{Any}, all_paths::Vector{Any})
-    for f in fieldnames(typeof(field))
+function _find_paths_operational_profile(
+    field::Union{Data,EMB.AbstractStorageParameters},
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    for f ∈ fieldnames(typeof(field))
         new_path = vcat(current_path, f)
         _find_paths_operational_profile(getfield(field, f), new_path, all_paths)
     end
 end
 
-function _find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
-    for (key, value) in field
+function _find_paths_operational_profile(
+    field::AbstractDict,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    for (key, value) ∈ field
         new_path = vcat(current_path, key)
         _find_paths_operational_profile(value, new_path, all_paths)
     end
 end
 
-function _find_paths_operational_profile(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+function _find_paths_operational_profile(
+    field::OperationalProfile,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
     push!(all_paths, current_path)  # Add current_path to all_paths
 end
 
-function _find_paths_operational_profile(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+function _find_paths_operational_profile(
+    field::StrategicProfile,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
     error("EMRH should not be used with strategic profiles")
 end
 
-function _find_paths_operational_profile(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
+function _find_paths_operational_profile(
+    field::Any,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
     # No action needed
 end
-
 
 """
     get_results(m::JuMP.Model; types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray})
@@ -447,8 +479,17 @@ end
 Function returning the values of the optimized model `m`. It does, however, not extract values if the type is in `types_not_supported`.
 
 """
-function get_results(m::JuMP.Model; types_not_supported = Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray})
-    return Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)) if !(typeof(m[k]) <: types_not_supported))
+function get_results(
+    m::JuMP.Model;
+    types_not_supported = Union{
+        EMB.SparseVariables.IndexedVarArray,
+        EMB.SparseVariables.SparseArray,
+    },
+)
+    return Dict(
+        k => value.(m[k]) for
+        k ∈ keys(object_dictionary(m)) if !(typeof(m[k]) <: types_not_supported)
+    )
 end
 
 """
@@ -466,17 +507,16 @@ Function which iterates through the nodes, find all 'OperationalProfile{Real}' a
 
 """
 function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_copy::Dict)
-
-    update_dict = Dict{EMB.Node, Dict}()
-    lens_dict = Dict{EMB.Node, Dict}()
+    update_dict = Dict{EMB.Node,Dict}()
+    lens_dict = Dict{EMB.Node,Dict}()
     for k ∈ 1:length(case[:nodes])
         n_new = case[:nodes][k]
         n_old = case_copy[:nodes][k]
         @assert n_new.id == n_old.id
 
         T = case[:T]
-        update_dict[n_old] = Dict{Any, Any}()
-        lens_dict[n_old] = Dict{Any, Any}()
+        update_dict[n_old] = Dict{Any,Any}()
+        lens_dict[n_old] = Dict{Any,Any}()
         paths_oper = _find_paths_operational_profile(n_new)
 
         for field_id ∈ paths_oper
@@ -498,7 +538,14 @@ end
     _reset_node(n_new::Storage, n_old::Storage, lens, field_id, update_dict, T)
 Function for @reset n_new. Storage nodes are not yet supported.
 """
-function _reset_node(n_new::Union{Source, Sink, NetworkNode}, n_old::Union{Source, Sink, NetworkNode}, lens, field_id, update_dict, T)
+function _reset_node(
+    n_new::Union{Source,Sink,NetworkNode},
+    n_old::Union{Source,Sink,NetworkNode},
+    lens,
+    field_id,
+    update_dict,
+    T,
+)
     @reset lens(n_new) = OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
     return n_new
 end
@@ -580,12 +627,19 @@ end
 
 Updates the value of the POI parameter for node 'n' based on the values of the node 'n' in 'case_copy' for the period '𝒽'.
 """
-function _set_values_operational_profile(m::JuMP.Model, case_copy, n::EMB.Node, update_dict::Dict{EMB.Node, Dict}, lens_dict::Dict{EMB.Node, Dict}; multiplier = 1)
+function _set_values_operational_profile(
+    m::JuMP.Model,
+    case_copy,
+    n::EMB.Node,
+    update_dict::Dict{EMB.Node,Dict},
+    lens_dict::Dict{EMB.Node,Dict};
+    multiplier = 1,
+)
     n_paths_to_oper_prof = _find_paths_operational_profile(n)
     for n_path ∈ n_paths_to_oper_prof
         new_values = _get_new_POI_values(n, lens_dict[n][n_path]; multiplier = multiplier)
 
-        for (i,t) in enumerate(case_copy[:T])
+        for (i, t) ∈ enumerate(case_copy[:T])
             MOI.set(m, POI.ParameterValue(), update_dict[n][n_path][t], new_values[i])
         end
     end

@@ -8,7 +8,7 @@ Base.IteratorSize(::Type{<:TakeHorizon}) = Base.SizeUnknown()
 Base.eltype(::Type{TakeHorizon{I}}) where {I} = Base.eltype(I)
 Base.IteratorEltype(::Type{TakeHorizon{I}}) where {I} = Base.IteratorEltype(I)
 
-function Base.iterate(it::TakeHorizon, state=(it.duration,))
+function Base.iterate(it::TakeHorizon, state = (it.duration,))
     dur, rest = state[1], Base.tail(state)
     dur <= 0 && return nothing
     y = iterate(it.xs, rest...)
@@ -55,7 +55,7 @@ struct PeriodHorizons{T} <: AbstractHorizons{T}
     optim::Int64
     impl::Int64
     function PeriodHorizons(
-        len::Int64, dur::Vector{T}, optim::Int64, impl::Int64
+        len::Int64, dur::Vector{T}, optim::Int64, impl::Int64,
     ) where {T<:Real}
         if optim < impl
             throw(
@@ -137,7 +137,7 @@ struct DurationHorizons{T} <: AbstractHorizons{T}
     optim::Int64
     impl::Int64
     function DurationHorizons(
-        len::Int64, dur::Vector{T}, optim::Int64, impl::Int64
+        len::Int64, dur::Vector{T}, optim::Int64, impl::Int64,
     ) where {T<:Real}
         if optim < impl
             throw(
@@ -218,7 +218,7 @@ struct SingleHorizon{T}
     idx_optim::Vector{Int64}
     idx_impl::Vector{Int64}
     function SingleHorizon(
-        ind::Int64, dur::Vector{T}, idx_optim::Vector{Int64}, idx_impl::Vector{Int64}
+        ind::Int64, dur::Vector{T}, idx_optim::Vector{Int64}, idx_impl::Vector{Int64},
     ) where {T<:Real}
         if length(dur) ≠ length(idx_optim)
             throw(

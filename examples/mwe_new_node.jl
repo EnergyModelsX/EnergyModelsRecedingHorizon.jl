@@ -2,7 +2,7 @@ using Pkg
 # Activate the local environment including EnergyModelsBase, HiGHS, PrettyTables
 Pkg.activate(@__DIR__)
 # Use dev version if run as part of tests
-haskey(ENV, "EMX_TEST") && Pkg.develop(path=joinpath(@__DIR__, ".."))
+haskey(ENV, "EMX_TEST") && Pkg.develop(path = joinpath(@__DIR__, ".."))
 # Install the dependencies.
 Pkg.instantiate()
 
@@ -79,10 +79,16 @@ end
 Defines initialization constraints for `IncrementInitNode`. Makes reference to the `InitData`
 object provided to the node.
 """
-function EMB.constraints_data(m, n::IncrementInitNode, 𝒯, 𝒫, modeltype::EMRH.RecHorEnergyModel, data::InitData)
+function EMB.constraints_data(
+    m,
+    n::IncrementInitNode,
+    𝒯,
+    𝒫,
+    modeltype::EMRH.RecHorEnergyModel,
+    data::InitData,
+)
     @constraint(m, m[:state][n, first(𝒯)] == data.val + n.increment)
 end
-
 
 """
     get_init_state(m, n::IncrementInitNode, 𝒯_rh, 𝒽)
@@ -97,7 +103,7 @@ function EMRH.get_init_state(m, n::IncrementInitNode, 𝒯_rh, 𝒽)
     return RefInitData(level_t)
 end
 
-function create_case_newnode(; init_state=0.0)
+function create_case_newnode(; init_state = 0.0)
     co2 = ResourceEmit("co2", 1.0)
     products = [co2]
 
@@ -114,20 +120,21 @@ function create_case_newnode(; init_state=0.0)
         IncrementInitNode(
             "init node",
             1.5,
-            Vector([RefInitData(init_state)])
-        )
+            Vector([RefInitData(init_state)]),
+        ),
     ]
 
     links = Vector{Direct}([])
 
     case = Dict(
-        :nodes => nodes, :links => links, :products => products, :T => T, :horizons => hor
+        :nodes => nodes, :links => links, :products => products, :T => T,
+        :horizons => hor,
     )
 
     return case, model
 end
 
-case, model = create_case_newnode(init_state=1.0)
+case, model = create_case_newnode(init_state = 1.0)
 m = create_model(case, model)
 set_optimizer(m, optimizer)
 optimize!(m)

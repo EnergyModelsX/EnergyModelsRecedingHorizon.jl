@@ -21,7 +21,7 @@ function cost_to_go_func(opt_vars_input::Vector{JP.VariableRef})
     return cost_to_go[1] #there is probably a more elegant way of converting a 1-element Vector into a number instead of using [1] (so that the number can be used in the objective function of the optimization problem)
 end
 
-function create_case(op_number, demand_profile; case_config="standard")
+function create_case(op_number, demand_profile; case_config = "standard")
     #Define resources with their emission intensities
     power = EMB.ResourceCarrier("power", 0.0)  #tCO2/MWh
     co2 = EMB.ResourceEmit("co2", 1.0) #tCO2/MWh
@@ -133,15 +133,15 @@ println("Receding horizon implementation")
 n_hor = 2
 sol_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
 cost_rec_horizon = zeros(op_number) #store the solution of the receding horizon implementation here
-for i ∈ 1:(op_number - n_hor + 1)
-    demand_hor = demand_profile[i:(i + n_hor - 1)]
+for i ∈ 1:(op_number-n_hor+1)
+    demand_hor = demand_profile[i:(i+n_hor-1)]
     # case_i, nodes_i, m_i = create_case(n_hor, demand_hor, case_config = "cost_to_go_func")
-    case_i, nodes_i, m_i = create_case(n_hor, demand_hor, case_config="cost_to_go_scalar")
+    case_i, nodes_i, m_i = create_case(n_hor, demand_hor, case_config = "cost_to_go_scalar")
     JP.set_optimizer(m_i, optimizer)
     JP.set_optimizer_attribute(m_i, JP.MOI.Silent(), silent_flag)
     JP.optimize!(m_i)
     source_i, sink_i = case_i[:nodes]
-    sol_rec_horizon[i:(i + n_hor - 1)] = JP.value.(m_i[:cap_use][source_i, :]).data
+    sol_rec_horizon[i:(i+n_hor-1)] = JP.value.(m_i[:cap_use][source_i, :]).data
     cost_rec_horizon[i] = JP.objective_value(m_i)
 
     ctg_objective = JP.objective_function(m_i)

@@ -1,5 +1,4 @@
 
-
 function EMB.constraints_capacity_installed(m,
     n::EMB.Node,
     𝒯::TimeStructure,
@@ -30,7 +29,12 @@ function EMB.constraints_capacity_installed(m,
     # println("EMRH.CONSTRAINTS CAPACITY INSTALLED FINISHED \n\n")
 end
 
-function EMB.constraints_capacity_installed(m, n::Storage, 𝒯::TimeStructure, modeltype::RecHorOperationalModel)
+function EMB.constraints_capacity_installed(
+    m,
+    n::Storage,
+    𝒯::TimeStructure,
+    modeltype::RecHorOperationalModel,
+)
     #dummy "fix" until we generalize EMRH with POI to include Storage.
     dummy_modeltype_dispatch = OperationalModel(
         modeltype.emission_limit,

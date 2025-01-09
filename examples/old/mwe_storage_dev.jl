@@ -13,7 +13,7 @@ import EnergyModelsRecHorizon as EMRH
 silent_flag = true
 
 function create_case(
-    op_number, demand_profile, price_profile; case_config="standard", init_state=0
+    op_number, demand_profile, price_profile; case_config = "standard", init_state = 0,
 )
     #Define resources with their emission intensities
     power = EMB.ResourceCarrier("power", 0.0)  #tCO2/MWh
@@ -67,7 +67,7 @@ function create_case(
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
                 EMRH.InitStorageData(init_state),
-                EMB.EmptyData(), # testing multiple data
+                EMB.EmptyData() # testing multiple data
             ]),
         ),
         EMB.RefSink(
@@ -124,7 +124,7 @@ price_profile = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
 x0 = 3
 @assert length(demand_profile) == op_number
 @assert length(price_profile) == op_number
-case, nodes, m = create_case(op_number, demand_profile, price_profile, init_state=x0)
+case, nodes, m = create_case(op_number, demand_profile, price_profile, init_state = x0)
 JP.set_optimizer(m, optimizer)
 JP.set_optimizer_attribute(m, JP.MOI.Silent(), silent_flag)
 JP.optimize!(m)
@@ -148,14 +148,14 @@ out_rec_horizon = zeros(op_number)
 stor_rec_horizon = zeros(op_number)
 sol_rec_horizon = zeros(op_number)
 cost_rec_horizon = zeros(op_number)
-for i ∈ 1:(op_number - n_hor + 1)
+for i ∈ 1:(op_number-n_hor+1)
     # updating inputs
-    demand_hor = demand_profile[i:(i + n_hor - 1)]
-    price_hor = price_profile[i:(i + n_hor - 1)]
+    demand_hor = demand_profile[i:(i+n_hor-1)]
+    price_hor = price_profile[i:(i+n_hor-1)]
     x0_hor = init_level_vec[i]
     # creating and solving model
     case_i, nodes_i, m_i = create_case(
-        n_hor, demand_hor, price_hor, case_config="cost_to_go", init_state=x0_hor
+        n_hor, demand_hor, price_hor, case_config = "cost_to_go", init_state = x0_hor,
     )
     JP.set_optimizer(m_i, optimizer)
     JP.set_optimizer_attribute(m_i, JP.MOI.Silent(), silent_flag)
@@ -163,13 +163,13 @@ for i ∈ 1:(op_number - n_hor + 1)
     # storing parameters
     av_i, source_i, stor_i, sink_i = case_i[:nodes]
     power_i, co2_i = case_i[:products]
-    sol_rec_horizon[i:(i + n_hor - 1)] = JP.value.(m_i[:cap_use][source_i, :]).data
-    stor_rec_horizon[i:(i + n_hor - 1)] = JP.value.(m_i[:stor_level][stor_i, :]).data
-    out_rec_horizon[i:(i + n_hor - 1)] =
+    sol_rec_horizon[i:(i+n_hor-1)] = JP.value.(m_i[:cap_use][source_i, :]).data
+    stor_rec_horizon[i:(i+n_hor-1)] = JP.value.(m_i[:stor_level][stor_i, :]).data
+    out_rec_horizon[i:(i+n_hor-1)] =
         JP.value.(m_i[:flow_in][sink_i, :, power_i]).data.vals
     cost_rec_horizon[i] = JP.objective_value(m_i)
 
-    init_level_vec[i + 1] = JP.value.(m_i[:stor_level][stor_i, first(case_i[:T])])
+    init_level_vec[i+1] = JP.value.(m_i[:stor_level][stor_i, first(case_i[:T])])
     ctg_objective = JP.objective_function(m_i)
     if i == 1
         println(ctg_objective)

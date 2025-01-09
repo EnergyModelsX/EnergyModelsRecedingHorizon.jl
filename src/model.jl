@@ -17,7 +17,7 @@ as a series of optimization problems.
 Returns `results` as a dictionary indexed by the model variables.
 """
 function run_model_rh(
-    case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true
+    case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool = true,
 )
     # TODO: dispatch over `EMB.run_model` in future releases
 
