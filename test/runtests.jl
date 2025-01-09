@@ -27,4 +27,8 @@ const TEST_ATOL = 1e-6
     @testset "RecedingHorizons - Horizon types" begin
         include("horizon_types.jl")
     end
+
+    @testset "EMRecedingHorizon - Create new node" begin
+        include("test_newnode.jl")
+    end
 end
