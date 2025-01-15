@@ -490,21 +490,39 @@ end
         types_not_supported = Union{EMB.SparseVariables.IndexedVarArray,
             EMB.SparseVariables.SparseArray})
 
-Function returning the values of the optimized model `m`. It does, however, not extract
-values if the type is in `types_not_supported`.
+Function returning the values of the optimized model `m`. Some types are, however, not
+supported, and the function prints a warning message for those types and does not extract
+its value.
 
 """
 function get_results(
-    m::JuMP.Model;
-    types_not_supported = Union{
-        EMB.SparseVariables.IndexedVarArray,
-        EMB.SparseVariables.SparseArray,
-    },
+    m::JuMP.Model
 )
-    return Dict(
-        k => value.(m[k]) for
-        k ∈ keys(object_dictionary(m)) if !(typeof(m[k]) <: types_not_supported)
+    res = Dict{Symbol, AbstractArray{<:Real}}()
+    for key in keys(object_dictionary(m))
+        val = _get_values_from_obj(m[key], key)
+        if ! isnothing(val)
+            res[key] = val
+        end
+    end
+    return res
+end
+
+function _get_values_from_obj(obj::Union{
+    JuMP.Containers.SparseAxisArray,
+    JuMP.Containers.DenseAxisArray
+    },
+    key::Symbol
     )
+    return value.(obj)
+end
+
+function _get_values_from_obj(obj::Union{
+        EMB.SparseVariables.IndexedVarArray,
+        EMB.SparseVariables.SparseArray
+    }, key::Symbol)
+    @warn "Extracting values from $(typeof(obj)) is not yet supported. Return nothing for $(key)"
+    return nothing
 end
 
 """
