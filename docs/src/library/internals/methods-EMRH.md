@@ -40,5 +40,6 @@ EMRH._find_paths_operational_profile
 EMRH._get_node_index   
 EMRH._create_lens_for_field   
 EMRH.get_results    
-EMRH._set_POI_par_as_operational_profile     
+EMRH._set_POI_par_as_operational_profile  
+EMRH.Accessors.ConstructionBase.constructorof   
 ```
