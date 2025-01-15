@@ -44,3 +44,12 @@ end
 3) constraints_state_time_iter(m, n, 𝒯) # in EnergyModelsHydrogen
 4) constraints_x(m, n, 𝒯, 𝒫, modeltype::RecHorEnergyModel, data::InitData)
 =#
+
+"""
+    Accessors.ConstructionBase.constructorof(obj::Type{<:Storage})
+Allows using @reset for an `obj <: Storage`, which is a parametric type. 
+
+"""
+function Accessors.ConstructionBase.constructorof(obj::Type{<:Storage})
+    return (args...) -> (obj(args...))
+ end

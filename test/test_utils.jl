@@ -375,18 +375,19 @@ end
             Any[[:charge, :capacity], [:data, "idx_3", :emissions, co2]],
         )
 
+        #test getting values
         lens_storage_cap = EMRH._create_lens_for_field(paths_oper_storage[1])
         lens_storage_data = EMRH._create_lens_for_field(paths_oper_storage[2])
         @test all(cap_prof .== lens_storage_cap(storage).vals)
         @test all(price_prof .== lens_storage_data(storage).vals)
 
-        #TODO: Add the tests below when EMRH._reset_node(n<:Storage) works
-        # cap_prof2 = [60,32]
-        # price_prof2 = [90,80]
-        # @reset lens_storage_cap(storage) = OperationalProfile(cap_prof2)
-        # @reset lens_storage_data(storage) = OperationalProfile(price_prof2)
-        # @test all(cap_prof2 .== lens_storage_cap(storage).vals)
-        # @test all(price_prof2 .== lens_storage_data(storage).vals)
+        #test resetting values
+        cap_prof2 = [60,32]
+        price_prof2 = [90,80]
+        @reset lens_storage_cap(storage) = OperationalProfile(cap_prof2)
+        @reset lens_storage_data(storage) = OperationalProfile(price_prof2)
+        @test all(cap_prof2 .== lens_storage_cap(storage).vals)
+        @test all(price_prof2 .== lens_storage_data(storage).vals)
     end
 end
 
@@ -417,9 +418,9 @@ end
         return true #no errors have been thrown
     end
 
-    function solve_EMB_case(demand_profile, price_profile)
+    function solve_EMB_case(demand_profile, price_profile, price_profile_stor)
         println("demand profile = $(demand_profile)")
-        case_EMB, modeltype_EMB = create_case(demand_profile, price_profile;
+        case_EMB, modeltype_EMB = create_case(demand_profile, price_profile, price_profile_stor;
             init_state = 5, modeltype = OperationalModel,
         )
         @assert typeof(modeltype_EMB) <: OperationalModel
@@ -430,7 +431,9 @@ end
 
     function create_case(
         demand_profile,
-        price_profile;
+        price_profile,
+        price_profile_stor,
+        ;
         init_state = 0,
         modeltype = RecHorOperationalModel,
     )
@@ -461,7 +464,7 @@ end
         )
         storage = RefStorage{RecedingAccumulating}(
             "electricity storage",
-            StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
+            StorCapOpexVar(FixedProfile(100), OperationalProfile(price_profile_stor)), # rate_cap, opex_var
             StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
             power, # stor_res::T
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
@@ -509,8 +512,9 @@ end
     #provide data
     demand_prof = [20, 300, 40]
     price_prof = [1e3, 1e3, 1e3]
+    price_prof_stor = [1e3, 7e2, 1e3]
 
-    case_rh, modeltype_rh = create_case(demand_prof, price_prof;
+    case_rh, modeltype_rh = create_case(demand_prof, price_prof, price_prof_stor;
         init_state = 5, modeltype = RecHorOperationalModel,
     )
     @assert typeof(modeltype_rh) <: RecHorOperationalModel
@@ -531,35 +535,64 @@ end
     optimize!(m_rh)
 
     # check we get same values as EMB
-    m_EMB1, case_EMB1 = solve_EMB_case(demand_prof, price_prof)
+    m_EMB1, case_EMB1 = solve_EMB_case(demand_prof, price_prof, price_prof_stor)
     @assert check_equal_flows_av_node(m_rh, case_rh, m_EMB1, case_EMB1)
 
-    # change parameter values and re-optimize
+    # change parameter values for the sink
     multiplier = 2
-    n_example = case_rh_copy[:nodes][end]
+    n_sink = case_rh_copy[:nodes][end]
+    @assert typeof(n_sink) <: Sink
+    idx_sink = EMRH._get_node_index(n_sink, case_rh[:nodes])
 
     # check that EMRH._get_new_POI_values returns the same values as originally provided
-    orig_cap_prof = EMRH._get_new_POI_values(n_example, lens_dict[n_example][Any[:cap]])
+    orig_cap_prof = EMRH._get_new_POI_values(n_sink, lens_dict[n_sink][Any[:cap]])
     @test all(demand_prof .== orig_cap_prof)
 
     demand_prof2 = EMRH._get_new_POI_values(
-        n_example,
-        lens_dict[n_example][Any[:cap]]; multiplier = multiplier)
+        n_sink,
+        lens_dict[n_sink][Any[:cap]]; multiplier = multiplier)
 
     @test all(demand_prof2 .== (multiplier .* demand_prof)) #the multiplier works as intended
 
-    #change values of the POI parameters and re-optimize
+    #change values of the POI parameters
     m_rh = EMRH._set_values_operational_profile(
         m_rh,
         case_rh_copy,
-        case_rh_copy[:nodes][end],
+        case_rh_copy[:nodes][idx_sink],
+        update_dict,
+        lens_dict;
+        multiplier = multiplier,
+        )
+
+    # change parameter values for the storage node
+    n_storage = case_rh_copy[:nodes][3]
+    @assert typeof(n_storage) <: Storage
+    idx_storage = EMRH._get_node_index(n_storage, case_rh[:nodes])
+
+    # check that EMRH._get_new_POI_values returns the same values as originally provided
+    orig_price_prof_stor = EMRH._get_new_POI_values(n_storage, lens_dict[n_storage][Any[:charge, :opex_var]])
+    @test all(price_prof_stor .== orig_price_prof_stor)
+
+    price_prof_stor2 = EMRH._get_new_POI_values(
+        n_storage,
+        lens_dict[n_storage][Any[:charge, :opex_var]]; multiplier = multiplier)
+
+    @test all(price_prof_stor2 .== (multiplier .* price_prof_stor)) #the multiplier works as intended
+
+    #change values of the POI parameters
+    m_rh = EMRH._set_values_operational_profile(
+        m_rh,
+        case_rh_copy,
+        case_rh_copy[:nodes][idx_storage],
         update_dict,
         lens_dict;
         multiplier = multiplier,
     )
+
+    #re-optimize
     optimize!(m_rh)
 
     #check that we get the same values as EMB again
-    m_EMB2, case_EMB2 = solve_EMB_case(demand_prof2, price_prof)
+    m_EMB2, case_EMB2 = solve_EMB_case(demand_prof2, price_prof, price_prof_stor2)
     @test check_equal_flows_av_node(m_rh, case_rh, m_EMB2, case_EMB2)
 end

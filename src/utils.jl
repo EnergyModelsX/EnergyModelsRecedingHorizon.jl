@@ -549,7 +549,7 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
             prof = OperationalProfile(MOI.Parameter.(lens(n_old)[T]))
             update_dict[n_old][field_id] = @variable(m, [T] ∈ prof[collect(T)])
 
-            n_new = _reset_node(n_new, n_old, lens, field_id, update_dict, T)
+            @reset lens(n_new) = OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
             lens_dict[n_old][field_id] = lens
         end
         case[:nodes][k] = n_new
@@ -568,6 +568,9 @@ end
     _reset_node(n_new::Storage, n_old::Storage, lens, field_id, update_dict, T)
 
 Function for resetting nodes, using @reset. Storage nodes are not yet supported.
+
+!!! note
+    This function is currently not in use. Function is kept since it may be beneficial later.
 """
 function _reset_node(
     n_new::Union{Source,Sink,NetworkNode},
