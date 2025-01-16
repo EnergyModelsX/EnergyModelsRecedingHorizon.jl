@@ -47,7 +47,12 @@ end
 
 """
     Accessors.ConstructionBase.constructorof(obj::Type{<:Storage})
-Allows using @reset for an `obj <: Storage`, which is a parametric type. 
+Allows using @reset for an `obj <: Storage`, which has an inner constructor and is a
+parametric type.
+
+!!! note
+    Dispatch on this function for functions using inner constructors, in order for @reset
+    to work.
 
 """
 function Accessors.ConstructionBase.constructorof(obj::Type{<:Storage})
