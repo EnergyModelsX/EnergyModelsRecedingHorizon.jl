@@ -42,4 +42,6 @@ EMRH._create_lens_for_field
 EMRH.get_results    
 EMRH._set_POI_par_as_operational_profile  
 EMRH.Accessors.ConstructionBase.constructorof   
+EMRH._get_node_rh
+EMRH._create_lens_dict_oper_prof
 ```

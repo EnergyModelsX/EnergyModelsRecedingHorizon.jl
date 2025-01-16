@@ -110,7 +110,8 @@ end
 
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
     hor_test = first(hor)
-    case_rh, model_rh = EMRH.get_rh_case_model(case, model, hor_test)
+    lens_dict = EMRH._create_lens_dict_oper_prof(case[:nodes])
+    case_rh, model_rh = EMRH.get_rh_case_model(case, model, hor_test, lens_dict)
 
     m_rh1 = run_model(case_rh, model_rh, optimizer)
     @test termination_status(m_rh1) == MOI.OPTIMAL

@@ -28,6 +28,8 @@ function run_model_rh(
     # 𝒫 = case[:products]
     ℋ = case[:horizons]
 
+    lens_dict = _create_lens_dict_oper_prof(case[:nodes])
+
     𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
     𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ) # index of init_data in nodes: depends on init data being unique
     init_data₀ = map((n, i) -> node_data(n)[i], 𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ)
@@ -39,7 +41,7 @@ function run_model_rh(
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
-        case_rh, model_rh = get_rh_case_model(case, model, 𝒽, init_data)
+        case_rh, model_rh = get_rh_case_model(case, model, 𝒽, lens_dict, init_data)
 
         𝒯_rh = case_rh[:T]
         𝒩_rh = case_rh[:nodes]

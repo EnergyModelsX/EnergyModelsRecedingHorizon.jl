@@ -4,7 +4,7 @@
 Returns a pair `(case_rh, model_rh)` that corresponds to the receding horizon problem of `(case, model)`
 evaluated at the horizon indices `𝒽`, initialized using `init_data`.
 """
-function get_rh_case_model(case, model, 𝒽, init_data = nothing)
+function get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
     # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
     # must be improved to deal with more cases
     𝒯ᴿᴴ = optimization_time_ref(case[:T], 𝒽)
@@ -13,7 +13,8 @@ function get_rh_case_model(case, model, 𝒽, init_data = nothing)
         :products => case[:products],
         :T => TwoLevel(1, 1, SimpleTimes([duration(t) for t ∈ 𝒯ᴿᴴ])),
     )
-    case_rh[:nodes] = collect(get_object_rh(n, 𝒯ᴿᴴ) for n ∈ case[:nodes])
+    case_rh[:nodes] = [_get_node_rh(n, lens_dict, 𝒯ᴿᴴ) for n ∈ case[:nodes]]
+
     map_nodes = Dict(case[:nodes][i] => case_rh[:nodes][i] for i ∈ 1:length(case[:nodes]))
     case_rh[:links] = collect(get_new_link(l, map_nodes) for l ∈ case[:links])
 
@@ -43,6 +44,29 @@ function get_new_link(l, map_nodes)
     end
     new_link = typeof(l)(fields_link...)
     return new_link
+end
+
+"""
+    _get_node_rh(n::EMB.Node, lens_dict, 𝒯ᴿᴴ)
+
+Returns a new node identical to `n`, except that all its `OperationalProfile`s are sliced
+contain only the values specified in `𝒯ᴿᴴ`.
+"""
+function _get_node_rh(n::EMB.Node, lens_dict, 𝒯ᴿᴴ)
+    paths_oper = _find_paths_operational_profile(n)
+    if isempty(paths_oper)
+        #deepcopy is required to make the following work:
+        #@test case[:nodes][3].data[1].val == 0.5 # InitStorageData object unchanged
+        #which is found in @testset "Dummy numerical examples" (test_examples.jl)
+        return deepcopy(n)
+    else
+        for p ∈ paths_oper
+            lens = lens_dict[n][p]
+            val = lens(n)
+            @reset lens(n) = OperationalProfile(val[𝒯ᴿᴴ])
+        end
+        return n
+    end
 end
 
 """
@@ -586,6 +610,65 @@ end
 function _reset_node(n_new::Storage, n_old::Storage, lens, field_id, update_dict, T)
     error("Reset does not work for Storage yet.")
     return n_new
+end
+
+"""
+    _create_lens_dict_oper_prof(n::Vector{EMB.Node})
+    _create_lens_dict_oper_prof(n::EMB.Node)
+
+Function to create a dictionary for storing lenses pointing to `OperationalProfile` in a
+node `n` or an array of nodes.
+
+Example:
+```julia
+using EnergyModelsBase
+using EnergyModelsRecHorizon
+using TimeStruct
+const EMRH = EnergyModelsRecHorizon
+
+#generate objects
+cap_prof = [20, 300]
+price_prof = [1,2]
+power = ResourceCarrier("power", 0.0)
+co2 = ResourceEmit("co2", 1.0)
+source1 = RefSource(
+        "source1", #Node id or name
+        OperationalProfile(cap_prof), # :cap
+        FixedProfile(100), #variable OPEX
+        FixedProfile(0), #Fixed OPEX
+        Dict(power => 1), #output from the node
+        [EmissionsProcess(Dict(co2 => OperationalProfile(price_prof)))]
+    )
+source2 = RefSource(
+        "source2",
+        FixedProfile(100),
+        OperationalProfile(price_prof), #:opex_var
+        FixedProfile(0), #
+        Dict(power => 1),
+    )
+
+#create a dictionary containing lenses to the OperationalProfile
+d_all = EMRH._create_lens_dict_oper_prof([source1, source2]) #Dict(source1 => [[:cap], [:data]])
+d_s1 = EMRH._create_lens_dict_oper_prof(source1)
+
+#keys to the dictionaries are the paths containing OperationalProfile
+paths_oper_s1 = EMRH._find_paths_operational_profile(source1)
+
+#example usage
+lens_s1_cap = d_all[source1][paths_oper_s1[1]]
+lens_s1_price = d_all[source1][paths_oper_s1[2]]
+lens_s1_cap_v2 = d_s1[paths_oper_s1[1]]
+@assert all(lens_s1_cap(source1).vals .== source1.cap.vals)
+@assert all(lens_s1_price(source1).vals .== source1.data[1].emissions[co2].vals)
+@assert all(lens_s1_cap_v2(source1).vals .== source1.cap.vals)
+```
+"""
+function _create_lens_dict_oper_prof(n::Vector{<:EMB.Node})
+    return Dict(ni => _create_lens_dict_oper_prof(ni) for ni ∈ n)
+end
+function _create_lens_dict_oper_prof(n::EMB.Node)
+    paths_oper = _find_paths_operational_profile(n)
+    return Dict(field_id => _create_lens_for_field(field_id) for field_id ∈ paths_oper)
 end
 
 """
