@@ -292,21 +292,29 @@ end
 
 Function for returning the fields in a node containing an `OperationalProfile`.
 If no fields are found, it returns `Symbol[]`.
+!!! note
+    This function is currently not in use. Function is kept since it may be beneficial later.
 
-    Ex:
-    el = ResourceCarrier("el", 0.2)
-    heat = ResourceCarrier("heat", 0.0)
-    co2 = ResourceEmit("co2", 1.0)
-    n = RefNetworkNode(
-        "my_id", :id
-        FixedProfile(1e12), # :cap
-        OperationalProfile([1,2]), # :opex_var
-        FixedProfile(0), # :opex_fixed
-        Dict(el => 1), # :input
-        Dict(heat => 1), # :output
-        [EmissionsProcess(Dict(co2 => OperationalProfile([2,2])))] # :data
-    )
-    _fields_with_operational_profile(n) # returns [:opex_var, :data]
+
+Example:
+```julia
+using EnergyModelsBase
+using TimeStruct
+
+el = ResourceCarrier("el", 0.2)
+heat = ResourceCarrier("heat", 0.0)
+co2 = ResourceEmit("co2", 1.0)
+n = RefNetworkNode(
+    "my_id", :id
+    FixedProfile(1e12), # :cap
+    OperationalProfile([1,2]), # :opex_var
+    FixedProfile(0), # :opex_fixed
+    Dict(el => 1), # :input
+    Dict(heat => 1), # :output
+    [EmissionsProcess(Dict(co2 => OperationalProfile([2,2])))] # :data
+)
+_fields_with_operational_profile(n) # returns [:opex_var, :data]
+```
 """
 function _fields_with_operational_profile(n::Union{NetworkNode,Source,Sink,Storage})
     return [
@@ -334,6 +342,9 @@ end
 
 Function for recursively checking if `field` contains an `OperationalProfile`, returning
 true or false
+
+!!! note
+    This function is currently not in use. Function is kept since it may be beneficial later.
 
 # Examples
 ```julia
@@ -510,9 +521,7 @@ function _find_paths_operational_profile(
 end
 
 """
-    get_results(m::JuMP.Model;
-        types_not_supported = Union{EMB.SparseVariables.IndexedVarArray,
-            EMB.SparseVariables.SparseArray})
+    get_results(m::JuMP.Model)
 
 Function returning the values of the optimized model `m`. Some types are, however, not
 supported, and the function prints a warning message for those types and does not extract
@@ -554,6 +563,8 @@ end
 Function which iterates through the nodes in `case[:nodes]` and `case_copy[:nodes]`, find all
 `OperationalProfile{Real}` and changes them to `OperationalProfile{VariableRef}`
 
+!!! note
+    This function is currently not in use. Function is kept since it may be beneficial later.
 """
 function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_copy::Dict)
     update_dict = Dict{EMB.Node,Dict}()
@@ -752,6 +763,9 @@ end
 
 Updates the value of the POI parameter for node `n` based on the values of the node `n` in
 `case_copy` for the period `𝒽`.
+
+!!! note
+    This function is currently not in use. Function is kept since it may be beneficial later.
 """
 function _set_values_operational_profile(
     m::JuMP.Model,
@@ -781,6 +795,9 @@ Currently, it returns the value lens(n).vals.
     The idea is to slice the currently received value based on the horizon `𝒽`. This is
     not implemented yet.
     The `multiplier` is there for testing puroposes.
+
+!!! note
+    This function is currently not in use. Function is kept since it may be beneficial later.
 """
 function _get_new_POI_values(n::EMB.Node, lens, 𝒽; multiplier = 1)
     return _get_new_POI_values(n, lens; multiplier = multiplier) #TODO: slice this based on h
@@ -793,6 +810,8 @@ end
     _get_node_index(needle::EMB.Node, haystack::Vector{<:EMB.Node})
 Returns the index of `needle` in `haystack`, checking that the field `id` are equal.
 
+!!! note
+    This function is currently not in use. Function is kept since it may be beneficial later.
 """
 function _get_node_index(needle::EMB.Node, haystack::Vector{<:EMB.Node})
     haystack_id = [h.id for h ∈ haystack]
@@ -804,6 +823,9 @@ end
     _has_unique_strings(v::Vector{String})
 
 Returns `true` if all the strings in `v` are unique, `false` otherwise.
+
+!!! note
+    This function is currently not in use. Function is kept since it may be beneficial later.
 """
 function _has_unique_strings(v::Vector{String})
     return length(v) == length(Set(v)) #Set(v) contains only unique elements
