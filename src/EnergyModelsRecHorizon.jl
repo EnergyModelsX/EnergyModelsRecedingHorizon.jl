@@ -21,9 +21,14 @@ include(joinpath("structures", "horizons.jl"))
 include(joinpath("structures", "model.jl"))
 include(joinpath("structures", "node.jl"))
 
+include(joinpath("utils", "case_setup.jl"))
+include(joinpath("utils", "horizons.jl"))
+include(joinpath("utils", "identification.jl"))
+include(joinpath("utils", "other.jl"))
+include(joinpath("utils", "results.jl"))
+
 include("constraint_functions.jl")
 include("model.jl")
-include("utils.jl")
 
 export RecHorOperationalModel
 
