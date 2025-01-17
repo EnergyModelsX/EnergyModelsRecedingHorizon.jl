@@ -9,15 +9,19 @@ using EnergyModelsBase
 using JuMP
 using TimeStruct
 using CSV
+using ParametricOptInterface
+using Accessors
 
 const EMB = EnergyModelsBase
 const TS = TimeStruct
+const POI = ParametricOptInterface
 
 include(joinpath("structures", "data.jl"))
 include(joinpath("structures", "horizons.jl"))
 include(joinpath("structures", "model.jl"))
 include(joinpath("structures", "node.jl"))
 
+include("constraint_functions.jl")
 include("model.jl")
 include("utils.jl")
 

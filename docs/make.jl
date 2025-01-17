@@ -11,7 +11,7 @@ using EnergyModelsRecHorizon
 const EMRH = EnergyModelsRecHorizon
 
 # Copy the NEWS.md file
-cp("NEWS.md", "docs/src/manual/NEWS.md"; force=true)
+cp("NEWS.md", "docs/src/manual/NEWS.md"; force = true)
 
 links = InterLinks(
     # "TimeStruct" => "https://sintefore.github.io/TimeStruct.jl/stable/",
@@ -38,8 +38,8 @@ makedocs(
         ansicolor = true,
     ),
     modules = [
-        EMRH
-        ],
+        EMRH,
+    ],
     pages = [
         "Home" => "index.md",
         "Manual" => Any[
@@ -55,7 +55,7 @@ makedocs(
         ],
         "Library" => Any[
             "Public"=>"library/public.md",
-            "Internals" => String[
+            "Internals"=>String[
                 "library/internals/types-EMRH.md",
                 # "library/internals/methods-fields.md",
                 "library/internals/methods-EMRH.md",
@@ -64,7 +64,7 @@ makedocs(
         ],
         "References" => "references.md",
     ],
-    plugins=[links, bib],
+    plugins = [links, bib],
 )
 
 # deploydocs(;

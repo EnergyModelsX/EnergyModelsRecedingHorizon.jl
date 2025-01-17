@@ -7,12 +7,10 @@
 """
 struct RecedingAccumulating <: EMB.Accumulating end
 
-
 """
 Abstract type for initialization data.
 """
 abstract type InitData <: EMB.Data end
-
 
 """
 Reference initialization data type. An `InitData` object should be defined for each

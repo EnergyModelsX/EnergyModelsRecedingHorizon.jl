@@ -2,7 +2,7 @@ using Pkg
 # Activate the local environment including EnergyModelsBase, HiGHS, PrettyTables
 Pkg.activate(@__DIR__)
 # Use dev version if run as part of tests
-haskey(ENV, "EMX_TEST") && Pkg.develop(path=joinpath(@__DIR__, ".."))
+haskey(ENV, "EMX_TEST") && Pkg.develop(path = joinpath(@__DIR__, ".."))
 # Install the dependencies.
 Pkg.instantiate()
 
@@ -12,6 +12,9 @@ using JuMP
 using EnergyModelsBase
 using TimeStruct
 using EnergyModelsRecHorizon
+
+const EMRH = EnergyModelsRecHorizon
+
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
 
 op_dur_vec = [1, 2, 1, 4, 1, 3, 1, 3]
@@ -20,7 +23,7 @@ price_profile_full = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
 
 # https://sintefore.github.io/TimeStruct.jl/stable/manual/basic/
 
-function create_case(; init_state=0)
+function create_case(; init_state = 0)
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)  #tCO2/MWh
     co2 = ResourceEmit("co2", 1.0) #tCO2/MWh
@@ -60,7 +63,7 @@ function create_case(; init_state=0)
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
                 InitStorageData(init_state),
-                EmptyData(), # testing multiple data
+                EmptyData() # testing multiple data
             ]),
         ),
         RefSink(
@@ -83,14 +86,15 @@ function create_case(; init_state=0)
 
     #WIP(?) data structure - order of vectors (nodes, links, products) MUST NOT CHANGE
     case = Dict(
-        :nodes => nodes, :links => links, :products => products, :T => T, :horizons => hor
+        :nodes => nodes, :links => links, :products => products, :T => T,
+        :horizons => hor,
     )
 
     return case, model
 end
 
 x0 = 5
-case, model = create_case(init_state=x0)
+case, model = create_case(init_state = x0)
 m = create_model(case, model)
 set_optimizer(m, optimizer)
 optimize!(m)
@@ -98,7 +102,7 @@ optimize!(m)
 av, source, stor, sink = case[:nodes]
 power, co2 = case[:products]
 
-results_full = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)))
+results_full = EMRH.get_results(m)
 solution_full_problem = results_full[:cap_use][source, :].data
 out_full_problem = results_full[:flow_in][sink, :, power].data.vals
 stor_full_problem = results_full[:stor_level][stor, :].data

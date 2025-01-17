@@ -69,7 +69,7 @@ end
         # Test of the previous periods
         @test isnothing(single_horizons[1][1])
         @test sum(
-            single_horizons[k + 1][1] == single_horizons[k][2] for
+            single_horizons[k+1][1] == single_horizons[k][2] for
             k ∈ range(1, length(per_horizons) - 1)
         ) == length(per_horizons) - 1
     end
@@ -124,7 +124,7 @@ end
         # Test of the previous periods
         @test isnothing(single_horizons[1][1])
         @test sum(
-            single_horizons[k + 1][1] == single_horizons[k][2] for
+            single_horizons[k+1][1] == single_horizons[k][2] for
             k ∈ range(1, length(dur_horizons) - 1)
         ) == length(dur_horizons) - 1
     end

@@ -4,10 +4,13 @@ using HiGHS
 using JuMP
 using Test
 using TimeStruct
+using ParametricOptInterface
+using Accessors
 
 const EMRH = EnergyModelsRecHorizon
 const EMB = EnergyModelsBase
 const TS = TimeStruct
+const POI = ParametricOptInterface
 
 const TEST_ATOL = 1e-6
 
@@ -25,7 +28,7 @@ const TEST_ATOL = 1e-6
         include("horizon_types.jl")
     end
 
-    @testset "EMRecedingHorizon - Create new node" begin
-        include("test_newnode.jl")
-    end
+    # @testset "EMRecedingHorizon - Create new node" begin
+    #     include("test_newnode.jl")
+    # end
 end

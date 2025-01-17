@@ -17,7 +17,7 @@ as a series of optimization problems.
 Returns `results` as a dictionary indexed by the model variables.
 """
 function run_model_rh(
-    case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true
+    case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool = true,
 )
     # TODO: dispatch over `EMB.run_model` in future releases
 
@@ -27,6 +27,8 @@ function run_model_rh(
     # ℒ = case[:links]
     # 𝒫 = case[:products]
     ℋ = case[:horizons]
+
+    lens_dict = _create_lens_dict_oper_prof(case[:nodes])
 
     𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
     𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ) # index of init_data in nodes: depends on init data being unique
@@ -39,7 +41,7 @@ function run_model_rh(
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
-        case_rh, model_rh = get_rh_case_model(case, model, 𝒽, init_data)
+        case_rh, model_rh = get_rh_case_model(case, model, 𝒽, lens_dict, init_data)
 
         𝒯_rh = case_rh[:T]
         𝒩_rh = case_rh[:nodes]
