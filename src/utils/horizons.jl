@@ -26,15 +26,3 @@ function Base.iterate(itr::AbstractHorizons, state = (1, nothing))
     horizon = SingleHorizon(next, itr.dur[rng_optim], collect(rng_optim), collect(rng_impl))
     return horizon, (rng_impl[end] + 1, next)
 end
-
-"""
-    optimization_time_ref(𝒯, 𝒽)
-
-Returns an array of time references for the receding horizon optimization problem. The full
-problem is defined by `𝒯`, and the horizon is defined by `𝒽`.
-"""
-function optimization_time_ref(𝒯, 𝒽)
-    # TODO: not optimal to create array according to Julian, but a better solution was not found
-    𝒯_vec = collect(𝒯)
-    return 𝒯_vec[indices_optimization(𝒽)]
-end

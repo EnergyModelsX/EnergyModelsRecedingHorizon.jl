@@ -38,7 +38,7 @@ problem definition in `case_rh`, which is a slice of the original problem define
 at the time period `𝒽`. The containers in `results` are indexed by the elements in `case`.
 """
 function update_results!(results, m, case_rh, case, 𝒽)
-    𝒯ᴿᴴₒᵤₜ = optimization_time_ref(case[:T], 𝒽)
+    𝒯ᴿᴴₒᵤₜ = collect(case[:T])[indices_optimization(𝒽)]
     results_rh = get_results(m)
     convert_dict = Dict(
         n_rh => n for sym ∈ [:nodes, :links, :products] for

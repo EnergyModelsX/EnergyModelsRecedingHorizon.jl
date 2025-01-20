@@ -154,19 +154,35 @@ EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
 ```
 """
 function _find_paths_operational_profile(n::EMB.Node)
-    all_paths = []  # To store the paths to lists
-    _find_paths_operational_profile(n, [], all_paths)
+    all_paths = []
+    current_path = []
+    for f ∈ fieldnames(typeof(n))
+        new_path = vcat(current_path, f)
+        _find_paths_operational_profile(getfield(n, f), new_path, all_paths)
+    end
     return all_paths
 end
-function _find_paths_operational_profile(
-    field::EMB.Node,
-    current_path::Vector{Any},
-    all_paths::Vector{Any},
-)
-    for f ∈ fieldnames(typeof(field))
+function _find_paths_operational_profile(l::Link)
+    all_paths = []
+    current_path = []
+    for f ∈ fieldnames(typeof(l))
         new_path = vcat(current_path, f)
-        _find_paths_operational_profile(getfield(field, f), new_path, all_paths)
+        if isequal(f, :from) || isequal(f, :to)
+            push!(all_paths, new_path)
+        else
+            _find_paths_operational_profile(getfield(l, f), new_path, all_paths)
+        end
     end
+    return all_paths
+end
+function _find_paths_operational_profile(model::RecHorEnergyModel)
+    all_paths = []  # To store the paths to lists
+    current_path = []
+    for f ∈ fieldnames(typeof(model))
+        new_path = vcat(current_path, f)
+        _find_paths_operational_profile(getfield(model, f), new_path, all_paths)
+    end
+    return all_paths
 end
 function _find_paths_operational_profile(
     field::Vector{<:Data},
