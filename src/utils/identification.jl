@@ -205,6 +205,13 @@ function _find_paths_operational_profile(
     end
 end
 function _find_paths_operational_profile(
+    field::InitData,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    push!(all_paths, push!(current_path, :val))
+end
+function _find_paths_operational_profile(
     field::AbstractDict,
     current_path::Vector{Any},
     all_paths::Vector{Any},
