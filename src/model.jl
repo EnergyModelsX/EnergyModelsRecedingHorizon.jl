@@ -24,11 +24,14 @@ function run_model_rh(
     # WIP Data structure
     𝒯 = case[:T]
     𝒩 = case[:nodes]
-    # ℒ = case[:links]
+    ℒ = case[:links]
     # 𝒫 = case[:products]
     ℋ = case[:horizons]
 
-    lens_dict = _create_lens_dict_oper_prof(case[:nodes])
+    lens_dict = Dict{Symbol, Dict}()
+    lens_dict[:nodes] = _create_lens_dict_oper_prof(𝒩)
+    lens_dict[:links] = _create_lens_dict_oper_prof(ℒ)
+    lens_dict[:model] = _create_lens_dict_oper_prof(model)
 
     𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
     𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ) # index of init_data in nodes: depends on init data being unique

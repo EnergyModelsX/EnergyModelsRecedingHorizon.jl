@@ -6,7 +6,6 @@
 Pages = ["methods-EMH.md"]
 ```
 
-
 ### [Extension functions](@id lib-int-ext)
 
 ```@docs
@@ -17,10 +16,8 @@ EMRH.get_init_state
 
 ```@docs
 get_rh_case_model
-EMRH.optimization_time_ref
-EMRH.get_object_rh
-EMRH.get_property_rh
-EMRH.get_new_link
+EMRH._get_element_rh
+EMRH._get_model_rh
 EMRH.initialize_container
 EMRH.update_results!
 EMRH.save_results
@@ -33,15 +30,13 @@ EMRH.init_level
 EMRH._fields_with_operational_profile
 EMRH._has_field_operational_profile
 EMRH._get_new_POI_values
-EMRH._reset_node
 EMRH._set_values_operational_profile
-EMRH._has_unique_strings 
-EMRH._find_paths_operational_profile  
-EMRH._get_node_index   
-EMRH._create_lens_for_field   
-EMRH.get_results    
-EMRH._set_POI_par_as_operational_profile  
-EMRH.Accessors.ConstructionBase.constructorof   
-EMRH._get_node_rh
+EMRH._has_unique_strings
+EMRH._find_paths_operational_profile
+EMRH._get_node_index
+EMRH._create_lens_for_field
+EMRH.get_results
+EMRH._set_POI_par_as_operational_profile
+EMRH.Accessors.ConstructionBase.constructorof
 EMRH._create_lens_dict_oper_prof
 ```
