@@ -322,12 +322,12 @@ end
         paths_oper_storage = EMRH._find_paths_operational_profile(storage)
         @test all(
             paths_oper_storage .==
-            Any[[:charge, :capacity], [:data, "idx_3", :emissions, co2]],
+            Any[[:charge, :capacity], [:data, "idx_1", :val], [:data, "idx_3", :emissions, co2]],
         )
 
         #test getting values
         lens_storage_cap = EMRH._create_lens_for_field(paths_oper_storage[1])
-        lens_storage_data = EMRH._create_lens_for_field(paths_oper_storage[2])
+        lens_storage_data = EMRH._create_lens_for_field(paths_oper_storage[3])
         @test all(cap_prof .== lens_storage_cap(storage).vals)
         @test all(price_prof .== lens_storage_data(storage).vals)
 

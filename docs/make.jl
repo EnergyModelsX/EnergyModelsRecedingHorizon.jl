@@ -6,8 +6,10 @@ using Documenter
 using DocumenterInterLinks
 using DocumenterCitations
 
+using TimeStruct
 using EnergyModelsBase
 using EnergyModelsRecHorizon
+const EMB = EnergyModelsBase
 const EMRH = EnergyModelsRecHorizon
 
 # Copy the NEWS.md file

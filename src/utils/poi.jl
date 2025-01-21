@@ -22,6 +22,7 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
 
         for field_id ∈ paths_oper
             lens = _create_lens_for_field(field_id)
+            !isa(lens(n_old), OperationalProfile) && continue
             prof = OperationalProfile(MOI.Parameter.(lens(n_old)[T]))
             update_dict[n_old][field_id] = @variable(m, [T] ∈ prof[collect(T)])
 
@@ -32,7 +33,6 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
     end
     return case, update_dict, lens_dict
 end
-
 
 """
     _get_elements_rh(m, 𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
@@ -71,7 +71,7 @@ function _get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿ�
                 n = lens(l)
                 @reset lens(l_rh) = map_dict[:nodes][n]
             else
-                val = lens(n)
+                val = lens(l)
                 l_rh, update_dict[n][field_id] = _reset_field(m, l_rh, lens, val, 𝒯ᴿᴴ)
             end
         end
@@ -81,6 +81,12 @@ function _get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿ�
     return ℒʳʰ, update_dict
 end
 
+"""
+    _get_model_rh(m, model::RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
+
+Returns a new model with adjustments in the values of `OperationalProfile`s due to the
+change in the horizon as indicated through the operational periods array `𝒯ᴿᴴ`.
+"""
 function _get_model_rh(m, model::RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
     update_dict = Dict{Any,Any}()
     model_rh = deepcopy(model)
@@ -122,6 +128,82 @@ function _reset_field(m, x_rh, lens, val::OperationalProfile, 𝒯ᴿᴴ)
     var = @variable(m, [𝒯ᴿᴴ] ∈ val_par[collect(𝒯ᴿᴴ)])
     @reset lens(x_rh) = OperationalProfile([var[t] for t ∈ 𝒯ᴿᴴ])
     return x_rh, var
+end
+
+"""
+    _set_elements_rh!(m, lens_dict, update_dict, init_data, oper)
+
+Iterate through the inidividual elements (keys) in `update_dict` and extract the individual
+variables for each element x.
+
+The function calls two subroutines:
+
+1. [`_get_value`](@ref) for identifying whether the variable correspond to `InitData` or to
+   an operational profile and
+2. [`_set_parameter!`](@ref) to set the parameter to the new value, either through new init
+   data  or through slicing.
+
+!!! warn
+    The current system is not really robust. It assumes that all data provided that is not
+    an `OperationalProfile` is pointing towards an `InitData`.
+
+!!! todo "Internal if loop"
+    The internal if loop is required as the lenses can point towards `InitData` types. In
+    the case of a node without `InitData`, it would not be possible to extract the `InitData`.
+    This solved through the if loop.
+"""
+function _set_elements_rh!(m, lens_dict, update_dict, init_data, oper)
+    for (x, node_dict) ∈ update_dict
+        for (field, var_arr) ∈ node_dict
+            lens = lens_dict[x][field]
+            val = nothing
+            if has_init(x)
+                val = _get_value(lens(x), init_data[x], oper)
+            else
+                val = _get_value(lens(x), RefInitData(0), oper)
+            end
+            _set_parameter!(m, var_arr, val)
+        end
+    end
+end
+
+
+"""
+    _get_value(val::Real, init::InitData, oper)
+    _get_value(val::Vector{T}, init::InitData, oper) where {T<:Real}
+    _get_value(val::OperationalProfile, init::InitData, oper)
+
+Returns the value that should be replaced in the model.
+
+The functions returns
+
+1. the value in `InitData for `val::Real` and `val::Vector{T} where {T<:Real}` or
+2. the sliced `OperationalProfile` for `val::OperationalProfile`.
+"""
+function _get_value(val::Real, init::InitData, oper)
+    return init.val
+end
+function _get_value(val::Vector{T}, init::InitData, oper) where {T<:Real}
+    return init.val
+end
+function _get_value(val::OperationalProfile, init::InitData, oper)
+    return val[oper]
+end
+
+"""
+    _set_parameter!(m, var, val::Real)
+    _set_parameter!(m, var_arr, val::Vector)
+
+Set the parameter of variable `var` or variable array `var_arr` depending on whether the
+value is a `Real` or a `Vector`.
+"""
+function _set_parameter!(m, var, val::Real)
+    MOI.set(m, POI.ParameterValue(), var, val)
+end
+function _set_parameter!(m, var_arr, val::Vector)
+    for (i, var) ∈ enumerate(var_arr)
+        MOI.set(m, POI.ParameterValue(), var, val[i])
+    end
 end
 
 """

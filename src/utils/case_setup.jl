@@ -1,5 +1,59 @@
 """
-    get_rh_case_model(case, model, 𝒽, init_data)
+    init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
+
+Initialize the provided receding horizon `case_rh` and `model_rh` types, the JuMP model `m`,
+and the dictionary with the JuMP variables `update_dict` when utilizing `ParametricOptInterface`.
+
+The initialization is utilizing the first horizon `𝒽`.
+"""
+function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
+
+    m = Model(() -> optimizer)
+
+    # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
+    # must be improved to deal with more cases
+    𝒯ᴿᴴ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
+    case_rh = Dict(
+        :products => case[:products],
+        :T => 𝒯ᴿᴴ,
+    )
+
+    # Initialize the dictionaries
+    map_dict = Dict{Symbol, Dict}()
+    update_dict = Dict{Symbol, Dict}()
+
+    # Update the nodes with the parameter variables
+    case_rh[:nodes], update_dict[:nodes] =
+        _get_elements_rh(m, case[:nodes], map_dict, lens_dict[:nodes], 𝒯ᴿᴴ)
+    map_dict[:nodes] =
+        Dict(case[:nodes][i] => case_rh[:nodes][i] for i ∈ 1:length(case[:nodes]))
+
+    # Update the links with the parameter variables
+    case_rh[:links], update_dict[:links] =
+        _get_elements_rh(m, case[:links], map_dict, lens_dict[:links], 𝒯ᴿᴴ)
+
+    # Update the model with the parameter variables
+    model_rh, update_dict[:model] = _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᴿᴴ)
+
+    return case_rh, model_rh, update_dict, m
+end
+"""
+    update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
+
+Update the JuMP model `m` with the new values for horizon `𝒽`.
+"""
+function update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
+    # Identify the operational period
+    oper = collect(case[:T])[indices_optimization(𝒽)]
+
+    # Update the parameters of the nodes, links, and the model
+    _set_elements_rh!(m, lens_dict[:nodes], update_dict[:nodes], init_data, oper)
+    _set_elements_rh!(m, lens_dict[:links], update_dict[:links], init_data, oper)
+    _set_elements_rh!(m, lens_dict[:model], update_dict[:model], init_data, oper)
+end
+
+"""
+    get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
 
 Returns a pair `(case_rh, model_rh)` that corresponds to the receding horizon problem of `(case, model)`
 evaluated at the horizon indices `𝒽`, initialized using `init_data`.
@@ -7,17 +61,17 @@ evaluated at the horizon indices `𝒽`, initialized using `init_data`.
 function get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
     # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
     # must be improved to deal with more cases
-    𝒯ᴿᴴ = collect(case[:T])[indices_optimization(𝒽)]
+    oper = collect(case[:T])[indices_optimization(𝒽)]
     case_rh = Dict(
         :products => case[:products],
         :T => TwoLevel(1, 1, SimpleTimes(durations(𝒽))),
     )
     map_dict = Dict{Symbol, Dict}()
-    case_rh[:nodes] = [_get_element_rh(n, map_dict, lens_dict[:nodes], 𝒯ᴿᴴ) for n ∈ case[:nodes]]
+    case_rh[:nodes] = [_get_element_rh(n, map_dict, lens_dict[:nodes], oper) for n ∈ case[:nodes]]
     map_dict[:nodes] = Dict(case[:nodes][i] => case_rh[:nodes][i] for i ∈ 1:length(case[:nodes]))
 
-    case_rh[:links] = [_get_element_rh(l, map_dict, lens_dict[:links], 𝒯ᴿᴴ) for l ∈ case[:links]]
-    model_rh = _get_model_rh(model, map_dict, lens_dict[:model], 𝒯ᴿᴴ)
+    case_rh[:links] = [_get_element_rh(l, map_dict, lens_dict[:links], oper) for l ∈ case[:links]]
+    model_rh = _get_model_rh(model, map_dict, lens_dict[:model], oper)
 
     if !isnothing(init_data)
         𝒩ⁱⁿⁱᵗ_rh = filter(has_init, case_rh[:nodes])
@@ -128,13 +182,14 @@ power = ResourceCarrier("power", 0.0)
 co2 = ResourceEmit("co2", 1.0)
 
 source = RefSource(
-        "a source", #Node id or name
-        OperationalProfile(cap_prof), # :cap
-        FixedProfile(100), #variable OPEX
-        FixedProfile(0), #Fixed OPEX
-        Dict(power => 1), #output from the node
-        [EmissionsProcess(Dict(co2 => OperationalProfile(price_prof)))]
-    )
+    "power_source",                 # Node id or name
+    OperationalProfile(cap_prof),   # Capacity
+    FixedProfile(100),              # Variable OPEX
+    FixedProfile(0),                # Fixed OPEX
+    Dict(power => 1),               # Output from the node
+    [EmissionsProcess(Dict(co2 => OperationalProfile(price_prof)))]
+    # Line above: CO2 process emissions
+)
 
 paths_oper_source = EMRH._find_paths_operational_profile(source)
 @assert all(paths_oper_source .== Any[[:cap], [:data, "idx_1", :emissions, co2]])
@@ -145,11 +200,10 @@ lens_source_cap(source) #returns OperationalProfile(cap_prof)
 @assert all(cap_prof .== lens_source_cap(source).vals)
 @assert all(price_prof .== lens_source_data(source).vals)
 
-#lens can also be used for @reset
+# Lenses can also be used for @reset
 cap_prof2 = [90,100]
 @reset lens_source_cap(source) = OperationalProfile(cap_prof2)
 @assert all(cap_prof2 .== lens_source_cap(source).vals)
-
 ```
 """
 function _create_lens_for_field(field_id::Vector{<:Any})
@@ -205,22 +259,50 @@ function _get_element_rh(n::EMB.Node, map_dict, lens_dict, 𝒯ᴿᴴ)
     else
         for (_, lens) ∈ lens_dict[n]
             val = lens(n)
-            @reset lens(n) = OperationalProfile(val[𝒯ᴿᴴ])
+            n = _reset_field(n, lens, val, map_dict, 𝒯ᴿᴴ)
         end
         return n
     end
 end
 function _get_element_rh(l::Link, map_dict, lens_dict, 𝒯ᴿᴴ)
-    for (par, lens) ∈ lens_dict[l]
+    for (_, lens) ∈ lens_dict[l]
         val = lens(l)
-        if par == [:to] || par == [:from]
-            n = getfield(l, par[1])
-            @reset lens(l) = map_dict[:nodes][n]
-        else
-            @reset lens(l) = OperationalProfile(val[𝒯ᴿᴴ])
-        end
+        l = _reset_field(l, lens, val, map_dict, 𝒯ᴿᴴ)
     end
     return l
+end
+
+"""
+    _reset_field(x_rh, lens, val::EMB.Node, map_dict, 𝒯ᴿᴴ)
+    _reset_field(x_rh, lens, val::Real, map_dict, 𝒯ᴿᴴ) where {T<:Real}
+    _reset_field(x_rh, lens, val::Vector{T}, map_dict, 𝒯ᴿᴴ) where {T<:Real}
+    _reset_field(x_rh, lens, val::OperationalProfile, map_dict, 𝒯ᴿᴴ)
+
+
+Resets the field expressed through `lens` of element `x_rh` with the value provided through
+`val`. The following methods are implemented:
+
+1. `val::EMB.Node` uses the `map_dict` for identifying the correct node,
+2. `val::Real` uses the the value directly,
+3. `Vector{T}` where `T<:Real` uses the the value directly, and
+4. `val::OperationalProfile` creates a new operational profile based on the original
+   operational profile and the set of operational periods `𝒯ᴿᴴ`.
+"""
+function _reset_field(x_rh, lens, val::EMB.Node, map_dict, 𝒯ᴿᴴ)
+    @reset lens(x_rh) = map_dict[:nodes][val]
+    return x_rh
+end
+function _reset_field(x_rh, lens, val::Real, map_dict, 𝒯ᴿᴴ)
+    @reset lens(x_rh) = val
+    return x_rh
+end
+function _reset_field(x_rh, lens, val::Vector{T}, map_dict, 𝒯ᴿᴴ) where {T<:Real}
+    @reset lens(x_rh) = val
+    return x_rh
+end
+function _reset_field(x_rh, lens, val::OperationalProfile, map_dict, 𝒯ᴿᴴ)
+    @reset lens(x_rh) = OperationalProfile(val[𝒯ᴿᴴ])
+    return x_rh
 end
 
 """
