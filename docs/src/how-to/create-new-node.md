@@ -16,3 +16,7 @@ Initialization here is defined by dispatching on [`previous_level`](@ref EMRH.En
 
 Additionally, one must create dispatches upon [`get_init_state`](@ref EMRH.get_init_state) for new nodes.
 This function should return an [`InitData`](@ref) object based on the solution of the optimization problem in a previous time window, such that the system is initialized properly for the solution of the following receding horizon problems.
+
+!!! todo "Rewrite"
+    Rewrite the section based on what is really required.
+    This includes as well dispatching on the function `EMRH.Accessors.ConstructionBase.constructorof(obj::Type{<:Storage})` if the type is parametric and its parametric input cannot be deduced from the fields (*e.g.*, `Storage` nodes) or if the node has an inner constructor.
