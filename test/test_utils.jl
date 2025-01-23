@@ -88,17 +88,59 @@
     end
 end
 
-@testset "Check nodes for OperationalProfile" begin
+@testset "Identification of data to be changed" begin
+
     el = ResourceCarrier("el", 0.2)
     heat = ResourceCarrier("heat", 0.0)
     co2 = ResourceEmit("co2", 1.0)
     resources = [el, heat, co2]
 
+    @testset "Identifiying operational changed types" begin
+        @test EMRH._has_field_operational_profile(OperationalProfile([1]))
+        @test EMRH._has_field_operational_profile(
+            Dict(:a => Dict(:b => Dict(:c => OperationalProfile([1])))),
+        ) # true
+        @test !EMRH._has_field_operational_profile(
+            Dict(:a => Dict(:b => Dict(:c => FixedProfile(1)))),
+        ) # false
+        @test_throws ErrorException EMRH._has_field_operational_profile(
+            Dict(:a => StrategicProfile([1, 2])),
+        ) # raises Error. EMRH should not be used with StrategicProfile
+
+        #test for various Data
+        #EmissionsEnergy accepts any input arguments, but does not use it.
+        @test !EMRH._has_field_operational_profile(EmissionsEnergy(OperationalProfile([1])))
+        @test EMRH._has_field_operational_profile(
+            EmissionsProcess(Dict(co2 => OperationalProfile([1]))),
+        )
+        @test !EMRH._has_field_operational_profile(
+            EmissionsProcess(Dict(co2 => FixedProfile(2))),
+        )
+        @test !EMRH._has_field_operational_profile(EmptyData())
+        @test !EMRH._has_field_operational_profile(InitStorageData(4.0))
+
+        #test for various AbstractStorageParameters
+        @test EMRH._has_field_operational_profile(
+            StorCapOpexFixed(OperationalProfile([1]), FixedProfile(0)),
+        )
+        @test !EMRH._has_field_operational_profile(
+            StorCapOpexFixed(FixedProfile(1), FixedProfile(0)),
+        )
+        @test EMRH._has_field_operational_profile(
+            StorCapOpexVar(OperationalProfile([1]), FixedProfile(0)),
+        )
+        @test !EMRH._has_field_operational_profile(
+            StorCapOpexVar(FixedProfile(1), FixedProfile(0)),
+        )
+        @test EMRH._has_field_operational_profile(StorOpexVar(OperationalProfile([1])))
+        @test !EMRH._has_field_operational_profile(StorOpexVar(FixedProfile(1)))
+        @test EMRH._has_field_operational_profile(StorCap(OperationalProfile([1])))
+        @test !EMRH._has_field_operational_profile(StorCap(FixedProfile(1)))
+    end
+
+
     profile = [1, 2, 3]
     dim_t = length(profile)
-
-    em_process_oper = EmissionsProcess(Dict(co2 => OperationalProfile(profile)))
-    em_process_fixed = EmissionsProcess(Dict(co2 => FixedProfile(2)))
 
     data = [
         EmissionsEnergy(OperationalProfile(profile)),
@@ -146,7 +188,7 @@ end
         el, # stor_res::T
         Dict(el => 1), # input::Dict{<:Resource, <:Real}
         Dict(el => 1), # output::Dict{<:Resource, <:Real}
-        data,
+        [RefInitData(0.5)],
     )
     storage_charge_oper = RefStorage{RecedingAccumulating}(
         "electricity storage",
@@ -171,7 +213,7 @@ end
         el, # stor_res::T
         Dict(el => 1), # input::Dict{<:Resource, <:Real}
         Dict(el => 1), # output::Dict{<:Resource, <:Real}
-        data,
+        [RefInitData(0.5)],
     )
     sink = RefSink(
         "heat demand", #node ID or name
@@ -183,85 +225,107 @@ end
         Dict(heat => 1), #energy demand and corresponding ratio
     )
 
-    @test issetequal(EMRH._find_paths_operational_profile(source_fixed), Any[])
-    @test issetequal(EMRH._find_paths_operational_profile(source_oper), [[:opex_var]])
-    @test issetequal(
-        EMRH._find_paths_operational_profile(sink),
-        [[:cap], [:penalty, :deficit]],
-    )
-    @test issetequal(EMRH._find_paths_operational_profile(storage_charge_level_data_oper),
-        [[:charge, :capacity],
-            [:level, :capacity],
-            [:data, "idx_2", :emissions, co2]],
+    @testset "Identification - fields" begin
+        @test all(EMRH._fields_with_operational_profile(av) .== Symbol[])
+        @test all(EMRH._fields_with_operational_profile(source_fixed) .== Symbol[])
+        @test all(EMRH._fields_with_operational_profile(source_oper) .== [:opex_var])
+        @test all(EMRH._fields_with_operational_profile(network) .== [:opex_var, :data])
+        @test all(EMRH._fields_with_operational_profile(storage) .== Symbol[])
+        @test all(EMRH._fields_with_operational_profile(storage_data) .== [])
+        @test all(EMRH._fields_with_operational_profile(storage_charge_oper) .== [:charge])
+        @test all(EMRH._fields_with_operational_profile(storage_level_oper) .== [:level])
+        @test all(
+            EMRH._fields_with_operational_profile(storage_charge_level_data_oper) .==
+            [:charge, :level],
+        )
+        @test all(EMRH._fields_with_operational_profile(sink) .== [:cap, :penalty])
+    end
+
+    # Creation of a new link type
+    struct ProfDirect <: Link
+        id::Any
+        from::EMB.Node
+        to::EMB.Node
+        formulation::EMB.Formulation
+        profile::TimeProfile
+    end
+
+    link = ProfDirect(
+        "prof_link",
+        source_fixed,
+        sink,
+        Linear(),
+        OperationalProfile(profile)
     )
 
-    all_paths = []
-    current_path = Any[:a_path]
-    a_dict = Dict(
-        :a => Dict(
-            :b1 => Dict(:c => OperationalProfile([1])),
-            :b2 => OperationalProfile([1]),
-            :b3 => [1],
-        ),
+    # Creation of a modeltype with OperationalProfile
+    model = RecHorOperationalModel(
+        Dict(co2 => OperationalProfile([100, 100, 100])),
+        Dict(co2 => FixedProfile(60)),
+        co2,
     )
-    EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
-    @test issetequal(all_paths, [[:a_path, :a, :b2], [:a_path, :a, :b1, :c]])
 
-    @test all(EMRH._fields_with_operational_profile(network) .== [:opex_var, :data])
-    @test all(EMRH._fields_with_operational_profile(source_oper) .== [:opex_var])
-    @test all(EMRH._fields_with_operational_profile(source_fixed) .== Symbol[])
-    @test all(EMRH._fields_with_operational_profile(av) .== Symbol[])
-    @test all(EMRH._fields_with_operational_profile(storage) .== Symbol[])
-    @test all(EMRH._fields_with_operational_profile(storage_data) .== [:data])
-    @test all(EMRH._fields_with_operational_profile(storage_charge_oper) .== [:charge])
-    @test all(EMRH._fields_with_operational_profile(storage_level_oper) .== [:level])
-    @test all(
-        EMRH._fields_with_operational_profile(storage_charge_level_data_oper) .==
-        [:charge, :level, :data],
-    )
-end
+    @testset "Identification - paths" begin
+        # Test of all potential node input from EMRH
+        @test issetequal(EMRH._find_paths_operational_profile(av), Any[])
+        @test issetequal(EMRH._find_paths_operational_profile(source_fixed), Any[])
+        @test issetequal(EMRH._find_paths_operational_profile(source_oper), [[:opex_var]])
+        @test issetequal(
+            EMRH._find_paths_operational_profile(network),
+            [[:opex_var], [:data, "idx_2", :emissions, co2]],
+        )
+        @test issetequal(EMRH._find_paths_operational_profile(storage), Any[])
+        @test issetequal(
+            EMRH._find_paths_operational_profile(storage_data),
+            [[:data, "idx_1", :val]],
+        )
+        @test issetequal(
+            EMRH._find_paths_operational_profile(storage_charge_oper),
+            [[:charge, :capacity]],
+        )
+        @test issetequal(
+            EMRH._find_paths_operational_profile(storage_level_oper),
+            [[:level, :capacity]],
+        )
+        @test issetequal(
+            EMRH._find_paths_operational_profile(storage_charge_level_data_oper),
+            [
+                [:charge, :capacity],
+                [:level, :capacity],
+                [:data, "idx_1", :val]
+            ],
+        )
+        @test issetequal(
+            EMRH._find_paths_operational_profile(sink),
+            [[:cap], [:penalty, :deficit]],
+        )
 
-@testset "EMRH._has_field_operational_profile" begin
-    @test EMRH._has_field_operational_profile(OperationalProfile([1]))
-    @test EMRH._has_field_operational_profile(
-        Dict(:a => Dict(:b => Dict(:c => OperationalProfile([1])))),
-    ) # true
-    @test !EMRH._has_field_operational_profile(
-        Dict(:a => Dict(:b => Dict(:c => FixedProfile(1)))),
-    ) # false
-    @test_throws ErrorException EMRH._has_field_operational_profile(
-        Dict(:a => StrategicProfile([1, 2])),
-    ) # raises Error. EMRH should not be used with StrategicProfile
+        # Test of link and model
+        @test issetequal(
+            EMRH._find_paths_operational_profile(link),
+            [[:from], [:to], [:profile]],
+        )
+        @test issetequal(
+            EMRH._find_paths_operational_profile(model),
+            [[:emission_limit, co2]],
+        )
+    end
 
-    #test for various Data
-    #EmissionsEnergy accepts any input arguments, but does not use it.
-    @test !EMRH._has_field_operational_profile(EmissionsEnergy(OperationalProfile([1])))
-    @test EMRH._has_field_operational_profile(
-        EmissionsProcess(Dict(co2 => OperationalProfile([1]))),
-    )
-    @test !EMRH._has_field_operational_profile(
-        EmissionsProcess(Dict(co2 => FixedProfile(2))),
-    )
-    @test !EMRH._has_field_operational_profile(EmptyData())
-    @test !EMRH._has_field_operational_profile(InitStorageData(4.0))
+    @testset "Case creation - lenses and resets" begin
+        𝒩 = EMB.Node[av, source_fixed, source_oper, network, storage_charge_level_data_oper]
+        ℒ = Link[link]
 
-    #test for various AbstractStorageParameters
-    @test EMRH._has_field_operational_profile(
-        StorCapOpexFixed(OperationalProfile([1]), FixedProfile(0)),
-    )
-    @test !EMRH._has_field_operational_profile(
-        StorCapOpexFixed(FixedProfile(1), FixedProfile(0)),
-    )
-    @test EMRH._has_field_operational_profile(
-        StorCapOpexVar(OperationalProfile([1]), FixedProfile(0)),
-    )
-    @test !EMRH._has_field_operational_profile(
-        StorCapOpexVar(FixedProfile(1), FixedProfile(0)),
-    )
-    @test EMRH._has_field_operational_profile(StorOpexVar(OperationalProfile([1])))
-    @test !EMRH._has_field_operational_profile(StorOpexVar(FixedProfile(1)))
-    @test EMRH._has_field_operational_profile(StorCap(OperationalProfile([1])))
-    @test !EMRH._has_field_operational_profile(StorCap(FixedProfile(1)))
+        # Create the lenses
+        lens_dict = Dict{Symbol, Dict}()
+        lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(𝒩)
+        lens_dict[:links] = EMRH._create_lens_dict_oper_prof(ℒ)
+        lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
+
+        # Test that the lenses are created for all nodes and links
+        @test all(haskey(lens_dict[:nodes], n) for n ∈ 𝒩)
+        @test all(haskey(lens_dict[:links], l) for l ∈ ℒ)
+        @test !isempty(lens_dict[:model])
+    end
 end
 
 @testset "lenses_and_reset" begin
@@ -322,12 +386,12 @@ end
         paths_oper_storage = EMRH._find_paths_operational_profile(storage)
         @test all(
             paths_oper_storage .==
-            Any[[:charge, :capacity], [:data, "idx_3", :emissions, co2]],
+            Any[[:charge, :capacity], [:data, "idx_1", :val], [:data, "idx_3", :emissions, co2]],
         )
 
         #test getting values
         lens_storage_cap = EMRH._create_lens_for_field(paths_oper_storage[1])
-        lens_storage_data = EMRH._create_lens_for_field(paths_oper_storage[2])
+        lens_storage_data = EMRH._create_lens_for_field(paths_oper_storage[3])
         @test all(cap_prof .== lens_storage_cap(storage).vals)
         @test all(price_prof .== lens_storage_data(storage).vals)
 

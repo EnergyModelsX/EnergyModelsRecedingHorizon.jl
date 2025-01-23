@@ -38,7 +38,7 @@ problem definition in `case_rh`, which is a slice of the original problem define
 at the time period `𝒽`. The containers in `results` are indexed by the elements in `case`.
 """
 function update_results!(results, m, case_rh, case, 𝒽)
-    𝒯ᴿᴴₒᵤₜ = collect(case[:T])[indices_optimization(𝒽)]
+    opers_out = collect(case[:T])[indices_optimization(𝒽)]
     results_rh = get_results(m)
     convert_dict = Dict(
         n_rh => n for sym ∈ [:nodes, :links, :products] for
@@ -56,7 +56,7 @@ function update_results!(results, m, case_rh, case, 𝒽)
         end
     end
     # adding time structure to conversion dictionary - changes at each implementation step
-    for (tᴿᴴₐᵤₓ, tᴿᴴ) ∈ zip(case_rh[:T], 𝒯ᴿᴴₒᵤₜ)
+    for (tᴿᴴₐᵤₓ, tᴿᴴ) ∈ zip(case_rh[:T], opers_out)
         convert_dict[tᴿᴴₐᵤₓ] = tᴿᴴ
     end
     # place values of results_rh into results

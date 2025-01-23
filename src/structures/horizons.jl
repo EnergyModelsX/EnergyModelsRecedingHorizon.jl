@@ -247,6 +247,7 @@ struct SingleHorizon{T}
     end
 end
 TS.isfirst(sh::SingleHorizon) = sh.id == 1
+Base.length(sh::SingleHorizon) = length(sh.dur)
 
 """
     durations(single_hor::SingleHorizon)

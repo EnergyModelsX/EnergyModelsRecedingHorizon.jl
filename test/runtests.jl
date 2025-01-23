@@ -20,11 +20,15 @@ const TEST_ATOL = 1e-6
         include("test_examples.jl")
     end
 
+    @testset "RecedingHorizon - POI implementation" begin
+        include("test_poi.jl")
+    end
+
     @testset verbose = true "EMRecedingHorizon - Utility functions" begin
         include("test_utils.jl")
     end
 
-    @testset "RecedingHorizons - Horizon types" begin
+    @testset "RecedingHorizon - Horizon types" begin
         include("horizon_types.jl")
     end
 
