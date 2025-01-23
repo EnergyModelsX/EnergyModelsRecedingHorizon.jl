@@ -76,11 +76,11 @@ end
     # The function `_get_value` is used to identify whether a node has initial data or not
     @testset "Function _get_value" begin
         𝒯 = SimpleTimes(10,1)
-        oper = collect(𝒯)[3:5]
+        opers = collect(𝒯)[3:5]
         prof = OperationalProfile([5,6,7,8,9,10])
-        @test EMRH._get_value(5, RefInitData(10), oper) == 10
-        @test EMRH._get_value([5, 6, 7], RefInitData(10), oper) == 10
-        @test EMRH._get_value(prof, RefInitData(10), oper) == prof[oper]
+        @test EMRH._get_value(5, RefInitData(10), opers) == 10
+        @test EMRH._get_value([5, 6, 7], RefInitData(10), opers) == 10
+        @test EMRH._get_value(prof, RefInitData(10), opers) == prof[opers]
     end
 end
 
