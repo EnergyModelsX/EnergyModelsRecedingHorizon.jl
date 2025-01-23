@@ -42,14 +42,14 @@ EMRH._has_field_operational_profile
 
 ```@docs
 get_rh_case_model
-EMRH._get_element_rh
-EMRH._get_model_rh(model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ)
+EMRH._get_elements_rh(𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
+EMRH._get_model_rh(model::EMRH.RecHorEnergyModel, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
 EMRH._create_lens_for_field
-EMRH._reset_field(x_rh, lens, val::EMB.Node, map_dict, 𝒯ᴿᴴ)
+EMRH._reset_field(x_rh, lens::L, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{EMRH.Accessors.PropertyLens, ComposedFunction}}
 ```
 
 The following function is introduced for parametric types in which the type
-is not deducable from the input and for types with inner constructors:
+is not deducible from the input and for types with inner constructors:
 
 ```@docs
 EMRH.Accessors.ConstructionBase.constructorof
@@ -60,8 +60,8 @@ EMRH.Accessors.ConstructionBase.constructorof
 ```@docs
 EMRH.init_rh_case_model
 EMRH.update_model!
-EMRH._get_elements_rh
-EMRH._reset_field(m, x_rh, lens, val::T, 𝒯ᴿᴴ) where {T<:Real}
+EMRH._get_elements_rh(m, 𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
+EMRH._reset_field(m, x_rh, lens::L, val::T, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{EMRH.Accessors.PropertyLens, ComposedFunction}, T<:Real}
 EMRH._get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
 EMRH._set_elements_rh!
 EMRH._get_value

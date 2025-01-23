@@ -67,15 +67,18 @@ function get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
         :T => TwoLevel(1, 1, SimpleTimes(durations(𝒽))),
     )
     map_dict = Dict{Symbol, Dict}()
-    case_rh[:nodes] = [_get_element_rh(n, map_dict, lens_dict[:nodes], opers) for n ∈ case[:nodes]]
-    map_dict[:nodes] = Dict(case[:nodes][i] => case_rh[:nodes][i] for i ∈ 1:length(case[:nodes]))
+    case_rh[:nodes] =
+        _get_elements_rh(case[:nodes], map_dict, lens_dict[:nodes], opers)
+    map_dict[:nodes] =
+        Dict(case[:nodes][i] => case_rh[:nodes][i] for i ∈ 1:length(case[:nodes]))
 
-    case_rh[:links] = [_get_element_rh(l, map_dict, lens_dict[:links], opers) for l ∈ case[:links]]
+    case_rh[:links] = _get_elements_rh(case[:links], map_dict, lens_dict[:links], opers)
     model_rh = _get_model_rh(model, map_dict, lens_dict[:model], opers)
 
     if !isnothing(init_data)
         𝒩ⁱⁿⁱᵗ_rh = filter(has_init, case_rh[:nodes])
-        𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ_rh) # index of init_data in nodes: depends on init data being unique
+        # index of init_data in nodes: depends on init data being unique
+        𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ_rh)
         # place initialization data in nodes
         for (n, i, init_data_node) ∈ zip(𝒩ⁱⁿⁱᵗ_rh, 𝒾ⁱⁿⁱᵗ, init_data)
             node_data(n)[i] = init_data_node
@@ -233,10 +236,12 @@ function _path_type(val::Resource)
 end
 
 """
-    _get_element_rh(n::EMB.Node, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
-    _get_element_rh(l::Link, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
+    _get_elements_rh(𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
+    _get_elements_rh(ℒ::Vector{<:Link}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
 
-Returns a new element identical to the original element `n::EMB.Node` or `l::Link` with
+
+Returns a new element vector identical to the original element vector`𝒩::Vector{<:EMB.Node}`
+or ℒ::Vector{<:Link} with all fields identified through the lenses in `lens_dict `with
 adjustments in the values of `OperationalProfile`s due to the change in the horizon as
 indicated through the operational periods array `opers`.
 
@@ -250,33 +255,48 @@ indicated through the operational periods array `opers`.
     All connections in the fields `to` and `from` are updated with the respective nodes as
     outlined in the `map_dict`.
 """
-function _get_element_rh(n::EMB.Node, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
-    if isempty(lens_dict[n])
-        #deepcopy is required to make the following work:
-        #@test case[:nodes][3].data[1].val == 0.5 # InitStorageData object unchanged
-        #which is found in @testset "Dummy numerical examples" (test_examples.jl)
-        return deepcopy(n)
-    else
-        for (_, lens) ∈ lens_dict[n]
-            val = lens(n)
-            n = _reset_field(n, lens, val, map_dict, opers)
+function _get_elements_rh(
+    𝒩::Vector{<:EMB.Node},
+    map_dict,
+    lens_dict,
+    opers::Vector{<:TS.TimePeriod}
+)
+    𝒩ʳʰ = deepcopy(𝒩)
+    for (k, n) ∈ enumerate(𝒩)
+        if isempty(lens_dict[n])
+            𝒩ʳʰ[k] = deepcopy(n)
+        else
+            for (_, lens) ∈ lens_dict[n]
+                val = lens(n)
+                n = _reset_field(n, lens, val, map_dict, opers)
+            end
+            𝒩ʳʰ[k] = n
         end
-        return n
     end
+    return 𝒩ʳʰ
 end
-function _get_element_rh(l::Link, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
-    for (_, lens) ∈ lens_dict[l]
-        val = lens(l)
-        l = _reset_field(l, lens, val, map_dict, opers)
+function _get_elements_rh(
+    ℒ::Vector{<:Link},
+    map_dict,
+    lens_dict,
+    opers::Vector{<:TS.TimePeriod}
+)
+    ℒʳʰ = deepcopy(ℒ)
+    for (k, l) ∈ enumerate(ℒ)
+        for (_, lens) ∈ lens_dict[l]
+            val = lens(l)
+            l = _reset_field(l, lens, val, map_dict, opers)
+        end
+        ℒʳʰ[k] = l
     end
-    return l
+    return ℒʳʰ
 end
 
 """
-    _reset_field(x_rh, lens, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod})
-    _reset_field(x_rh, lens, val::Real, map_dict, opers::Vector{<:TS.TimePeriod}) where {T<:Real}
-    _reset_field(x_rh, lens, val::Vector{T}, map_dict, opers::Vector{<:TS.TimePeriod}) where {T<:Real}
-    _reset_field(x_rh, lens, val::OperationalProfile, map_dict, opers::Vector{<:TS.TimePeriod})
+    _reset_field(x_rh, lens::L, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
+    _reset_field(x_rh, lens::L, val::Real, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    _reset_field(x_rh, lens::L, val::Vector{T}, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    _reset_field(x_rh, lens::L, val::OperationalProfile, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
 
 
 Resets the field expressed through `lens` of element `x_rh` with the value provided through
@@ -290,41 +310,41 @@ Resets the field expressed through `lens` of element `x_rh` with the value provi
 """
 function _reset_field(
     x_rh,
-    lens,
+    lens::L,
     val::EMB.Node,
     map_dict,
     opers::Vector{<:TS.TimePeriod}
-)
+)where {L <: Union{PropertyLens, ComposedFunction}}
     @reset lens(x_rh) = map_dict[:nodes][val]
     return x_rh
 end
 function _reset_field(
     x_rh,
-    lens,
-    val::Real,
+    lens::L,
+    val::T,
     map_dict,
     opers::Vector{<:TS.TimePeriod}
-)
+) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
     @reset lens(x_rh) = val
     return x_rh
 end
 function _reset_field(
     x_rh,
-    lens,
+    lens::L,
     val::Vector{T},
     map_dict,
     opers::Vector{<:TS.TimePeriod}
-) where {T<:Real}
+) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
     @reset lens(x_rh) = val
     return x_rh
 end
 function _reset_field(
     x_rh,
-    lens,
+    lens::L,
     val::OperationalProfile,
     map_dict,
     opers::Vector{<:TS.TimePeriod},
-)
+)where {L <: Union{PropertyLens, ComposedFunction}}
     @reset lens(x_rh) = OperationalProfile(val[opers])
     return x_rh
 end

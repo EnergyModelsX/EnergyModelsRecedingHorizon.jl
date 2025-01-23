@@ -38,11 +38,12 @@ end
     _get_elements_rh(m, 𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
     _get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
 
-Returns a new element identical to the original element `n::EMB.Node` or `l::Link` with all
-fields identified through the lenses in `lens_dict` with JuMP Parameter variables.
+Returns a new element vector identical to the original element vector`𝒩::Vector{<:EMB.Node}`
+or ℒ::Vector{<:Link} with all fields identified through the lenses in `lens_dict` with JuMP
+Parameter variables as well providing an `update_dict` that corresponds to the varaibels.s.
 
-In the case of a `ℒ::Vector{<:Link}`, it furthermore prepares the lenses for nodal
-replacement.
+In the case of a `ℒ::Vector{<:Link}`, it furthermore update all connections in the fields
+`to` and `from` with the respective nodes as outlined in the `map_dict`.
 """
 function _get_elements_rh(m, 𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
     update_dict = Dict{EMB.Node,Dict}()
@@ -100,9 +101,9 @@ function _get_model_rh(m, model::RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿ
 end
 
 """
-    _reset_field(m, x_rh, lens, val::T, 𝒯ᴿᴴ::TimeStructure) where {T<:Real}
-    _reset_field(m, x_rh, lens, val::Vector{T}, 𝒯ᴿᴴ::TimeStructure) where {T<:Real}
-    _reset_field(m, x_rh, lens, val::OperationalProfile, 𝒯ᴿᴴ::TimeStructure)
+    _reset_field(m, x_rh, lens::L, val::T, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    _reset_field(m, x_rh, lens::L, val::Vector{T}, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    _reset_field(m, x_rh, lens::L, val::OperationalProfile, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}}
 
 Resets the field identified through `lens` of element `x_rh` with a JuMP parameter variable
 and initialize the variable with the values provided in
@@ -111,19 +112,37 @@ and initialize the variable with the values provided in
 2. the values `Vector{T}` where `T<:Real`, indexed as `1:length(val)`, or
 3. as operational profile using the operational periods in `𝒯ᴿᴴ`.
 """
-function _reset_field(m, x_rh, lens, val::T, 𝒯ᴿᴴ::TimeStructure) where {T<:Real}
+function _reset_field(
+    m,
+    x_rh,
+    lens::L,
+    val::T,
+    𝒯ᴿᴴ::TimeStructure
+) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
     val_par = MOI.Parameter(val)
     var = @variable(m, set = val_par)
     @reset lens(x_rh) = var
     return x_rh, var
 end
-function _reset_field(m, x_rh, lens, val::Vector{T}, 𝒯ᴿᴴ::TimeStructure) where {T<:Real}
+function _reset_field(
+    m,
+    x_rh,
+    lens::L,
+    val::Vector{T},
+    𝒯ᴿᴴ::TimeStructure
+) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
     val_par = MOI.Parameter.(val)
     var = @variable(m, [1:length(val)] ∈ val_par)
     @reset lens(x_rh) = var
     return x_rh, var
 end
-function _reset_field(m, x_rh, lens, val::OperationalProfile, 𝒯ᴿᴴ::TimeStructure)
+function _reset_field(
+    m,
+    x_rh,
+    lens::L,
+    val::OperationalProfile,
+    𝒯ᴿᴴ::TimeStructure
+)where {L <: Union{PropertyLens, ComposedFunction}}
     val_par = OperationalProfile(MOI.Parameter.(val[𝒯ᴿᴴ]))
     var = @variable(m, [𝒯ᴿᴴ] ∈ val_par[collect(𝒯ᴿᴴ)])
     @reset lens(x_rh) = OperationalProfile([var[t] for t ∈ 𝒯ᴿᴴ])
