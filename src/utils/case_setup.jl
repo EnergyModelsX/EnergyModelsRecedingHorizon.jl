@@ -225,11 +225,7 @@ function _merge_path(oprof_path::Vector)
 end
 
 _path_type(val::Symbol) = "." * String(val)
-function _path_type(val::String)
-    _, idx = split(val, "_")
-    #can return only idx, but this adds an extra check that idx is an int
-    return "[" * string(parse(Int64, idx)) * "]"
-end
+_path_type(val::String) = val
 function _path_type(val::Resource)
     global res = val
     return "[res]"

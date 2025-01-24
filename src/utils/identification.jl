@@ -185,12 +185,12 @@ function _find_paths_operational_profile(model::RecHorEnergyModel)
     return all_paths
 end
 function _find_paths_operational_profile(
-    field::Vector{<:Data},
+    field::Vector{T},
     current_path::Vector{Any},
     all_paths::Vector{Any},
-)
+) where {T <: Data}
     for (i, d) ∈ enumerate(field)
-        new_path = vcat(current_path, ["idx_$(i)"])
+        new_path = vcat(current_path, ["[$(i)]"])
         _find_paths_operational_profile(d, new_path, all_paths)
     end
 end
@@ -217,7 +217,7 @@ function _find_paths_operational_profile(
     all_paths::Vector{Any},
 )
     for (key, value) ∈ field
-        new_path = vcat(current_path, key)
+        new_path = vcat(current_path, _dict_key(key))
         _find_paths_operational_profile(value, new_path, all_paths)
     end
 end
@@ -241,3 +241,8 @@ function _find_paths_operational_profile(
     all_paths::Vector{Any},
 )
 end
+
+
+_dict_key(key::Symbol) = ["[:" * String(key) * "]"]
+_dict_key(key::String) = ["[\"" * key * "\"]"]
+_dict_key(key::Resource) = key
