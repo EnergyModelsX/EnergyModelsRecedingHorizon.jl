@@ -265,6 +265,19 @@ end
         co2,
     )
 
+    # Creation of new Node type
+    struct StringDict <: EMB.NetworkNode
+        profile::Dict{String,TimeProfile}
+    end
+    string_dict = StringDict(
+        Dict(
+            "a" => OperationalProfile([100, 100, 100]),
+            "b" => FixedProfile(10),
+            "c" => OperationalProfile([100, 100, 100]),
+        )
+    )
+    Base.show(io::IO, w::StringDict) = "StringDict"
+
     @testset "Identification - paths" begin
         # Test of all potential node input from EMRH
         @test issetequal(EMRH._find_paths_operational_profile(av), Any[])
@@ -272,12 +285,12 @@ end
         @test issetequal(EMRH._find_paths_operational_profile(source_oper), [[:opex_var]])
         @test issetequal(
             EMRH._find_paths_operational_profile(network),
-            [[:opex_var], [:data, "idx_2", :emissions, co2]],
+            [[:opex_var], [:data, "[2]", :emissions, co2]],
         )
         @test issetequal(EMRH._find_paths_operational_profile(storage), Any[])
         @test issetequal(
             EMRH._find_paths_operational_profile(storage_data),
-            [[:data, "idx_1", :val]],
+            [[:data, "[1]", :val]],
         )
         @test issetequal(
             EMRH._find_paths_operational_profile(storage_charge_oper),
@@ -292,12 +305,12 @@ end
             [
                 [:charge, :capacity],
                 [:level, :capacity],
-                [:data, "idx_1", :val]
+                [:data, "[1]", :val]
             ],
         )
         @test issetequal(
             EMRH._find_paths_operational_profile(sink),
-            [[:cap], [:penalty, :deficit]],
+            [[:cap], [:penalty, "[:deficit]"]],
         )
 
         # Test of link and model
@@ -308,6 +321,12 @@ end
         @test issetequal(
             EMRH._find_paths_operational_profile(model),
             [[:emission_limit, co2]],
+        )
+
+        # Test of the new node
+        @test issetequal(
+            EMRH._find_paths_operational_profile(string_dict),
+            Any[[:profile, "[\"a\"]"], [:profile, "[\"c\"]"]],
         )
     end
 
@@ -328,30 +347,28 @@ end
     end
 end
 
-@testset "lenses_and_reset" begin
+@testset "Lenses and direct reset" begin
     cap_prof = [20, 300]
     price_prof = [1, 2]
     power = ResourceCarrier("power", 0.0)
     co2 = ResourceEmit("co2", 1.0)
 
-    @testset "lenses_and_reset_source" begin
+    @testset "Source" begin
         data_source = Data[
-        # EmissionsEnergy(OperationalProfile(price_profile)),
             EmissionsProcess(Dict(co2 => OperationalProfile(price_prof))),
-        # EmissionsProcess(Dict(co2 => FixedProfile(2))),
         ]
         source = RefSource(
-            "a source", #Node id or name
+            "source",
             OperationalProfile(cap_prof),
-            FixedProfile(100), #variable OPEX
-            FixedProfile(0), #Fixed OPEX
-            Dict(power => 1), #output from the node
+            FixedProfile(100),
+            FixedProfile(0),
+            Dict(power => 1),
             data_source,
         )
 
         #checks for source
         paths_oper_source = EMRH._find_paths_operational_profile(source)
-        @test all(paths_oper_source .== Any[[:cap], [:data, "idx_1", :emissions, co2]])
+        @test all(paths_oper_source .== Any[[:cap], [:data, "[1]", :emissions, co2]])
 
         lens_source_cap = EMRH._create_lens_for_field(paths_oper_source[1])
         lens_source_data = EMRH._create_lens_for_field(paths_oper_source[2])
@@ -366,8 +383,32 @@ end
         @test all(price_prof2 .== lens_source_data(source).vals)
     end
 
-    @testset "lenses_and_reset_storage" begin
-        #checks for storage
+    @testset "Sink" begin
+        sink = RefSink(
+            "sink",
+            OperationalProfile(cap_prof),
+            Dict(:surplus => FixedProfile(0), :deficit => OperationalProfile(price_prof)),
+            Dict(power => 1),
+        )
+
+        #checks for sink
+        paths_oper_sink = EMRH._find_paths_operational_profile(sink)
+        @test all(paths_oper_sink .== Any[[:cap], [:penalty, "[:deficit]"]])
+
+        lens_sink_cap = EMRH._create_lens_for_field(paths_oper_sink[1])
+        lens_sink_data = EMRH._create_lens_for_field(paths_oper_sink[2])
+        @test all(cap_prof .== lens_sink_cap(sink).vals)
+        @test all(price_prof .== lens_sink_data(sink).vals)
+
+        cap_prof2 = [60, 32]
+        price_prof2 = [90, 80]
+        @reset lens_sink_cap(sink) = OperationalProfile(cap_prof2)
+        @reset lens_sink_data(sink) = OperationalProfile(price_prof2)
+        @test all(cap_prof2 .== lens_sink_cap(sink).vals)
+        @test all(price_prof2 .== lens_sink_data(sink).vals)
+    end
+
+    @testset "Storage" begin
         init_state = 5.0
         data_storage = Vector([
             InitStorageData(init_state),
@@ -376,17 +417,17 @@ end
         ])
         storage = RefStorage{RecedingAccumulating}(
             "a storage",
-            StorCapOpexVar(OperationalProfile(cap_prof), FixedProfile(100)), # rate_cap, opex_var
-            StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
-            power, # stor_res::T
-            Dict(power => 1), # input::Dict{<:Resource, <:Real}
-            Dict(power => 1), # output::Dict{<:Resource, <:Real}
+            StorCapOpexVar(OperationalProfile(cap_prof), FixedProfile(100)),
+            StorCapOpexFixed(FixedProfile(10), FixedProfile(0)),
+            power,
+            Dict(power => 1),
+            Dict(power => 1),
             data_storage,
         )
         paths_oper_storage = EMRH._find_paths_operational_profile(storage)
         @test all(
             paths_oper_storage .==
-            Any[[:charge, :capacity], [:data, "idx_1", :val], [:data, "idx_3", :emissions, co2]],
+            Any[[:charge, :capacity], [:data, "[1]", :val], [:data, "[3]", :emissions, co2]],
         )
 
         #test getting values
@@ -402,6 +443,34 @@ end
         @reset lens_storage_data(storage) = OperationalProfile(price_prof2)
         @test all(cap_prof2 .== lens_storage_cap(storage).vals)
         @test all(price_prof2 .== lens_storage_data(storage).vals)
+    end
+
+    @testset "NewType with Dict{String,TimeProfile}" begin
+        string_dict = StringDict(
+            Dict(
+                "a" => OperationalProfile([100, 100]),
+                "b" => FixedProfile(10),
+                "c" => OperationalProfile([20, 40]),
+            )
+        )
+
+        paths_node = EMRH._find_paths_operational_profile(string_dict)
+
+        #test getting values
+        path_a = filter(path -> path[2] == "[\"a\"]", paths_node)
+        path_c = filter(path -> path[2] == "[\"c\"]", paths_node)
+        lens_a = EMRH._create_lens_for_field(path_a[1])
+        lens_c = EMRH._create_lens_for_field(path_c[1])
+        @test all([100, 100] .== lens_a(string_dict).vals)
+        @test all([20, 40] .== lens_c(string_dict).vals)
+
+        #test resetting values
+        cap_prof2 = [60,32]
+        price_prof2 = [90,80]
+        @reset lens_a(string_dict) = OperationalProfile(cap_prof2)
+        @reset lens_c(string_dict) = OperationalProfile(price_prof2)
+        @test all(cap_prof2 .== lens_a(string_dict).vals)
+        @test all(price_prof2 .== lens_c(string_dict).vals)
     end
 end
 
