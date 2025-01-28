@@ -36,4 +36,4 @@ input.
 """
 function Accessors.ConstructionBase.constructorof(obj::Type{<:Storage})
     return (args...) -> (obj(args...))
- end
+end

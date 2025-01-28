@@ -6,6 +6,7 @@ using Test
 using TimeStruct
 using ParametricOptInterface
 using Accessors
+using DataFrames
 
 const EMRH = EnergyModelsRecHorizon
 const EMB = EnergyModelsBase

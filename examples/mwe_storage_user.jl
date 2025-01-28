@@ -102,10 +102,10 @@ optimize!(m)
 av, source, stor, sink = case[:nodes]
 power, co2 = case[:products]
 
-results_full = EMRH.get_results(m)
-solution_full_problem = results_full[:cap_use][source, :].data
-out_full_problem = results_full[:flow_in][sink, :, power].data.vals
-stor_full_problem = results_full[:stor_level][stor, :].data
+results_full = EMRH.get_results_df(m)
+solution_full_problem = filter(r -> r.x1 == source, results_full[:cap_use])
+out_full_problem = filter(r -> r.x1 == sink && r.x3 == power, results_full[:flow_in])
+stor_full_problem = filter(r -> r.x1 == stor, results_full[:stor_level])
 cost_full_problem = objective_value(m)
 
 results_EMRH = run_model_rh(case, model, optimizer)
@@ -113,9 +113,9 @@ results_EMRH = run_model_rh(case, model, optimizer)
 # av, source, stor, sink = case_EMRH[:nodes]
 # power, co2 = case_EMRH[:products]
 
-solution_rec_horizon = results_EMRH[:cap_use][source, :].data
-out_rec_horizon = results_EMRH[:flow_in][sink, :, power].data.vals
-stor_rec_horizon = results_EMRH[:stor_level][stor, :].data
+solution_rec_horizon = filter(r -> r.x1 == source, results_EMRH[:cap_use])
+out_rec_horizon = filter(r -> r.x1 == sink && r.x3 == power, results_EMRH[:flow_in])
+stor_rec_horizon = filter(r -> r.x1 == stor, results_EMRH[:stor_level])
 
 println("\n\nReceding horizon source usage: $solution_rec_horizon")
 println("\nOriginal problem source usage: $solution_full_problem")

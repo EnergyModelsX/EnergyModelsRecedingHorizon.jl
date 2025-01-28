@@ -60,21 +60,45 @@
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
     results_EMRH = run_model_rh(case, model, optimizer)
-    @test results_EMRH[:stor_level][case[:nodes][3], :].data == [1.5, 0, 1.5, 0, 0]
-    @test results_EMRH[:flow_in][case[:nodes][4], :, power].data.vals ==
+    @test filter(r -> r.x1 == case[:nodes][3], results_EMRH[:stor_level])[!, :y] ==
+          [1.5, 0, 1.5, 0, 0]
+    @test filter(r -> r.x1 == case[:nodes][4] && r.x3 == power,
+        results_EMRH[:flow_in])[!,:y] ==
           [3.0, 4.0, 5.0, 6.0, 3.0]
-    @test results_EMRH[:flow_out][case[:nodes][2], :, power].data.vals ==
-          [3.5, 3.5, 5.375, 5.25, 3.0]
+    @test filter(r -> r.x1 == case[:nodes][2] && r.x3 == power,
+        results_EMRH[:flow_out])[!,:y] == [3.5, 3.5, 5.375, 5.25, 3.0]
 
-    results_EMB = EMRH.get_results(m_EMB)
-    @test results_EMB[:flow_out][case[:nodes][2], :, power].data.vals ==
-          results_EMRH[:flow_out][case[:nodes][2], :, power].data.vals
-    @test results_EMB[:stor_level][case[:nodes][3], :].data ==
-          results_EMRH[:stor_level][case[:nodes][3], :].data
-    @test results_EMB[:flow_in][case[:nodes][4], :, power].data.vals ==
-          results_EMRH[:flow_in][case[:nodes][4], :, power].data.vals
+    results_EMB = EMRH.get_results_df(m_EMB)
+    @test filter(r -> r.x1 == case[:nodes][2] && r.x3 == power,
+        results_EMB[:flow_out])[!,:y] ==
+          filter(r -> r.x1 == case[:nodes][2] && r.x3 == power,
+        results_EMRH[:flow_out])[!,:y]
+    @test filter(r -> r.x1 == case[:nodes][3], results_EMB[:stor_level])[!, :y] ==
+          filter(r -> r.x1 == case[:nodes][3], results_EMRH[:stor_level])[!, :y]
+    @test filter(r -> r.x1 == case[:nodes][4] && r.x3 == power,
+        results_EMB[:flow_in])[!,:y] ==
+          filter(r -> r.x1 == case[:nodes][4] && r.x3 == power,
+        results_EMRH[:flow_in])[!,:y]
 
     @test case[:nodes][3].data[1].val == 0.5 # InitStorageData object unchanged
+
+    @testset "Save JuMP model as csv" begin
+        save_dir = mktempdir(pwd())
+        EMRH.save_results(m_EMB; directory = save_dir)
+        @test all(
+            isfile(joinpath(save_dir, "$var.csv")) for
+            var ∈ keys(object_dictionary(m_EMB)) if
+            !isempty(m_EMB[var]) && !isa(m_EMB[var], VariableRef)
+        )
+    end
+    @testset "Save EMRH results as csv" begin
+        save_dir = mktempdir(pwd())
+        EMRH.save_results(results_EMRH; directory = save_dir)
+        @test all(
+            isfile(joinpath(save_dir, "$var.csv")) for
+            var ∈ keys(results_EMRH) if !isempty(results_EMRH[var])
+        )
+    end
 end
 
 ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run as part of the tests

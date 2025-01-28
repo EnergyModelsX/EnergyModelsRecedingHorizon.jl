@@ -15,9 +15,11 @@ EMRH.get_init_state
 ### [Utility functions](@id lib-int-util)
 
 ```@docs
-EMRH.initialize_container
 EMRH.update_results!
+EMRH.update_results_last!
 EMRH.save_results
+EMRH.get_results
+EMRH.get_results_df
 ```
 
 ### [Miscellaneous functions](@id lib-int-ext)
@@ -25,7 +27,6 @@ EMRH.save_results
 ```@docs
 EMRH.init_level
 EMRH._get_node_index
-EMRH.get_results
 EMRH._create_lens_dict_oper_prof
 ```
 

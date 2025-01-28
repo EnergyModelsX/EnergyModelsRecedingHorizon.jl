@@ -56,7 +56,7 @@
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
     hor_test = first(hor)
 
-    lens_dict = Dict{Symbol, Dict}()
+    lens_dict = Dict{Symbol,Dict}()
     lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(case[:nodes])
     lens_dict[:links] = EMRH._create_lens_dict_oper_prof(case[:links])
     lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
@@ -68,28 +68,23 @@
     m_EMB = run_model(case, model, optimizer)
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
-    results_EMRH = Dict{Symbol,AbstractArray{Float64}}()
-    EMRH.update_results!(results_EMRH, m_rh1, case_rh, case, hor_test)
+    results_EMRH = Dict{Symbol,AbstractDataFrame}()
+    EMRH.update_results!(results_EMRH, m_rh1, case, case_rh, hor_test)
     results_EMB = EMRH.get_results(m_EMB)
     @test Set(keys(results_EMB)) == union(
         keys(results_EMRH),
         [:opex_var, :emissions_strategic, :opex_fixed, # fields for strategic horizons - to be implemented
             :link_opex_fixed, :link_opex_var], #NEW fields when updated EMB. Are these important? Check with Julian
     )
-    dense_containers(cont) =
-        filter(kv -> (typeof(kv[2]) <: Containers.DenseAxisArray), cont)
-    for (k_EMRH, _) ∈ dense_containers(results_EMRH)
-        @test size(results_EMRH[k_EMRH].data) == size(results_EMB[k_EMRH].data)
-    end
-    sparse_containers(cont) =
-        filter(kv -> (typeof(kv[2]) <: Containers.SparseAxisArray), cont)
-    for (k_EMRH, _) ∈ sparse_containers(results_EMRH)
-        @test Set(results_EMRH[k_EMRH].data.keys) ⊆ Set(results_EMB[k_EMRH].data.keys) # not all values are allocated initially
-    end
+    results_EMB_df = EMRH.get_results_df(m_EMB)
+    @test Set(keys(results_EMB_df)) == union(
+        keys(results_EMRH),
+        [:opex_var, :emissions_strategic, :opex_fixed,
+            :link_opex_fixed, :link_opex_var],
+    )
 end
 
 @testset "Identification of data to be changed" begin
-
     el = ResourceCarrier("el", 0.2)
     heat = ResourceCarrier("heat", 0.0)
     co2 = ResourceEmit("co2", 1.0)
@@ -137,7 +132,6 @@ end
         @test EMRH._has_field_operational_profile(StorCap(OperationalProfile([1])))
         @test !EMRH._has_field_operational_profile(StorCap(FixedProfile(1)))
     end
-
 
     profile = [1, 2, 3]
     dim_t = length(profile)
@@ -255,7 +249,7 @@ end
         source_fixed,
         sink,
         Linear(),
-        OperationalProfile(profile)
+        OperationalProfile(profile),
     )
 
     # Creation of a modeltype with OperationalProfile
@@ -305,7 +299,7 @@ end
             [
                 [:charge, :capacity],
                 [:level, :capacity],
-                [:data, "[1]", :val]
+                [:data, "[1]", :val],
             ],
         )
         @test issetequal(
@@ -335,7 +329,7 @@ end
         ℒ = Link[link]
 
         # Create the lenses
-        lens_dict = Dict{Symbol, Dict}()
+        lens_dict = Dict{Symbol,Dict}()
         lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(𝒩)
         lens_dict[:links] = EMRH._create_lens_dict_oper_prof(ℒ)
         lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
@@ -427,7 +421,11 @@ end
         paths_oper_storage = EMRH._find_paths_operational_profile(storage)
         @test all(
             paths_oper_storage .==
-            Any[[:charge, :capacity], [:data, "[1]", :val], [:data, "[3]", :emissions, co2]],
+            Any[
+                [:charge, :capacity],
+                [:data, "[1]", :val],
+                [:data, "[3]", :emissions, co2],
+            ],
         )
 
         #test getting values
@@ -437,8 +435,8 @@ end
         @test all(price_prof .== lens_storage_data(storage).vals)
 
         #test resetting values
-        cap_prof2 = [60,32]
-        price_prof2 = [90,80]
+        cap_prof2 = [60, 32]
+        price_prof2 = [90, 80]
         @reset lens_storage_cap(storage) = OperationalProfile(cap_prof2)
         @reset lens_storage_data(storage) = OperationalProfile(price_prof2)
         @test all(cap_prof2 .== lens_storage_cap(storage).vals)
@@ -485,15 +483,20 @@ end
         av2 = case2[:nodes][1]
 
         #result dictionary
-        res1 = EMRH.get_results(m1)
-        res2 = EMRH.get_results(m2)
+        res1 = EMRH.get_results_df(m1)
+        res2 = EMRH.get_results_df(m2)
 
         for (r1, r2) ∈ zip(case1[:products], case2[:products])
             @assert r1.id == r2.id
 
-            equal_in = (res1[:flow_in][av1, :, r1] .== res2[:flow_in][av2, :, r2])
-            equal_out = (res1[:flow_out][av1, :, r1] .== res2[:flow_out][av2, :, r2])
-
+            equal_in = (
+                filter(r -> r.x1 == av1 && r.x3 == r1, res1[:flow_in])[!, :y] .==
+                filter(r -> r.x1 == av2 && r.x3 == r2, res2[:flow_in])[!, :y]
+            )
+            equal_out = (
+                filter(r -> r.x1 == av1 && r.x3 == r1, res1[:flow_out])[!, :y] .==
+                filter(r -> r.x1 == av2 && r.x3 == r2, res2[:flow_out])[!, :y]
+            )
             if !(all(equal_in) && all(equal_out))
                 error("results are not equal for r1=$(r1) and r2=$(r2)")
             end
@@ -503,9 +506,10 @@ end
 
     function solve_EMB_case(demand_profile, price_profile, price_profile_stor)
         println("demand profile = $(demand_profile)")
-        case_EMB, modeltype_EMB = create_case(demand_profile, price_profile, price_profile_stor;
-            init_state = 5, modeltype = OperationalModel,
-        )
+        case_EMB, modeltype_EMB =
+            create_case(demand_profile, price_profile, price_profile_stor;
+                init_state = 5, modeltype = OperationalModel,
+            )
         @assert typeof(modeltype_EMB) <: OperationalModel
         m_EMB = run_model(case_EMB, modeltype_EMB, optimizer)
         termination_status(m_EMB)
@@ -645,7 +649,7 @@ end
         update_dict,
         lens_dict;
         multiplier = multiplier,
-        )
+    )
 
     # change parameter values for the storage node
     n_storage = case_rh_copy[:nodes][3]
@@ -653,7 +657,8 @@ end
     idx_storage = EMRH._get_node_index(n_storage, case_rh[:nodes])
 
     # check that EMRH._get_new_POI_values returns the same values as originally provided
-    orig_price_prof_stor = EMRH._get_new_POI_values(n_storage, lens_dict[n_storage][Any[:charge, :opex_var]])
+    orig_price_prof_stor =
+        EMRH._get_new_POI_values(n_storage, lens_dict[n_storage][Any[:charge, :opex_var]])
     @test all(price_prof_stor .== orig_price_prof_stor)
 
     price_prof_stor2 = EMRH._get_new_POI_values(

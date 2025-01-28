@@ -139,5 +139,5 @@ m = create_model(case, model)
 set_optimizer(m, optimizer)
 optimize!(m)
 
-results_full = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)))
+results_full = EMRH.get_results_df(m)
 results_EMRH = run_model_rh(case, model, optimizer)

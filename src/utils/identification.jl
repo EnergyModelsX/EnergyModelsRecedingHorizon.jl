@@ -1,5 +1,4 @@
 
-
 """
     _fields_with_operational_profile(n::Union{NetworkNode, Source, Sink})
     _fields_with_operational_profile(n::Storage)

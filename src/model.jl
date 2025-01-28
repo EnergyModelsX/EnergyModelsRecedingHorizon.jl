@@ -40,7 +40,7 @@ function run_model_rh(
     # 𝒫 = case[:products]
     ℋ = case[:horizons]
 
-    lens_dict = Dict{Symbol, Dict}()
+    lens_dict = Dict{Symbol,Dict}()
     lens_dict[:nodes] = _create_lens_dict_oper_prof(𝒩)
     lens_dict[:links] = _create_lens_dict_oper_prof(ℒ)
     lens_dict[:model] = _create_lens_dict_oper_prof(model)
@@ -50,7 +50,7 @@ function run_model_rh(
     init_data₀ = map((n, i) -> node_data(n)[i], 𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ)
 
     # initializing loop variables
-    results = Dict{Symbol,AbstractArray{Float64}}()
+    results = Dict{Symbol,AbstractDataFrame}()
     init_data = copy(init_data₀)
 
     for 𝒽 ∈ ℋ
@@ -71,7 +71,7 @@ function run_model_rh(
         else
             @warn "No optimizer given"
         end
-        update_results!(results, m, case_rh, case, 𝒽)
+        update_results!(results, m, case, case_rh, 𝒽)
         # relies on overwriting - saves whole optimization results, not only implementation
 
         # get initialization data from nodes
@@ -95,7 +95,6 @@ end
     throw MethodError(2, "This method should is not used in EMRH")
 end =#
 
-
 function run_model_rh(
     case::Dict,
     model::RecHorEnergyModel,
@@ -115,7 +114,8 @@ function run_model_rh(
     # Assert that the horizon is functioning with the POI implementation.
     horizons = collect(ℋ)
     horizon_duration = all(
-        durations(h) == durations(horizons[1]) for h ∈ horizons if length(h) == length(horizons[1])
+        durations(h) == durations(horizons[1]) for
+        h ∈ horizons if length(h) == length(horizons[1])
     )
     @assert(
         isa(ℋ, PeriodHorizons),
@@ -127,19 +127,17 @@ function run_model_rh(
         "All horizon types must have the same duration length for the individual periods."
     )
 
-
     𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
     𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ)
     init_data = Dict(n => node_data(n)[i] for (n, i) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ))
 
-    lens_dict = Dict{Symbol, Dict}()
+    lens_dict = Dict{Symbol,Dict}()
     lens_dict[:nodes] = _create_lens_dict_oper_prof(𝒩)
     lens_dict[:links] = _create_lens_dict_oper_prof(ℒ)
     lens_dict[:model] = _create_lens_dict_oper_prof(model)
 
-
     # initializing loop variables and receding horizon case
-    results = Dict{Symbol,AbstractArray{Float64}}()
+    results = Dict{Symbol,AbstractDataFrame}()
     case_rh, model_rh, update_dict, m =
         init_rh_case_model(case, model, 𝒽₀, lens_dict, optimizer)
 
@@ -148,14 +146,15 @@ function run_model_rh(
     𝒩ⁱⁿⁱᵗ_rh = filter(has_init, 𝒩_rh)
 
     # Create the model
-    m = create_model(case_rh, model_rh, m; check_timeprofiles, check_any_data=false)
+    m = create_model(case_rh, model_rh, m; check_timeprofiles, check_any_data = false)
 
-    for 𝒽 ∈ ℋ
+    for (𝒽_prev, 𝒽) ∈ withprev(ℋ)
         @info "Solving for 𝒽: $𝒽"
 
         # Necessary break as `ParametricOptInterface` requires that the number of operational
         # periods is always the same
         if length(𝒽) < length(𝒯_rh)
+            update_results_last!(results, m, case, case_rh, 𝒽_prev)
             break
         end
 
@@ -167,10 +166,11 @@ function run_model_rh(
 
         # Update the results
         # relies on overwriting - saves whole optimization results, not only implementation
-        update_results!(results, m, case_rh, case, 𝒽)
+        update_results!(results, m, case, case_rh, 𝒽)
 
         # get initialization data from nodes
-        init_data = Dict(n => get_init_state(m, n_rh, 𝒯_rh, 𝒽) for (n, n_rh) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒩ⁱⁿⁱᵗ_rh))
+        init_data =
+            Dict(n => get_init_state(m, n_rh, 𝒯_rh, 𝒽) for (n, n_rh) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒩ⁱⁿⁱᵗ_rh))
     end
 
     return results

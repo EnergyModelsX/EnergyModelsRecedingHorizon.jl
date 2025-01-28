@@ -6,10 +6,10 @@ supported, and the function prints a warning message for those types and does no
 its value.
 """
 function get_results(m::JuMP.Model)
-    res = Dict{Symbol, AbstractArray{<:Real}}()
-    for key in keys(object_dictionary(m))
+    res = Dict{Symbol,Vector}()
+    for key ∈ keys(object_dictionary(m))
         val = _get_values_from_obj(m[key], key)
-        if ! isnothing(val)
+        if !isnothing(val)
             res[key] = val
         end
     end
@@ -17,42 +17,46 @@ function get_results(m::JuMP.Model)
 end
 
 function _get_values_from_obj(
-    obj::Union{JuMP.Containers.SparseAxisArray, JuMP.Containers.DenseAxisArray},
-    key::Symbol
-    )
-    return value.(obj)
-end
-function _get_values_from_obj(
-    obj::Union{EMB.SparseVariables.IndexedVarArray, EMB.SparseVariables.SparseArray},
+    obj::Union{JuMP.Containers.SparseAxisArray,JuMP.Containers.DenseAxisArray},
     key::Symbol,
 )
-    @warn "Extracting values from $(typeof(obj)) is not yet supported. Return nothing for $(key)"
-    return nothing
+    if isempty(obj)
+        return []
+    else
+        return JuMP.Containers.rowtable(value.(obj))
+    end
+end
+function _get_values_from_obj(
+    obj,
+    key::Symbol,
+)
+    @warn "Extracting values from $(typeof(obj)) is not yet supported." maxlog = 1
+    return []
 end
 
 """
-    update_results!(results, m, case_rh, case, 𝒽)
+    update_results!(results, m, case, case_rh, 𝒽)
 
 Update results dictionary `results` given the optimization results `m`. `m` was optimized using the
 problem definition in `case_rh`, which is a slice of the original problem defined by `case`
 at the time period `𝒽`. The containers in `results` are indexed by the elements in `case`.
 """
-function update_results!(results, m, case_rh, case, 𝒽)
+function update_results!(results, m, case, case_rh, 𝒽)
     opers_out = collect(case[:T])[indices_optimization(𝒽)]
+    opers_impl = collect(case[:T])[indices_implementation(𝒽)]
     results_rh = get_results(m)
     convert_dict = Dict(
         n_rh => n for sym ∈ [:nodes, :links, :products] for
         (n, n_rh) ∈ zip(case[sym], case_rh[sym])
     ) # depends on elements being in same order
     if isempty(results)
-        # allocate space in results
+        # first iteration - create DataFrame instances
         for (k, container_rh) ∈ results_rh
-            new_container = initialize_container(container_rh, convert_dict, case[:T])
-            if !isnothing(new_container)
-                results[k] = new_container
-            else
-                @warn "Ignoring result field $k"
+            if !isempty(container_rh) &&
+               any(typeof(val) <: TS.StrategicPeriod for val ∈ first(container_rh))
+                @warn "$k cannot be exported due to indexing with StrategicPeriod"
             end
+            results[k] = DataFrame()
         end
     end
     # adding time structure to conversion dictionary - changes at each implementation step
@@ -64,64 +68,77 @@ function update_results!(results, m, case_rh, case, 𝒽)
         if isempty(results_rh[k])
             continue
         end
-        if typeof(container) <: Containers.DenseAxisArray
-            axes_new = tuple(
-                ([convert_dict[el] for el ∈ ax] for ax ∈ axes(results_rh[k]))...,
+        if any(typeof(val) <: TS.StrategicPeriod for val ∈ first(results_rh[k]))
+            continue
+        end
+        oper_idx =
+            findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(results_rh[k])])
+        results_rh_k_new = [
+            NamedTuple(
+                (ax == :y) ? ax => v : ax => convert_dict[v] for (ax, v) ∈ pairs(row)
             )
-            container[axes_new...] = results_rh[k].data
-        elseif typeof(container) <: Containers.SparseAxisArray
-            for (key, value) ∈ results_rh[k].data
-                key_new = tuple((convert_dict[ax] for ax ∈ key)...)
-                container[key_new...] = value
-            end
-        end
+            for row ∈ results_rh[k] if convert_dict[row[oper_idx]] ∈ opers_impl
+        ]
+        append!(container, results_rh_k_new)
     end
 end
 
 """
-    initialize_container(container_rh, convert_dict, 𝒯)
+    update_results_last!(results, m, case, case_rh, 𝒽)
 
-Returns an empty container of the same type as `container_rh`, changing its indexing according
-to the mapping in `convert_dict`.
-
-This supports the following container types:
-- **`Containers.DenseAxisArray`**: An array is initialized for the whole period 𝒯.\n
-- **`Containers.SparseAxisArray`**: This only requires type initialization.\n
+Similarly to `update_results!`, update results dictionary `results` given the optimization
+results `m`, but aiming to save the last iteration of a optimization loop, saving values in
+the optimization horizon after the implementation horizon.
 """
-function initialize_container(container_rh::Containers.DenseAxisArray, convert_dict, 𝒯)
-    # replace RH references for corresponding references of full problem
-    axes_full = []
-    for ax ∈ axes(container_rh)
-        axtype = eltype(ax)
-        if axtype <: Union{EMB.Node,EMB.Link,EMB.Resource}
-            ax_full = [convert_dict[el] for el ∈ ax]
-        elseif axtype <: TimeStruct.OperationalPeriod
-            ax_full = collect(𝒯) # allocate space for full horizon
-        else
-            @warn "Unsuported indexing of type $axtype"
-            return nothing
-        end
-        push!(axes_full, ax_full)
+function update_results_last!(results, m, case, case_rh, 𝒽)
+    opers_out = collect(case[:T])[indices_optimization(𝒽)]
+    opers_impl = collect(case[:T])[indices_implementation(𝒽)]
+    results_rh = get_results(m)
+    convert_dict = Dict(
+        n_rh => n for sym ∈ [:nodes, :links, :products] for
+        (n, n_rh) ∈ zip(case[sym], case_rh[sym])
+    )
+    # adding time structure to conversion dictionary - changes at each implementation step
+    for (tᴿᴴₐᵤₓ, tᴿᴴ) ∈ zip(case_rh[:T], opers_out)
+        convert_dict[tᴿᴴₐᵤₓ] = tᴿᴴ
     end
-    # if !isempty(axes_full)
-    new_container = Containers.DenseAxisArray{Float64}(undef, axes_full...)
-    # end
-    return new_container
+    # place values of results_rh into results
+    for (k, container) ∈ results
+        if isempty(results_rh[k])
+            continue
+        end
+        if any(typeof(val) <: TS.StrategicPeriod for val ∈ first(results_rh[k]))
+            continue
+        end
+        oper_idx =
+            findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(results_rh[k])])
+        results_rh_k_new = [
+            NamedTuple(
+                (ax == :y) ? ax => v : ax => convert_dict[v] for (ax, v) ∈ pairs(row)
+            )
+            for row ∈ results_rh[k] if (convert_dict[row[oper_idx]] ∉ opers_impl)
+            # && (convert_dict[row[oper_idx]] ∈ opers_out)
+        ]
+        append!(container, results_rh_k_new)
+    end
 end
-function initialize_container(container_rh::Containers.SparseAxisArray, convert_dict, 𝒯)
-    # sparse arrays only get type allocation
-    emptydict = JuMP.OrderedDict{eltype(keys(container_rh.data)),Float64}()
-    new_container = Containers.SparseAxisArray(emptydict)
-    return new_container
-end
-function initialize_container(container_rh, convert_dict, 𝒯)
-    container_type = typeof(container_rh)
-    @warn "Unsuported container type $container_type"
-    return nothing
+
+"""
+    get_results_df(m::JuMP.Model)
+
+Function returning the values of the optimized model `m` as a `DataFrame`. Some types are,
+however, not supported, and the function prints a warning message for those types and does
+not extract its value.
+"""
+function get_results_df(m::JuMP.Model)
+    res = get_results(m)
+    df = Dict(k => DataFrame(val) for (k, val) ∈ res)
+    return df
 end
 
 """
     save_results(model::Model; directory=joinpath(pwd(),"csv_files"))
+    save_results(results::Dict{Symbol, AbstractDataFrame}; directory=joinpath(pwd(),"csv_files"))
 
 Saves the model results of all variables as CSV files. The model results are saved in a new
 directory.
@@ -137,6 +154,21 @@ function save_results(model::Model; directory = joinpath(pwd(), "csv_files"))
         if !isempty(model[v]) && !isa(model[v], VariableRef)
             fn = joinpath(directory, string(v) * ".csv")
             CSV.write(fn, JuMP.Containers.rowtable(value, model[v]))
+        end
+    end
+end
+function save_results(
+    results::Dict{Symbol,AbstractDataFrame};
+    directory = joinpath(pwd(), "csv_files"),
+)
+    vars = collect(keys(results))
+    if !ispath(directory)
+        mkpath(directory)
+    end
+    Threads.@threads for v ∈ vars
+        if !isempty(results[v])
+            fn = joinpath(directory, string(v) * ".csv")
+            CSV.write(fn, results[v])
         end
     end
 end
