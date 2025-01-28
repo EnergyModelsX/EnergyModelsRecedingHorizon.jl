@@ -26,7 +26,8 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
             prof = OperationalProfile(MOI.Parameter.(lens(n_old)[T]))
             update_dict[n_old][field_id] = @variable(m, [T] ∈ prof[collect(T)])
 
-            @reset lens(n_new) = OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
+            @reset lens(n_new) =
+                OperationalProfile([update_dict[n_old][field_id][t] for t ∈ T])
             lens_dict[n_old][field_id] = lens
         end
         case[:nodes][k] = n_new
@@ -117,8 +118,8 @@ function _reset_field(
     x_rh,
     lens::L,
     val::T,
-    𝒯ᴿᴴ::TimeStructure
-) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    𝒯ᴿᴴ::TimeStructure,
+) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
     val_par = MOI.Parameter(val)
     var = @variable(m, set = val_par)
     @reset lens(x_rh) = var
@@ -129,8 +130,8 @@ function _reset_field(
     x_rh,
     lens::L,
     val::Vector{T},
-    𝒯ᴿᴴ::TimeStructure
-) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    𝒯ᴿᴴ::TimeStructure,
+) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
     val_par = MOI.Parameter.(val)
     var = @variable(m, [1:length(val)] ∈ val_par)
     @reset lens(x_rh) = var
@@ -141,8 +142,8 @@ function _reset_field(
     x_rh,
     lens::L,
     val::OperationalProfile,
-    𝒯ᴿᴴ::TimeStructure
-)where {L <: Union{PropertyLens, ComposedFunction}}
+    𝒯ᴿᴴ::TimeStructure,
+) where {L<:Union{PropertyLens,ComposedFunction}}
     val_par = OperationalProfile(MOI.Parameter.(val[𝒯ᴿᴴ]))
     var = @variable(m, [𝒯ᴿᴴ] ∈ val_par[collect(𝒯ᴿᴴ)])
     @reset lens(x_rh) = OperationalProfile([var[t] for t ∈ 𝒯ᴿᴴ])
@@ -171,7 +172,13 @@ The function calls two subroutines:
     the case of a node without `InitData`, it would not be possible to extract the `InitData`.
     This solved through the if loop.
 """
-function _set_elements_rh!(m, lens_dict, update_dict, init_data, opers::Vector{<:TS.TimePeriod})
+function _set_elements_rh!(
+    m,
+    lens_dict,
+    update_dict,
+    init_data,
+    opers::Vector{<:TS.TimePeriod},
+)
     for (x, node_dict) ∈ update_dict
         for (field, var_arr) ∈ node_dict
             lens = lens_dict[x][field]
@@ -201,7 +208,11 @@ The functions returns
 function _get_value(val::Real, init::InitData, opers::Vector{<:TS.TimePeriod})
     return init.val
 end
-function _get_value(val::Vector{T}, init::InitData, opers::Vector{<:TS.TimePeriod}) where {T<:Real}
+function _get_value(
+    val::Vector{T},
+    init::InitData,
+    opers::Vector{<:TS.TimePeriod},
+) where {T<:Real}
     return init.val
 end
 function _get_value(val::OperationalProfile, init::InitData, opers::Vector{<:TS.TimePeriod})

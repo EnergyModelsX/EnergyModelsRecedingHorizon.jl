@@ -7,7 +7,6 @@ and the dictionary with the JuMP variables `update_dict` when utilizing `Paramet
 The initialization is utilizing the first horizon `𝒽`.
 """
 function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
-
     m = Model(() -> optimizer)
 
     # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
@@ -19,8 +18,8 @@ function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
     )
 
     # Initialize the dictionaries
-    map_dict = Dict{Symbol, Dict}()
-    update_dict = Dict{Symbol, Dict}()
+    map_dict = Dict{Symbol,Dict}()
+    update_dict = Dict{Symbol,Dict}()
 
     # Update the nodes with the parameter variables
     case_rh[:nodes], update_dict[:nodes] =
@@ -33,7 +32,8 @@ function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
         _get_elements_rh(m, case[:links], map_dict, lens_dict[:links], 𝒯ᴿᴴ)
 
     # Update the model with the parameter variables
-    model_rh, update_dict[:model] = _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᴿᴴ)
+    model_rh, update_dict[:model] =
+        _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᴿᴴ)
 
     return case_rh, model_rh, update_dict, m
 end
@@ -66,7 +66,7 @@ function get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
         :products => case[:products],
         :T => TwoLevel(1, 1, SimpleTimes(durations(𝒽))),
     )
-    map_dict = Dict{Symbol, Dict}()
+    map_dict = Dict{Symbol,Dict}()
     case_rh[:nodes] =
         _get_elements_rh(case[:nodes], map_dict, lens_dict[:nodes], opers)
     map_dict[:nodes] =
@@ -255,7 +255,7 @@ function _get_elements_rh(
     𝒩::Vector{<:EMB.Node},
     map_dict,
     lens_dict,
-    opers::Vector{<:TS.TimePeriod}
+    opers::Vector{<:TS.TimePeriod},
 )
     𝒩ʳʰ = deepcopy(𝒩)
     for (k, n) ∈ enumerate(𝒩)
@@ -275,7 +275,7 @@ function _get_elements_rh(
     ℒ::Vector{<:Link},
     map_dict,
     lens_dict,
-    opers::Vector{<:TS.TimePeriod}
+    opers::Vector{<:TS.TimePeriod},
 )
     ℒʳʰ = deepcopy(ℒ)
     for (k, l) ∈ enumerate(ℒ)
@@ -309,8 +309,8 @@ function _reset_field(
     lens::L,
     val::EMB.Node,
     map_dict,
-    opers::Vector{<:TS.TimePeriod}
-)where {L <: Union{PropertyLens, ComposedFunction}}
+    opers::Vector{<:TS.TimePeriod},
+) where {L<:Union{PropertyLens,ComposedFunction}}
     @reset lens(x_rh) = map_dict[:nodes][val]
     return x_rh
 end
@@ -319,8 +319,8 @@ function _reset_field(
     lens::L,
     val::T,
     map_dict,
-    opers::Vector{<:TS.TimePeriod}
-) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    opers::Vector{<:TS.TimePeriod},
+) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
     @reset lens(x_rh) = val
     return x_rh
 end
@@ -329,8 +329,8 @@ function _reset_field(
     lens::L,
     val::Vector{T},
     map_dict,
-    opers::Vector{<:TS.TimePeriod}
-) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    opers::Vector{<:TS.TimePeriod},
+) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
     @reset lens(x_rh) = val
     return x_rh
 end
@@ -340,7 +340,7 @@ function _reset_field(
     val::OperationalProfile,
     map_dict,
     opers::Vector{<:TS.TimePeriod},
-)where {L <: Union{PropertyLens, ComposedFunction}}
+) where {L<:Union{PropertyLens,ComposedFunction}}
     @reset lens(x_rh) = OperationalProfile(val[opers])
     return x_rh
 end
@@ -355,7 +355,7 @@ function _get_model_rh(
     model::RecHorEnergyModel,
     map_dict,
     lens_dict,
-    opers::Vector{<:TS.TimePeriod}
+    opers::Vector{<:TS.TimePeriod},
 )
     if isempty(lens_dict)
         return deepcopy(model)

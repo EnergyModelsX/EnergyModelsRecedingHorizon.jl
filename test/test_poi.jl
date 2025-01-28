@@ -7,7 +7,7 @@ em_co2 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 function create_poi_case(;
     dur_op = [1, 1, 1, 1, 1, 1, 1, 1],
     init_state = 10,
-    HorizonType=PeriodHorizons
+    HorizonType = PeriodHorizons,
 )
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)
@@ -33,9 +33,7 @@ function create_poi_case(;
             OperationalProfile(price_profile),
             FixedProfile(0),
             Dict(power => 1),
-            Data[EmissionsProcess(Dict(co2 => OperationalProfile(em_co2)))]
-
-        ),
+            Data[EmissionsProcess(Dict(co2 => OperationalProfile(em_co2)))]),
         RefStorage{RecedingAccumulating}(
             "electricity storage",
             StorCapOpexVar(FixedProfile(20), FixedProfile(10)),
@@ -75,9 +73,9 @@ end
 @testset "POI integration functions" begin
     # The function `_get_value` is used to identify whether a node has initial data or not
     @testset "Function _get_value" begin
-        𝒯 = SimpleTimes(10,1)
+        𝒯 = SimpleTimes(10, 1)
         opers = collect(𝒯)[3:5]
-        prof = OperationalProfile([5,6,7,8,9,10])
+        prof = OperationalProfile([5, 6, 7, 8, 9, 10])
         @test EMRH._get_value(5, RefInitData(10), opers) == 10
         @test EMRH._get_value([5, 6, 7], RefInitData(10), opers) == 10
         @test EMRH._get_value(prof, RefInitData(10), opers) == prof[opers]
@@ -98,7 +96,7 @@ end
     𝒽₀ = first(ℋ)
 
     # Create the lenses
-    lens_dict = Dict{Symbol, Dict}()
+    lens_dict = Dict{Symbol,Dict}()
     lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(𝒩)
     lens_dict[:links] = EMRH._create_lens_dict_oper_prof(ℒ)
     lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
@@ -134,15 +132,14 @@ end
 end
 
 @testset "Full model run" begin
-
     optimizer = POI.Optimizer(HiGHS.Optimizer())
     # Test that the wrong horizon type is caught
     dur_op = [1, 2, 1, 4, 1, 3, 1, 3]
-    case, model = create_poi_case(;HorizonType=DurationHorizons, dur_op)
+    case, model = create_poi_case(; HorizonType = DurationHorizons, dur_op)
     @test_throws AssertionError run_model_rh(case, model, optimizer)
 
     # Test that a wrong duration vector is caught
-    case, model = create_poi_case(;dur_op)
+    case, model = create_poi_case(; dur_op)
     @test_throws AssertionError run_model_rh(case, model, optimizer)
 
     # Run a working model
@@ -157,26 +154,42 @@ end
     ops = collect(case[:T])
     co2 = case[:products][2]
 
+    # Test that all results were saved
+    @test length(results[:stor_level][!, :y]) == length(case[:T])
+
     # Test that the first period in the first horizon is correctly used
     @test node_data(stor)[1].val ≈
-        results[:stor_level][stor, ops[1]] - results[:stor_level_Δ_op][stor, ops[1]]
+          filter(r -> r.x1 == stor && r.x2 == ops[1], results[:stor_level])[1, :y] -
+          filter(r -> r.x1 == stor && r.x2 == ops[1], results[:stor_level_Δ_op])[1, :y]
 
     # Test that the subsequent first periods are used correctly
     first_ops = [ops[3], ops[5], ops[7]]
     last_ops = [ops[2], ops[4], ops[6]]
     @test all(
-        results[:stor_level][stor, last_ops[k]] ≈
-            results[:stor_level][stor, first_ops[k]] -
-            results[:stor_level_Δ_op][stor, first_ops[k]]
-    for k ∈ 1:3)
+        filter(r -> r.x1 == stor && r.x2 == last_ops[k], results[:stor_level])[!, :y] ≈
+        filter(r -> r.x1 == stor && r.x2 == first_ops[k], results[:stor_level])[!, :y] -
+        filter(r -> r.x1 == stor && r.x2 == first_ops[k], results[:stor_level_Δ_op])[!, :y]
+        for k ∈ 1:3)
 
     # Test that the demand is equal to the profile and satisfied in all periods
-    @test all(results[:cap_use][sink, ops[k]] ≈ deand_profile[k] for k ∈ 1:8)
-    @test all(results[:sink_deficit][sink, ops[k]] ≈ 0 for k ∈ 1:8)
+    @test all(
+        filter(r -> r.x1 == sink && r.x2 == ops[k], results[:cap_use])[1, :y] ≈
+        deand_profile[k] for k ∈ 1:8
+    )
+    @test all(
+        filter(r -> r.x1 == sink && r.x2 == ops[k], results[:sink_deficit])[1, :y] ≈ 0 for
+        k ∈ 1:8
+    )
 
     # Test that the co2 process emissions are correctly updated
     @test all(
-        results[:emissions_node][source, ops[k], co2] ≈
-        results[:cap_use][source, ops[k]] * em_co2[k]
-    for k ∈ 1:8)
+        filter(
+            r -> r.x1 == source && r.x2 == ops[k] && r.x3 == co2,
+            results[:emissions_node],
+        )[
+            1,
+            :y,
+        ] ≈
+        filter(r -> r.x1 == source && r.x2 == ops[k], results[:cap_use])[1, :y] * em_co2[k]
+        for k ∈ 1:8)
 end

@@ -11,6 +11,7 @@ using TimeStruct
 using CSV
 using ParametricOptInterface
 using Accessors
+using DataFrames
 
 const EMB = EnergyModelsBase
 const TS = TimeStruct
