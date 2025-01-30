@@ -156,21 +156,17 @@ end
 Iterate through the inidividual elements (keys) in `update_dict` and extract the individual
 variables for each element x.
 
-The function calls two subroutines:
-
-1. [`_get_value`](@ref) for identifying whether the variable correspond to `InitData` or to
-   an operational profile and
-2. [`_set_parameter!`](@ref) to set the parameter to the new value, either through new init
-   data  or through slicing.
+The function calls the subroutine [`_set_parameter!`](@ref) to set the parameter to the new
+    value, either through new init data or through slicing.
 
 !!! warn
     The current system is not really robust. It assumes that all data provided that is not
-    an `OperationalProfile` is pointing towards an `InitData`.
+    an `OperationalProfile` is pointing towards an `AbstractInitData`.
 
 !!! todo "Internal if loop"
-    The internal if loop is required as the lenses can point towards `InitData` types. In
-    the case of a node without `InitData`, it would not be possible to extract the `InitData`.
-    This solved through the if loop.
+    The internal if loop is required as the lenses can point towards `AbstractInitData` objects.
+    This is solved through the if loop that checks for `:init_val_dict`, which only works
+    for the concrete `InitData`.
 """
 function _set_elements_rh!(
     m,
@@ -183,40 +179,17 @@ function _set_elements_rh!(
         for (field, var_arr) ∈ node_dict
             lens = lens_dict[x][field]
             val = nothing
-            if has_init(x)
-                val = _get_value(lens(x), init_data[x], opers)
+            if :init_val_dict ∈ field
+# TODO: check if field points to AbstractInitData in a better way
+                init_field = field[findfirst(x -> x == :init_val_dict, field):end]
+                lens_init = _create_lens_for_field(init_field)
+                val = lens_init(init_data[x])
             else
-                val = _get_value(lens(x), RefInitData(0), opers)
+                val = lens(x)[opers]
             end
             _set_parameter!(m, var_arr, val)
         end
     end
-end
-
-"""
-    _get_value(val::Real, init::InitData, opers::Vector{<:TS.TimePeriod})
-    _get_value(val::Vector{T}, init::InitData, opers::Vector{<:TS.TimePeriod}) where {T<:Real}
-    _get_value(val::OperationalProfile, init::InitData, opers::Vector{<:TS.TimePeriod})
-
-Returns the value that should be replaced in the model.
-
-The functions returns
-
-1. the value in `InitData for `val::Real` and `val::Vector{T} where {T<:Real}` or
-2. the sliced `OperationalProfile` for `val::OperationalProfile`.
-"""
-function _get_value(val::Real, init::InitData, opers::Vector{<:TS.TimePeriod})
-    return init.val
-end
-function _get_value(
-    val::Vector{T},
-    init::InitData,
-    opers::Vector{<:TS.TimePeriod},
-) where {T<:Real}
-    return init.val
-end
-function _get_value(val::OperationalProfile, init::InitData, opers::Vector{<:TS.TimePeriod})
-    return val[opers]
 end
 
 """

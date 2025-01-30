@@ -65,7 +65,6 @@ EMRH._get_elements_rh(m, 𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, 𝒯ᴿ�
 EMRH._reset_field(m, x_rh, lens::L, val::T, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{EMRH.Accessors.PropertyLens, ComposedFunction}, T<:Real}
 EMRH._get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
 EMRH._set_elements_rh!
-EMRH._get_value
 EMRH._set_parameter!
 ```
 

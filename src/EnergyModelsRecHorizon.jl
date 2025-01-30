@@ -40,8 +40,8 @@ export get_rh_case_model
 
 # Types used for case setup
 export RecedingAccumulating
-export InitData, InitStorageData
-export RefInitData
+export AbstractInitData, StorageInitData
+export InitData
 
 # Auxiliary functions for nodes and node field checks
 export has_init, is_init_data

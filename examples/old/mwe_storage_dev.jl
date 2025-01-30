@@ -66,7 +66,7 @@ function create_case(
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
-                EMRH.InitStorageData(init_state),
+                EMRH.StorageInitData(init_state),
                 EMB.EmptyData() # testing multiple data
             ]),
         ),

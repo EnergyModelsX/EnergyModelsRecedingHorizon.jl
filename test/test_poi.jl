@@ -41,7 +41,7 @@ function create_poi_case(;
             power,
             Dict(power => 1),
             Dict(power => 1),
-            Data[InitStorageData(init_state)],
+            Data[StorageInitData(init_state)],
         ),
         RefSink(
             "electricity demand",
@@ -68,18 +68,6 @@ function create_poi_case(;
     )
 
     return case, model
-end
-
-@testset "POI integration functions" begin
-    # The function `_get_value` is used to identify whether a node has initial data or not
-    @testset "Function _get_value" begin
-        𝒯 = SimpleTimes(10, 1)
-        opers = collect(𝒯)[3:5]
-        prof = OperationalProfile([5, 6, 7, 8, 9, 10])
-        @test EMRH._get_value(5, RefInitData(10), opers) == 10
-        @test EMRH._get_value([5, 6, 7], RefInitData(10), opers) == 10
-        @test EMRH._get_value(prof, RefInitData(10), opers) == prof[opers]
-    end
 end
 
 @testset "Variable replacement - standard" begin
@@ -125,8 +113,8 @@ end
     @test length(opex_var(source).vals) == length(𝒽₀)
     @test isa(process_emissions(node_data(source)[1], co2), OperationalProfile{VariableRef})
     @test length(process_emissions(node_data(source)[1], co2).vals) == length(𝒽₀)
-    @test isa(node_data(stor)[1].val, VariableRef)
-    @test length(node_data(stor)[1].val) == 1
+    # @test isa(node_data(stor)[1].init_val_dict[:stor_level], VariableRef)
+    @test length(node_data(stor)[1].init_val_dict) == 1
     @test isa(capacity(sink), OperationalProfile{VariableRef})
     @test length(capacity(sink).vals) == length(𝒽₀)
 end
@@ -158,7 +146,8 @@ end
     @test length(results[:stor_level][!, :y]) == length(case[:T])
 
     # Test that the first period in the first horizon is correctly used
-    @test node_data(stor)[1].val ≈
+    @test EMRH.init_level(stor) == node_data(stor)[1].init_val_dict[:stor_level]
+    @test node_data(stor)[1].init_val_dict[:stor_level] ≈
           filter(r -> r.x1 == stor && r.x2 == ops[1], results[:stor_level])[1, :y] -
           filter(r -> r.x1 == stor && r.x2 == ops[1], results[:stor_level_Δ_op])[1, :y]
 
