@@ -26,7 +26,7 @@ When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
     an `@assert` macro.
 """
 function run_model_rh(
-    case::Dict,
+    case::AbstractCase,
     model::RecHorEnergyModel,
     optimizer;
     check_timeprofiles::Bool = true,
@@ -34,15 +34,15 @@ function run_model_rh(
     # TODO: dispatch over `EMB.run_model` in future releases
 
     # WIP Data structure
-    𝒯 = case[:T]
-    𝒩 = case[:nodes]
-    ℒ = case[:links]
-    # 𝒫 = case[:products]
-    ℋ = case[:horizons]
+    𝒯 = get_time_struct(case)
+    𝒳ᵛᵉᶜ = get_elements_vec(case)
+    𝒩 = get_nodes(𝒳ᵛᵉᶜ)
+    ℋ = case.misc[:horizons]
 
     lens_dict = Dict{Symbol,Dict}()
-    lens_dict[:nodes] = _create_lens_dict_oper_prof(𝒩)
-    lens_dict[:links] = _create_lens_dict_oper_prof(ℒ)
+    for 𝒳 ∈ 𝒳ᵛᵉᶜ
+        lens_dict[_get_key(𝒳)] = _create_lens_dict_oper_prof(𝒳)
+    end
     lens_dict[:model] = _create_lens_dict_oper_prof(model)
 
     𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
@@ -56,14 +56,14 @@ function run_model_rh(
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
-        case_rh, model_rh = get_rh_case_model(case, model, 𝒽, lens_dict, init_data)
+        caseᵣₕ, modelᵣₕ, map_dict = get_rh_case_model(case, model, 𝒽, lens_dict, init_data)
 
-        𝒯_rh = case_rh[:T]
-        𝒩_rh = case_rh[:nodes]
-        𝒩ⁱⁿⁱᵗ_rh = filter(has_init, 𝒩_rh)
+        𝒯ᵣₕ = get_time_struct(caseᵣₕ)
+        𝒩ᵣₕ = get_nodes(caseᵣₕ)
+        𝒩ⁱⁿⁱᵗᵣₕ = filter(has_init, 𝒩ᵣₕ)
 
         # create and solve model
-        m = create_model(case_rh, model_rh; check_timeprofiles)
+        m = create_model(caseᵣₕ, modelᵣₕ; check_timeprofiles)
         if !isnothing(optimizer)
             set_optimizer(m, optimizer)
             set_optimizer_attribute(m, MOI.Silent(), true)
@@ -71,12 +71,11 @@ function run_model_rh(
         else
             @warn "No optimizer given"
         end
-        update_results!(results, m, case, case_rh, 𝒽)
+        update_results!(results, m, case, caseᵣₕ, map_dict, 𝒽)
         # relies on overwriting - saves whole optimization results, not only implementation
 
         # get initialization data from nodes
-        init_data = [get_init_state(m, n, 𝒯_rh, 𝒽) for n ∈ 𝒩ⁱⁿⁱᵗ_rh]
-        println(init_data)
+        init_data = [get_init_state(m, n, 𝒯ᵣₕ, 𝒽) for n ∈ 𝒩ⁱⁿⁱᵗᵣₕ]
     end
 
     return results
