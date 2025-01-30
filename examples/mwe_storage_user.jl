@@ -76,12 +76,10 @@ function create_case(; init_state = 0)
 
     #connect the nodes with links
     links = [
-        Direct("av-source", nodes[1], nodes[2], Linear()),
         Direct("av-storage", nodes[1], nodes[3], Linear()),
         Direct("av-demand", nodes[1], nodes[4], Linear()),
         Direct("source-av", nodes[2], nodes[1], Linear()),
         Direct("storage-av", nodes[3], nodes[1], Linear()),
-        Direct("demand-av", nodes[4], nodes[1], Linear()),
     ]
 
     #WIP(?) data structure - order of vectors (nodes, links, products) MUST NOT CHANGE
