@@ -257,10 +257,10 @@ function _get_elements_rh(
 end
 
 """
-    _reset_field(x_rh, lens::L, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
-    _reset_field(x_rh, lens::L, val::Real, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    _reset_field(x_rh, lens::L, val::Vector{T}, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    _reset_field(x_rh, lens::L, val::OperationalProfile, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
+    _reset_field(x_rh::AbstractElement, lens::L, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
+    _reset_field(x_rh::AbstractElement, lens::L, val::Real, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    _reset_field(x_rh::AbstractElement, lens::L, val::Vector{T}, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    _reset_field(x_rh::AbstractElement, lens::L, val::OperationalProfile, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
 
 
 Resets the field expressed through `lens` of element `x_rh` with the value provided through

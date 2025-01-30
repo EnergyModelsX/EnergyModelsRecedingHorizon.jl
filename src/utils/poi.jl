@@ -36,7 +36,7 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
 end
 
 """
-    _get_elements_rh(m, 𝒩::Vector{T}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure) where {T<:AbstractElement}
+    _get_elements_rh(m, 𝒳::Vector{T}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure) where {T<:AbstractElement}
     _get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
 
 Returns a new element vector identical to the original element vector`𝒩::Vector{<:EMB.Node}`
