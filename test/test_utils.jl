@@ -27,7 +27,7 @@
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
-                InitStorageData(0),
+                StorageInitData(0),
                 EmptyData() # testing multiple data
             ]),
         ),
@@ -112,7 +112,7 @@ end
             EmissionsProcess(Dict(co2 => FixedProfile(2))),
         )
         @test !EMRH._has_field_operational_profile(EmptyData())
-        @test !EMRH._has_field_operational_profile(InitStorageData(4.0))
+        @test !EMRH._has_field_operational_profile(StorageInitData(4.0))
 
         #test for various AbstractStorageParameters
         @test EMRH._has_field_operational_profile(
@@ -182,7 +182,7 @@ end
         el, # stor_res::T
         Dict(el => 1), # input::Dict{<:Resource, <:Real}
         Dict(el => 1), # output::Dict{<:Resource, <:Real}
-        [RefInitData(0.5)],
+        [StorageInitData(0.5)],
     )
     storage_charge_oper = RefStorage{RecedingAccumulating}(
         "electricity storage",
@@ -207,7 +207,7 @@ end
         el, # stor_res::T
         Dict(el => 1), # input::Dict{<:Resource, <:Real}
         Dict(el => 1), # output::Dict{<:Resource, <:Real}
-        [RefInitData(0.5)],
+        [StorageInitData(0.5)],
     )
     sink = RefSink(
         "heat demand", #node ID or name
@@ -268,7 +268,7 @@ end
             "a" => OperationalProfile([100, 100, 100]),
             "b" => FixedProfile(10),
             "c" => OperationalProfile([100, 100, 100]),
-        )
+        ),
     )
     Base.show(io::IO, w::StringDict) = "StringDict"
 
@@ -284,7 +284,7 @@ end
         @test issetequal(EMRH._find_paths_operational_profile(storage), Any[])
         @test issetequal(
             EMRH._find_paths_operational_profile(storage_data),
-            [[:data, "[1]", :val]],
+            [[:data, "[1]", :init_val_dict, "[:stor_level]"]],
         )
         @test issetequal(
             EMRH._find_paths_operational_profile(storage_charge_oper),
@@ -299,7 +299,7 @@ end
             [
                 [:charge, :capacity],
                 [:level, :capacity],
-                [:data, "[1]", :val],
+                [:data, "[1]", :init_val_dict, "[:stor_level]"],
             ],
         )
         @test issetequal(
@@ -405,7 +405,7 @@ end
     @testset "Storage" begin
         init_state = 5.0
         data_storage = Vector([
-            InitStorageData(init_state),
+            StorageInitData(init_state),
             EmptyData(),
             EmissionsProcess(Dict(co2 => OperationalProfile(price_prof))),
         ])
@@ -423,7 +423,7 @@ end
             paths_oper_storage .==
             Any[
                 [:charge, :capacity],
-                [:data, "[1]", :val],
+                [:data, "[1]", :init_val_dict, "[:stor_level]"],
                 [:data, "[3]", :emissions, co2],
             ],
         )
@@ -449,7 +449,7 @@ end
                 "a" => OperationalProfile([100, 100]),
                 "b" => FixedProfile(10),
                 "c" => OperationalProfile([20, 40]),
-            )
+            ),
         )
 
         paths_node = EMRH._find_paths_operational_profile(string_dict)
@@ -463,8 +463,8 @@ end
         @test all([20, 40] .== lens_c(string_dict).vals)
 
         #test resetting values
-        cap_prof2 = [60,32]
-        price_prof2 = [90,80]
+        cap_prof2 = [60, 32]
+        price_prof2 = [90, 80]
         @reset lens_a(string_dict) = OperationalProfile(cap_prof2)
         @reset lens_c(string_dict) = OperationalProfile(price_prof2)
         @test all(cap_prof2 .== lens_a(string_dict).vals)
@@ -557,7 +557,7 @@ end
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
-                InitStorageData(init_state),
+                StorageInitData(init_state),
                 EmptyData() # testing multiple data
             ]),
         )

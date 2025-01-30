@@ -62,7 +62,7 @@ function create_case(; init_state = 0)
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
-                InitStorageData(init_state),
+                StorageInitData(init_state),
                 EmptyData() # testing multiple data
             ]),
         ),

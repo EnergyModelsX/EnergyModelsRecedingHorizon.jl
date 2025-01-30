@@ -69,7 +69,7 @@ _has_field_operational_profile(Dict(:a => Dict(:b => Dict(:c => OperationalProfi
 _has_field_operational_profile(Dict(:a => Dict(:b => Dict(:c => FixedProfile(1)))))
 _has_field_operational_profile(EmissionsProcess(Dict(co2 => FixedProfile(2))))
 _has_field_operational_profile(EmptyData())
-_has_field_operational_profile(InitStorageData(4.0))
+_has_field_operational_profile(StorageInitData(4.0))
 
 _has_field_operational_profile(EmissionsEnergy(OperationalProfile([1])))
 # EmissionsEnergy accepts any inputs, but does not store `OperationalProfiles`
@@ -187,7 +187,7 @@ function _find_paths_operational_profile(
     field::Vector{T},
     current_path::Vector{Any},
     all_paths::Vector{Any},
-) where {T <: Data}
+) where {T<:Data}
     for (i, d) ∈ enumerate(field)
         new_path = vcat(current_path, ["[$(i)]"])
         _find_paths_operational_profile(d, new_path, all_paths)
@@ -204,11 +204,16 @@ function _find_paths_operational_profile(
     end
 end
 function _find_paths_operational_profile(
-    field::InitData,
+    field::AbstractInitData,
     current_path::Vector{Any},
     all_paths::Vector{Any},
 )
-    push!(all_paths, push!(current_path, :val))
+    push!(current_path, :init_val_dict)
+    for (key, _) ∈ field.init_val_dict    # all fields must be updated
+        new_path = vcat(current_path, _dict_key(key))
+        push!(all_paths, new_path)
+    end
+    # _find_paths_operational_profile(field.init_val_dict, current_path, all_paths)
 end
 function _find_paths_operational_profile(
     field::AbstractDict,
@@ -240,7 +245,6 @@ function _find_paths_operational_profile(
     all_paths::Vector{Any},
 )
 end
-
 
 _dict_key(key::Symbol) = ["[:" * String(key) * "]"]
 _dict_key(key::String) = ["[\"" * key * "\"]"]

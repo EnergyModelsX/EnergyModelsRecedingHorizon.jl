@@ -28,7 +28,7 @@
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
             Vector([
-                InitStorageData(0.5),
+                StorageInitData(0.5),
                 EmptyData() # testing multiple data
             ]),
         ),
@@ -80,7 +80,7 @@
           filter(r -> r.x1 == case[:nodes][4] && r.x3 == power,
         results_EMRH[:flow_in])[!,:y]
 
-    @test case[:nodes][3].data[1].val == 0.5 # InitStorageData object unchanged
+    @test case[:nodes][3].data[1].init_val_dict[:stor_level] == 0.5 # StorageInitData object unchanged
 
     @testset "Save JuMP model as csv" begin
         save_dir = mktempdir(pwd())

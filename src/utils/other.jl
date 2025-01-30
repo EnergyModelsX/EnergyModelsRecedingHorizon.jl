@@ -9,7 +9,7 @@
 
 When the previous operational and representative period are `Nothing` and the storage node
 has the parameter type [`RecedingAccumulating`](@ref), the function returns the initial
-level value (defined externally at the `data` field through an `InitData` object).
+level value (defined externally at the `data` field through an `AbstractInitData` object).
 """
 function EMB.previous_level(
     m,

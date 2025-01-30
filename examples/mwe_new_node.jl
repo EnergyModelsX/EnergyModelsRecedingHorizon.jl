@@ -13,6 +13,9 @@ using TimeStruct
 using EnergyModelsRecHorizon
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
+const EMB = EnergyModelsBase
+const EMRH = EnergyModelsRecHorizon
+
 """
 Example node type with initializable state.
 """
@@ -74,9 +77,9 @@ function constraints_state(m, n::IncrementInitNode, 𝒯, modeltype::EnergyModel
 end
 
 """
-    constraints_data(m, n::IncrementInitNode, 𝒯, 𝒫, modeltype::RecHorEnergyModel, data::InitData)
+    constraints_data(m, n::IncrementInitNode, 𝒯, 𝒫, modeltype::RecHorEnergyModel, data::AbstractInitData)
 
-Defines initialization constraints for `IncrementInitNode`. Makes reference to the `InitData`
+Defines initialization constraints for `IncrementInitNode`. Makes reference to the `AbstractInitData`
 object provided to the node.
 """
 function EMB.constraints_data(
@@ -85,9 +88,9 @@ function EMB.constraints_data(
     𝒯,
     𝒫,
     modeltype::EMRH.RecHorEnergyModel,
-    data::InitData,
+    data::AbstractInitData,
 )
-    @constraint(m, m[:state][n, first(𝒯)] == data.val + n.increment)
+    @constraint(m, m[:state][n, first(𝒯)] == data.init_val_dict[:state] + n.increment)
 end
 
 """
@@ -100,7 +103,7 @@ internally defined for the time structure `𝒯_rh`.
 function EMRH.get_init_state(m, n::IncrementInitNode, 𝒯_rh, 𝒽)
     t_impl = collect(𝒯_rh)[length(indices_implementation(𝒽))]
     level_t = value.(m[:state][n, t_impl])
-    return RefInitData(level_t)
+    return InitData(Dict(:state => level_t))
 end
 
 function create_case_newnode(; init_state = 0.0)
@@ -120,7 +123,7 @@ function create_case_newnode(; init_state = 0.0)
         IncrementInitNode(
             "init node",
             1.5,
-            Vector([RefInitData(init_state)]),
+            Vector([InitData(Dict(:state => init_state))]),
         ),
     ]
 

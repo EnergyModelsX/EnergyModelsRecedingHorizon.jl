@@ -35,9 +35,9 @@ indices_implementation
 ### [Types](@id lib-pub-init-typ)
 
 ```@docs
+AbstractInitData
 InitData
-RefInitData
-InitStorageData
+StorageInitData
 ```
 
 ### [Functions](@id lib-pub-init-fcn)
@@ -45,6 +45,7 @@ InitStorageData
 ```@docs
 has_init
 is_init_data
+EMRH.data_init
 ```
 
 ## [Miscellaneous](@id lib-pub-misc)
