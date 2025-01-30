@@ -11,31 +11,28 @@ function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
 
     # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
     # must be improved to deal with more cases
-    𝒯ᴿᴴ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
-    case_rh = Dict(
-        :products => case[:products],
-        :T => 𝒯ᴿᴴ,
-    )
+    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
+    𝒫ᵣₕ = get_products(case)
+    𝒳ᵛᵉᶜ = get_elements_vec(case)
 
     # Initialize the dictionaries
+    ele_dict = Dict{Symbol,Vector}()
     map_dict = Dict{Symbol,Dict}()
     update_dict = Dict{Symbol,Dict}()
 
     # Update the nodes with the parameter variables
-    case_rh[:nodes], update_dict[:nodes] =
-        _get_elements_rh(m, case[:nodes], map_dict, lens_dict[:nodes], 𝒯ᴿᴴ)
-    map_dict[:nodes] =
-        Dict(case[:nodes][i] => case_rh[:nodes][i] for i ∈ 1:length(case[:nodes]))
-
-    # Update the links with the parameter variables
-    case_rh[:links], update_dict[:links] =
-        _get_elements_rh(m, case[:links], map_dict, lens_dict[:links], 𝒯ᴿᴴ)
+    for 𝒳 ∈ 𝒳ᵛᵉᶜ
+        ele = _get_key(𝒳)
+        ele_dict[ele], map_dict, update_dict[ele] =
+            _get_elements_rh(m, 𝒳, map_dict, lens_dict[ele], 𝒯ᵣₕ)
+    end
 
     # Update the model with the parameter variables
-    model_rh, update_dict[:model] =
-        _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᴿᴴ)
+    modelᵣₕ, update_dict[:model] =
+        _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᵣₕ)
 
-    return case_rh, model_rh, update_dict, m
+    caseᵣₕ = Case(𝒯ᵣₕ, 𝒫ᵣₕ, collect(values(ele_dict)), get_couplings(case))
+    return caseᵣₕ, modelᵣₕ, map_dict, update_dict, m
 end
 """
     update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
@@ -44,12 +41,13 @@ Update the JuMP model `m` with the new values for horizon `𝒽`.
 """
 function update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
     # Identify the operational period
-    opers = collect(case[:T])[indices_optimization(𝒽)]
+    𝒯 = get_time_struct(case)
+    opers = collect(𝒯)[indices_optimization(𝒽)]
 
     # Update the parameters of the nodes, links, and the model
-    _set_elements_rh!(m, lens_dict[:nodes], update_dict[:nodes], init_data, opers)
-    _set_elements_rh!(m, lens_dict[:links], update_dict[:links], init_data, opers)
-    _set_elements_rh!(m, lens_dict[:model], update_dict[:model], init_data, opers)
+    for ele ∈ keys(lens_dict)
+        _set_elements_rh!(m, lens_dict[ele], update_dict[ele], init_data, opers)
+    end
 end
 
 """

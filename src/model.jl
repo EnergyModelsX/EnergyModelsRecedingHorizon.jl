@@ -95,19 +95,18 @@ end
 end =#
 
 function run_model_rh(
-    case::Dict,
+    case::Case,
     model::RecHorEnergyModel,
     optimizer::POI.Optimizer;
     check_timeprofiles::Bool = true,
 )
 
     # WIP Data structure
-    𝒯 = case[:T]
-    𝒩 = case[:nodes]
+    𝒯 = get_time_struct(case)
+    𝒳ᵛᵉᶜ = get_elements_vec(case)
+    𝒩 = get_nodes(𝒳ᵛᵉᶜ)
     𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
-    ℒ = case[:links]
-    # 𝒫 = case[:products]
-    ℋ = case[:horizons]
+    ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
 
     # Assert that the horizon is functioning with the POI implementation.
@@ -131,29 +130,30 @@ function run_model_rh(
     init_data = Dict(n => node_data(n)[i] for (n, i) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ))
 
     lens_dict = Dict{Symbol,Dict}()
-    lens_dict[:nodes] = _create_lens_dict_oper_prof(𝒩)
-    lens_dict[:links] = _create_lens_dict_oper_prof(ℒ)
+    for 𝒳 ∈ 𝒳ᵛᵉᶜ
+        lens_dict[_get_key(𝒳)] = _create_lens_dict_oper_prof(𝒳)
+    end
     lens_dict[:model] = _create_lens_dict_oper_prof(model)
 
     # initializing loop variables and receding horizon case
     results = Dict{Symbol,AbstractDataFrame}()
-    case_rh, model_rh, update_dict, m =
+    caseᵣₕ, modelᵣₕ, map_dict, update_dict, m =
         init_rh_case_model(case, model, 𝒽₀, lens_dict, optimizer)
 
-    𝒯_rh = case_rh[:T]
-    𝒩_rh = case_rh[:nodes]
-    𝒩ⁱⁿⁱᵗ_rh = filter(has_init, 𝒩_rh)
+    𝒯ᵣₕ = get_time_struct(caseᵣₕ)
+    𝒩ᵣₕ = get_nodes(caseᵣₕ)
+    𝒩ⁱⁿⁱᵗᵣₕ = filter(has_init, 𝒩ᵣₕ)
 
     # Create the model
-    m = create_model(case_rh, model_rh, m; check_timeprofiles, check_any_data = false)
+    m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
 
     for (𝒽_prev, 𝒽) ∈ withprev(ℋ)
         @info "Solving for 𝒽: $𝒽"
 
         # Necessary break as `ParametricOptInterface` requires that the number of operational
         # periods is always the same
-        if length(𝒽) < length(𝒯_rh)
-            update_results_last!(results, m, case, case_rh, 𝒽_prev)
+        if length(𝒽) < length(𝒯ᵣₕ)
+            update_results_last!(results, m, case, caseᵣₕ, map_dict, 𝒽_prev)
             break
         end
 
@@ -165,11 +165,11 @@ function run_model_rh(
 
         # Update the results
         # relies on overwriting - saves whole optimization results, not only implementation
-        update_results!(results, m, case, case_rh, 𝒽)
+        update_results!(results, m, case, caseᵣₕ, map_dict, 𝒽)
 
         # get initialization data from nodes
         init_data =
-            Dict(n => get_init_state(m, n_rh, 𝒯_rh, 𝒽) for (n, n_rh) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒩ⁱⁿⁱᵗ_rh))
+            Dict(n => get_init_state(m, nᵣₕ, 𝒯ᵣₕ, 𝒽) for (n, nᵣₕ) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒩ⁱⁿⁱᵗᵣₕ))
     end
 
     return results
