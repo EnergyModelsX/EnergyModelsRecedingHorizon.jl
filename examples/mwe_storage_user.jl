@@ -27,11 +27,11 @@ function create_case(; init_state = 0)
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)  #tCO2/MWh
     co2 = ResourceEmit("co2", 1.0) #tCO2/MWh
-    products = [power, co2]
+    𝒫 = [power, co2]
 
     #define time structure
-    T = TwoLevel(1, 1, SimpleTimes(op_dur_vec))
-    hor = DurationHorizons([duration(t) for t ∈ T], 8, 4) # optimization and implementation horizons
+    𝒯 = TwoLevel(1, 1, SimpleTimes(op_dur_vec))
+    ℋ = DurationHorizons([duration(t) for t ∈ 𝒯], 8, 4) # optimization and implementation horizons
 
     #define the model depending on input
 
@@ -45,8 +45,8 @@ function create_case(; init_state = 0)
     )
 
     #create individual nodes of the system
-    nodes = [
-        GenAvailability("Availability", products),
+    𝒩 = [
+        GenAvailability("Availability", 𝒫),
         RefSource(
             "electricity source", #Node id or name
             FixedProfile(1e12), #Capacity in MW (Time profile)
@@ -75,18 +75,15 @@ function create_case(; init_state = 0)
     ]
 
     #connect the nodes with links
-    links = [
-        Direct("av-storage", nodes[1], nodes[3], Linear()),
-        Direct("av-demand", nodes[1], nodes[4], Linear()),
-        Direct("source-av", nodes[2], nodes[1], Linear()),
-        Direct("storage-av", nodes[3], nodes[1], Linear()),
+    ℒ = [
+        Direct("av-storage", 𝒩[1], 𝒩[3], Linear()),
+        Direct("av-demand", 𝒩[1], 𝒩[4], Linear()),
+        Direct("source-av", 𝒩[2], 𝒩[1], Linear()),
+        Direct("storage-av", 𝒩[3], 𝒩[1], Linear()),
     ]
 
-    #WIP(?) data structure - order of vectors (nodes, links, products) MUST NOT CHANGE
-    case = Dict(
-        :nodes => nodes, :links => links, :products => products, :T => T,
-        :horizons => hor,
-    )
+    # Data Structure
+    case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
 
     return case, model
 end
@@ -97,8 +94,8 @@ m = create_model(case, model)
 set_optimizer(m, optimizer)
 optimize!(m)
 
-av, source, stor, sink = case[:nodes]
-power, co2 = case[:products]
+av, source, stor, sink = get_nodes(case)
+power, co2 = get_products(case)
 
 results_full = EMRH.get_results_df(m)
 solution_full_problem = filter(r -> r.x1 == source, results_full[:cap_use])

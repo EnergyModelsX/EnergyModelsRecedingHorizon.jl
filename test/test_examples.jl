@@ -2,17 +2,17 @@
 @testset "Dummy numerical examples" begin
     power = ResourceCarrier("power", 0.0)
     co2 = ResourceEmit("co2", 1.0)
-    products = [power, co2]
+    𝒫 = [power, co2]
 
-    T = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
-    hor = PeriodHorizons([duration(t) for t ∈ T], 2, 1)
+    𝒯 = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
+    ℋ = PeriodHorizons([duration(t) for t ∈ 𝒯], 2, 1)
 
     model = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2,
     )
 
-    nodes = [
-        GenAvailability("Availability", products),
+    𝒩 = [
+        GenAvailability("Availability", 𝒫),
         RefSource(
             "electricity source", # id
             FixedProfile(1e12), # cap
@@ -40,17 +40,14 @@
         ),
     ]
 
-    links = [
-        Direct("av-storage", nodes[1], nodes[3], Linear()),
-        Direct("av-demand", nodes[1], nodes[4], Linear()),
-        Direct("source-av", nodes[2], nodes[1], Linear()),
-        Direct("storage-av", nodes[3], nodes[1], Linear()),
+    ℒ = [
+        Direct("av-storage", 𝒩[1], 𝒩[3], Linear()),
+        Direct("av-demand", 𝒩[1], 𝒩[4], Linear()),
+        Direct("source-av", 𝒩[2], 𝒩[1], Linear()),
+        Direct("storage-av", 𝒩[3], 𝒩[1], Linear()),
     ]
 
-    case = Dict(
-        :nodes => nodes, :links => links, :products => products, :T => T,
-        :horizons => hor,
-    )
+    case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
 
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
@@ -58,27 +55,27 @@
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
     results_EMRH = run_model_rh(case, model, optimizer)
-    @test filter(r -> r.x1 == case[:nodes][3], results_EMRH[:stor_level])[!, :y] ==
+    @test filter(r -> r.x1 == 𝒩[3], results_EMRH[:stor_level])[!, :y] ==
           [1.5, 0, 1.5, 0, 0]
-    @test filter(r -> r.x1 == case[:nodes][4] && r.x3 == power,
+    @test filter(r -> r.x1 == 𝒩[4] && r.x3 == power,
         results_EMRH[:flow_in])[!,:y] ==
           [3.0, 4.0, 5.0, 6.0, 3.0]
-    @test filter(r -> r.x1 == case[:nodes][2] && r.x3 == power,
+    @test filter(r -> r.x1 == 𝒩[2] && r.x3 == power,
         results_EMRH[:flow_out])[!,:y] == [3.5, 3.5, 5.375, 5.25, 3.0]
 
     results_EMB = EMRH.get_results_df(m_EMB)
-    @test filter(r -> r.x1 == case[:nodes][2] && r.x3 == power,
+    @test filter(r -> r.x1 == 𝒩[2] && r.x3 == power,
         results_EMB[:flow_out])[!,:y] ==
-          filter(r -> r.x1 == case[:nodes][2] && r.x3 == power,
+          filter(r -> r.x1 == 𝒩[2] && r.x3 == power,
         results_EMRH[:flow_out])[!,:y]
-    @test filter(r -> r.x1 == case[:nodes][3], results_EMB[:stor_level])[!, :y] ==
-          filter(r -> r.x1 == case[:nodes][3], results_EMRH[:stor_level])[!, :y]
-    @test filter(r -> r.x1 == case[:nodes][4] && r.x3 == power,
+    @test filter(r -> r.x1 == 𝒩[3], results_EMB[:stor_level])[!, :y] ==
+          filter(r -> r.x1 == 𝒩[3], results_EMRH[:stor_level])[!, :y]
+    @test filter(r -> r.x1 == 𝒩[4] && r.x3 == power,
         results_EMB[:flow_in])[!,:y] ==
-          filter(r -> r.x1 == case[:nodes][4] && r.x3 == power,
+          filter(r -> r.x1 == 𝒩[4] && r.x3 == power,
         results_EMRH[:flow_in])[!,:y]
 
-    @test case[:nodes][3].data[1].init_val_dict[:stor_level] == 0.5 # StorageInitData object unchanged
+    @test 𝒩[3].data[1].init_val_dict[:stor_level] == 0.5 # StorageInitData object unchanged
 
     @testset "Save JuMP model as csv" begin
         save_dir = mktempdir(pwd())
@@ -104,9 +101,6 @@ ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run a
     exdir = joinpath(@__DIR__, "..", "examples")
     files = filter(endswith(".jl"), readdir(exdir))
     for file ∈ files
-        if file != "mwe_storage_user.jl"  #mwe_new_node.jl does not work due to EMB version
-            continue
-        end
         @testset "Example $file" begin
             redirect_stdio(stdout = devnull, stderr = devnull) do
                 include(joinpath(exdir, file))

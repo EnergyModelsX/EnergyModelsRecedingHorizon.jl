@@ -9,6 +9,8 @@
 
     EMB.has_input(n::SampleInitNode) = false
     EMB.has_output(n::SampleInitNode) = false
+    EMB.has_opex(n::SampleInitNode) = false
+    EMB.has_capacity(n::SampleInitNode) = false
 
     function EMB.variables_node(
         m,
@@ -25,21 +27,8 @@
             constraints_data(m, n, 𝒯, 𝒫, modeltype, data)
         end
         constraints_state(m, n, 𝒯, modeltype)
-        constraints_extravars(m, n, 𝒯, modeltype)
     end
-
-    function constraints_extravars(
-        m,
-        n::SampleInitNode,
-        𝒯::TimeStructure,
-        modeltype::EnergyModel,
-    )
-        𝒯ᴵⁿᵛ = strategic_periods(𝒯)
-        @constraint(m, [t_sp ∈ 𝒯ᴵⁿᵛ], m[:opex_var][n, t_sp] == 0)
-        @constraint(m, [t ∈ 𝒯], m[:cap_use][n, t] == 0)
-        @constraint(m, [t ∈ 𝒯], m[:cap_inst][n, t] == 0)
-        @constraint(m, [t_sp ∈ 𝒯ᴵⁿᵛ], m[:opex_fixed][n, t_sp] == 0)
-    end
+    EMB.constraints_couple(m, 𝒫, 𝒯, modeltype::EMRH.RecHorEnergyModel) = nothing
 
     function constraints_state(m, n::SampleInitNode, 𝒯, modeltype::EnergyModel)
         for (t_prev, t) ∈ withprev(𝒯)
@@ -71,23 +60,13 @@
         return InitData(Dict(:state => level_t, :state2 => level_t2))
     end
 
-    T = TwoLevel(1, 1, SimpleTimes([1, 2, 1, 4, 1, 3, 1, 3]))
-    hor = DurationHorizons([duration(t) for t ∈ T], 8, 4)
+    𝒯 = TwoLevel(1, 1, SimpleTimes([1, 2, 1, 4, 1, 3, 1, 3]))
+    ℋ = DurationHorizons([duration(t) for t ∈ 𝒯], 8, 4)
+    𝒩 = [SampleInitNode("init node", 1.5, 0.6, [InitData(Dict(:state => 1.0, :state2 => 1.3))])]
     co2 = ResourceEmit("co2", 1.0)
-    case = Dict(
-        :nodes => [
-            SampleInitNode(
-                "init node",
-                1.5,
-                0.6,
-                Vector([InitData(Dict(:state => 1.0, :state => 1.3))]),
-            ),
-        ],
-        :links => Vector{Direct}([]),
-        :products => [co2],
-        :T => T,
-        :horizons => hor,
-    )
+    𝒫 = [co2]
+
+    case = Case(𝒯, 𝒫, Vector{Vector}([𝒩]), [Function[]], Dict(:horizons => ℋ))
 
     model = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)),
@@ -99,13 +78,13 @@
     set_optimizer(m, optimizer)
     optimize!(m)
 
-    results_full = Dict(k => value.(m[k]) for k ∈ keys(object_dictionary(m)))
+    results_full = EMRH.get_results_df(m)
     results_EMRH = run_model_rh(case, model, optimizer)
 
-    @test results_EMRH[:state].data[1] == 2.5
-    @test results_EMRH[:state].data[8] == 13.0
-    @test results_full[:state].data == results_EMRH[:state].data
-    @test results_EMRH[:state2].data[1] == 1.9
-    @test results_EMRH[:state2].data[8] == 6.1
-    @test results_full[:state2].data == results_EMRH[:state2].data
+    @test results_EMRH[:state].y[1] ≈ 2.5
+    @test results_EMRH[:state].y[8] ≈ 13.0
+    @test results_full[:state].y ≈ results_EMRH[:state].y
+    @test results_EMRH[:state2].y[1] ≈ 1.9
+    @test results_EMRH[:state2].y[8] ≈ 6.1
+    @test results_full[:state2].y ≈ results_EMRH[:state2].y
 end
