@@ -20,10 +20,16 @@ before_script:
         Pkg.add("Coverage");
         Pkg.instantiate();
         using Coverage;
-        processed = process_folder();
-        covered_lines, total_lines = get_summary(processed);
-        percentage = covered_lines / total_lines * 100;
-        return println("Code coverage $(percentage)%")'
+        let covered_lines = 0, total_lines = 0;
+          for folder ∈ ["src", "ext"];
+            processed = process_folder(folder);
+            covered_lines_f, total_lines_f = get_summary(processed);
+            covered_lines += covered_lines_f;
+            total_lines += total_lines_f;
+          end;
+          percentage = covered_lines / total_lines * 100;
+          return println("Code coverage $(percentage)%");
+        end'
   coverage: '/Code coverage \d+\.\d+/'
   rules:
     - when: always
