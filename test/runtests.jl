@@ -8,10 +8,15 @@ using ParametricOptInterface
 using Accessors
 using DataFrames
 
+# Declare shortcuts to the different packages
 const EMRH = EnergyModelsRecHorizon
 const EMB = EnergyModelsBase
 const TS = TimeStruct
 const POI = ParametricOptInterface
+
+# Declare shortcut to the extension for simplified testing
+const POIExt = Base.get_extension(EMRH, :POIExt)
+
 
 const TEST_ATOL = 1e-6
 

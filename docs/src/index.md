@@ -41,7 +41,10 @@ Depth = 1
 ```@contents
 Pages = [
     "library/public.md",
-    "library/internals.md",
+    "library/internals/types-EMRH.md",
+    "library/internals/methods-EMRH.md",
+    "library/internals/methods-EMB.md",
+    "library/internals/reference-POIExt.md",
 ]
 Depth = 1
 ```
