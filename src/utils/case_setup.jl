@@ -11,31 +11,28 @@ function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
 
     # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
     # must be improved to deal with more cases
-    𝒯ᴿᴴ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
-    case_rh = Dict(
-        :products => case[:products],
-        :T => 𝒯ᴿᴴ,
-    )
+    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
+    𝒫ᵣₕ = get_products(case)
+    𝒳ᵛᵉᶜ = get_elements_vec(case)
 
     # Initialize the dictionaries
+    ele_dict = Dict{Symbol,Vector}()
     map_dict = Dict{Symbol,Dict}()
     update_dict = Dict{Symbol,Dict}()
 
     # Update the nodes with the parameter variables
-    case_rh[:nodes], update_dict[:nodes] =
-        _get_elements_rh(m, case[:nodes], map_dict, lens_dict[:nodes], 𝒯ᴿᴴ)
-    map_dict[:nodes] =
-        Dict(case[:nodes][i] => case_rh[:nodes][i] for i ∈ 1:length(case[:nodes]))
-
-    # Update the links with the parameter variables
-    case_rh[:links], update_dict[:links] =
-        _get_elements_rh(m, case[:links], map_dict, lens_dict[:links], 𝒯ᴿᴴ)
+    for 𝒳 ∈ 𝒳ᵛᵉᶜ
+        ele = _get_key(𝒳)
+        ele_dict[ele], map_dict, update_dict[ele] =
+            _get_elements_rh(m, 𝒳, map_dict, lens_dict[ele], 𝒯ᵣₕ)
+    end
 
     # Update the model with the parameter variables
-    model_rh, update_dict[:model] =
-        _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᴿᴴ)
+    modelᵣₕ, update_dict[:model] =
+        _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᵣₕ)
 
-    return case_rh, model_rh, update_dict, m
+    caseᵣₕ = Case(𝒯ᵣₕ, 𝒫ᵣₕ, collect(values(ele_dict)), get_couplings(case))
+    return caseᵣₕ, modelᵣₕ, map_dict, update_dict, m
 end
 """
     update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
@@ -44,12 +41,13 @@ Update the JuMP model `m` with the new values for horizon `𝒽`.
 """
 function update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
     # Identify the operational period
-    opers = collect(case[:T])[indices_optimization(𝒽)]
+    𝒯 = get_time_struct(case)
+    opers = collect(𝒯)[indices_optimization(𝒽)]
 
     # Update the parameters of the nodes, links, and the model
-    _set_elements_rh!(m, lens_dict[:nodes], update_dict[:nodes], init_data, opers)
-    _set_elements_rh!(m, lens_dict[:links], update_dict[:links], init_data, opers)
-    _set_elements_rh!(m, lens_dict[:model], update_dict[:model], init_data, opers)
+    for ele ∈ keys(lens_dict)
+        _set_elements_rh!(m, lens_dict[ele], update_dict[ele], init_data, opers)
+    end
 end
 
 """
@@ -61,22 +59,25 @@ evaluated at the horizon indices `𝒽`, initialized using `init_data`.
 function get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
     # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
     # must be improved to deal with more cases
-    opers = collect(case[:T])[indices_optimization(𝒽)]
-    case_rh = Dict(
-        :products => case[:products],
-        :T => TwoLevel(1, 1, SimpleTimes(durations(𝒽))),
-    )
-    map_dict = Dict{Symbol,Dict}()
-    case_rh[:nodes] =
-        _get_elements_rh(case[:nodes], map_dict, lens_dict[:nodes], opers)
-    map_dict[:nodes] =
-        Dict(case[:nodes][i] => case_rh[:nodes][i] for i ∈ 1:length(case[:nodes]))
+    𝒯 = get_time_struct(case)
+    𝒫ᵣₕ = get_products(case)
+    𝒳ᵛᵉᶜ = get_elements_vec(case)
 
-    case_rh[:links] = _get_elements_rh(case[:links], map_dict, lens_dict[:links], opers)
-    model_rh = _get_model_rh(model, map_dict, lens_dict[:model], opers)
+    opers = collect(𝒯)[indices_optimization(𝒽)]
+    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
+
+    map_dict = Dict{Symbol,Dict}()
+    ele_dict = Dict{Symbol,Vector}()
+
+    for 𝒳 ∈ 𝒳ᵛᵉᶜ
+        ele = _get_key(𝒳)
+        ele_dict[ele], map_dict =
+            _get_elements_rh(𝒳, map_dict, lens_dict[ele], opers)
+    end
+    modelᵣₕ = _get_model_rh(model, map_dict, lens_dict[:model], opers)
 
     if !isnothing(init_data)
-        𝒩ⁱⁿⁱᵗ_rh = filter(has_init, case_rh[:nodes])
+        𝒩ⁱⁿⁱᵗ_rh = filter(has_init, ele_dict[:nodes])
         # index of init_data in nodes: depends on init data being unique
         𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ_rh)
         # place initialization data in nodes
@@ -85,14 +86,13 @@ function get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
         end
     end
 
-    return (case_rh, model_rh)
+    caseᵣₕ = Case(𝒯ᵣₕ, 𝒫ᵣₕ, collect(values(ele_dict)), get_couplings(case))
+    return caseᵣₕ, modelᵣₕ, map_dict
 end
 
 """
-    _create_lens_dict_oper_prof(n::Vector{EMB.Node})
-    _create_lens_dict_oper_prof(ℒ::Vector{<:Link})
-    _create_lens_dict_oper_prof(n::EMB.Node)
-    _create_lens_dict_oper_prof(l::EMB.Link)
+    _create_lens_dict_oper_prof(𝒳::Vector{<:AbstractElement}
+    _create_lens_dict_oper_prof(x::AbstractElement)
     _create_lens_dict_oper_prof(model::RecHorEnergyModel)
 
 Function to create a dictionary for storing lenses pointing to fields that are updated in the
@@ -147,18 +147,11 @@ lens_s1_cap_v2 = d_s1[paths_oper_s1[1]]
 @assert all(lens_s1_cap_v2(source1).vals .== source1.cap.vals)
 ```
 """
-function _create_lens_dict_oper_prof(𝒩::Vector{<:EMB.Node})
-    return Dict(n => _create_lens_dict_oper_prof(n) for n ∈ 𝒩)
+function _create_lens_dict_oper_prof(𝒳::Vector{<:AbstractElement})
+    return Dict(x => _create_lens_dict_oper_prof(x) for x ∈ 𝒳)
 end
-function _create_lens_dict_oper_prof(ℒ::Vector{<:Link})
-    return Dict(l => _create_lens_dict_oper_prof(l) for l ∈ ℒ)
-end
-function _create_lens_dict_oper_prof(n::EMB.Node)
-    paths_oper = _find_paths_operational_profile(n)
-    return Dict(field_id => _create_lens_for_field(field_id) for field_id ∈ paths_oper)
-end
-function _create_lens_dict_oper_prof(l::EMB.Link)
-    paths_oper = _find_paths_operational_profile(l)
+function _create_lens_dict_oper_prof(x::AbstractElement)
+    paths_oper = _find_paths_operational_profile(x)
     return Dict(field_id => _create_lens_for_field(field_id) for field_id ∈ paths_oper)
 end
 function _create_lens_dict_oper_prof(model::RecHorEnergyModel)
@@ -232,67 +225,42 @@ function _path_type(val::Resource)
 end
 
 """
-    _get_elements_rh(𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
-    _get_elements_rh(ℒ::Vector{<:Link}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
+    _get_elements_rh(𝒳::Vector{T}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod}) where {T<:AbstractElement}
 
-
-Returns a new element vector identical to the original element vector`𝒩::Vector{<:EMB.Node}`
-or ℒ::Vector{<:Link} with all fields identified through the lenses in `lens_dict `with
-adjustments in the values of `OperationalProfile`s due to the change in the horizon as
+Returns a new element vector identical to the original element vector
+`𝒳::Vector{<:AbstractElement}` with all fields identified through the lenses in `lens_dict`
+with adjustments in the values of `OperationalProfile`s due to the change in the horizon as
 indicated through the operational periods array `opers`.
-
-!!! note "Node"
-    All operational periods are reset with the values of the array of operational periods
-    `opers`.
-
-!!! tip "Link"
-    All operational periods are reset with the values of the array of operational periods
-    `opers`.
-    All connections in the fields `to` and `from` are updated with the respective nodes as
-    outlined in the `map_dict`.
 """
 function _get_elements_rh(
-    𝒩::Vector{<:EMB.Node},
+    𝒳::Vector{T},
     map_dict,
     lens_dict,
     opers::Vector{<:TS.TimePeriod},
-)
-    𝒩ʳʰ = deepcopy(𝒩)
-    for (k, n) ∈ enumerate(𝒩)
-        if isempty(lens_dict[n])
-            𝒩ʳʰ[k] = deepcopy(n)
+) where {T<:AbstractElement}
+    𝒳ʳʰ = deepcopy(𝒳)
+    map_dict[_get_key(𝒳)] = Dict{T,T}()
+    for (k, x) ∈ enumerate(𝒳)
+        if isempty(lens_dict[x])
+            x_rh = deepcopy(x)
         else
-            for (_, lens) ∈ lens_dict[n]
-                val = lens(n)
-                n = _reset_field(n, lens, val, map_dict, opers)
+            for (_, lens) ∈ lens_dict[x]
+                val = lens(x)
+                x = _reset_field(x, lens, val, map_dict, opers)
             end
-            𝒩ʳʰ[k] = n
+            x_rh = x
         end
+        𝒳ʳʰ[k] = x_rh
+        map_dict[_get_key(𝒳)][𝒳[k]] = x_rh
     end
-    return 𝒩ʳʰ
-end
-function _get_elements_rh(
-    ℒ::Vector{<:Link},
-    map_dict,
-    lens_dict,
-    opers::Vector{<:TS.TimePeriod},
-)
-    ℒʳʰ = deepcopy(ℒ)
-    for (k, l) ∈ enumerate(ℒ)
-        for (_, lens) ∈ lens_dict[l]
-            val = lens(l)
-            l = _reset_field(l, lens, val, map_dict, opers)
-        end
-        ℒʳʰ[k] = l
-    end
-    return ℒʳʰ
+    return 𝒳ʳʰ, map_dict
 end
 
 """
-    _reset_field(x_rh, lens::L, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
-    _reset_field(x_rh, lens::L, val::Real, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    _reset_field(x_rh, lens::L, val::Vector{T}, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    _reset_field(x_rh, lens::L, val::OperationalProfile, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
+    _reset_field(x_rh::AbstractElement, lens::L, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
+    _reset_field(x_rh::AbstractElement, lens::L, val::Real, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    _reset_field(x_rh::AbstractElement, lens::L, val::Vector{T}, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    _reset_field(x_rh::AbstractElement, lens::L, val::OperationalProfile, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
 
 
 Resets the field expressed through `lens` of element `x_rh` with the value provided through
@@ -305,7 +273,7 @@ Resets the field expressed through `lens` of element `x_rh` with the value provi
    operational profile and the set of operational periods `opers`.
 """
 function _reset_field(
-    x_rh,
+    x_rh::AbstractElement,
     lens::L,
     val::EMB.Node,
     map_dict,
@@ -315,7 +283,7 @@ function _reset_field(
     return x_rh
 end
 function _reset_field(
-    x_rh,
+    x_rh::AbstractElement,
     lens::L,
     val::T,
     map_dict,
@@ -325,7 +293,7 @@ function _reset_field(
     return x_rh
 end
 function _reset_field(
-    x_rh,
+    x_rh::AbstractElement,
     lens::L,
     val::Vector{T},
     map_dict,
@@ -335,7 +303,7 @@ function _reset_field(
     return x_rh
 end
 function _reset_field(
-    x_rh,
+    x_rh::AbstractElement,
     lens::L,
     val::OperationalProfile,
     map_dict,

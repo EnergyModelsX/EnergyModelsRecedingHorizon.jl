@@ -1,17 +1,17 @@
 @testset "Result containers" begin
     power = ResourceCarrier("power", 0.0)
     co2 = ResourceEmit("co2", 1.0)
-    products = [power, co2]
+    𝒫 = [power, co2]
 
-    T = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
-    hor = PeriodHorizons([duration(t) for t ∈ T], 2, 1)
+    𝒯 = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
+    ℋ = PeriodHorizons([duration(t) for t ∈ 𝒯], 2, 1)
 
     model = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2,
     )
 
-    nodes = [
-        GenAvailability("Availability", products),
+    𝒩 = [
+        GenAvailability("Availability", 𝒫),
         RefSource(
             "electricity source", # id
             FixedProfile(1e12), # cap
@@ -39,28 +39,23 @@
         ),
     ]
 
-    links = [
-        Direct("av-source", nodes[1], nodes[2], Linear()),
-        Direct("av-storage", nodes[1], nodes[3], Linear()),
-        Direct("av-demand", nodes[1], nodes[4], Linear()),
-        Direct("source-av", nodes[2], nodes[1], Linear()),
-        Direct("storage-av", nodes[3], nodes[1], Linear()),
-        Direct("demand-av", nodes[4], nodes[1], Linear()),
+    ℒ = [
+        Direct("av-storage", 𝒩[1], 𝒩[3], Linear()),
+        Direct("av-demand", 𝒩[1], 𝒩[4], Linear()),
+        Direct("source-av", 𝒩[2], 𝒩[1], Linear()),
+        Direct("storage-av", 𝒩[3], 𝒩[1], Linear()),
     ]
 
-    case = Dict(
-        :nodes => nodes, :links => links, :products => products, :T => T,
-        :horizons => hor,
-    )
+    case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
 
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-    hor_test = first(hor)
+    hor_test = first(ℋ)
 
     lens_dict = Dict{Symbol,Dict}()
-    lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(case[:nodes])
-    lens_dict[:links] = EMRH._create_lens_dict_oper_prof(case[:links])
+    lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(𝒩)
+    lens_dict[:links] = EMRH._create_lens_dict_oper_prof(ℒ)
     lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
-    case_rh, model_rh = EMRH.get_rh_case_model(case, model, hor_test, lens_dict)
+    case_rh, model_rh, map_dict = EMRH.get_rh_case_model(case, model, hor_test, lens_dict)
 
     m_rh1 = run_model(case_rh, model_rh, optimizer)
     @test termination_status(m_rh1) == MOI.OPTIMAL
@@ -69,7 +64,7 @@
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
     results_EMRH = Dict{Symbol,AbstractDataFrame}()
-    EMRH.update_results!(results_EMRH, m_rh1, case, case_rh, hor_test)
+    EMRH.update_results!(results_EMRH, m_rh1, case, case_rh, map_dict, hor_test)
     results_EMB = EMRH.get_results(m_EMB)
     @test Set(keys(results_EMB)) == union(
         keys(results_EMRH),
@@ -527,12 +522,12 @@ end
         #Define resources with their emission intensities
         power = ResourceCarrier("power", 0.0)
         co2 = ResourceEmit("co2", 1.0)
-        products = [power, co2]
+        𝒫 = [power, co2]
 
         #define time structure
         op_dur_vec = [1, 2, 1]
-        T = TwoLevel(1, 1, SimpleTimes(op_dur_vec))
-        hor = DurationHorizons([duration(t) for t ∈ T], 3, 3) # optimi and impl horizons
+        𝒯 = TwoLevel(1, 1, SimpleTimes(op_dur_vec))
+        ℋ = DurationHorizons([duration(t) for t ∈ 𝒯], 3, 3) # optimi and impl horizons
 
         model = modeltype(
             Dict(co2 => FixedProfile(10)),
@@ -541,7 +536,7 @@ end
         )
 
         #create individual nodes of the system
-        av = GenAvailability("Availability", products)
+        av = GenAvailability("Availability", 𝒫)
         source = RefSource(
             "electricity source", #Node id or name
             FixedProfile(1e7), #Capacity in MW (Time profile)
@@ -567,33 +562,30 @@ end
             Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e12)),
             Dict(power => 1), #energy demand and corresponding ratio
         )
-        nodes = [
+        𝒩 = [
             av,
             source,
             storage,
             sink,
         ]
-        links = create_links_from_nodes(nodes)
+        ℒ = create_links_from_nodes(𝒩)
         case = Dict(
-            :nodes => nodes, :links => links, :products => products, :T => T,#, :horizons => hor
+            :nodes => 𝒩, :links => ℒ, :products => 𝒫, :T => 𝒯,
         )
 
         return case, model
     end
 
-    function create_links_from_nodes(nodes::Vector{<:EMB.Node})
-        (av,
-            source,
-            storage,
-            sink) = nodes
+    function create_links_from_nodes(𝒩::Vector{<:EMB.Node})
+        av, source, storage, sink = 𝒩
         #connect the nodes with links
-        links = [
+        ℒ = [
             Direct("source-av", source, av, Linear()),
             Direct("av-sink", av, sink, Linear()),
             Direct("av-storage", av, storage, Linear()),
             Direct("storage-av", storage, av, Linear()),
         ]
-        return links
+        return ℒ
     end
 
     #provide data
@@ -606,6 +598,7 @@ end
     )
     @assert typeof(modeltype_rh) <: RecHorOperationalModel
     case_rh_copy = deepcopy(case_rh)
+    𝒩ᵣₕ_copy = case_rh_copy[:nodes]
 
     # Define JuMP.Model
     m_rh = Model(() -> ParametricOptInterface.Optimizer(HiGHS.Optimizer()))
@@ -627,7 +620,7 @@ end
 
     # change parameter values for the sink
     multiplier = 2
-    n_sink = case_rh_copy[:nodes][end]
+    n_sink = 𝒩ᵣₕ_copy[end]
     @assert typeof(n_sink) <: Sink
     idx_sink = EMRH._get_node_index(n_sink, case_rh[:nodes])
 
@@ -645,14 +638,14 @@ end
     m_rh = EMRH._set_values_operational_profile(
         m_rh,
         case_rh_copy,
-        case_rh_copy[:nodes][idx_sink],
+        𝒩ᵣₕ_copy[idx_sink],
         update_dict,
         lens_dict;
         multiplier = multiplier,
     )
 
     # change parameter values for the storage node
-    n_storage = case_rh_copy[:nodes][3]
+    n_storage = 𝒩ᵣₕ_copy[3]
     @assert typeof(n_storage) <: Storage
     idx_storage = EMRH._get_node_index(n_storage, case_rh[:nodes])
 
@@ -671,7 +664,7 @@ end
     m_rh = EMRH._set_values_operational_profile(
         m_rh,
         case_rh_copy,
-        case_rh_copy[:nodes][idx_storage],
+        𝒩ᵣₕ_copy[idx_storage],
         update_dict,
         lens_dict;
         multiplier = multiplier,

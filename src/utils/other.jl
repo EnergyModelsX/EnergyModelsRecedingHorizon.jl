@@ -37,3 +37,11 @@ input.
 function Accessors.ConstructionBase.constructorof(obj::Type{<:Storage})
     return (args...) -> (obj(args...))
 end
+
+_get_key(::Vector{<:EMB.Node}) = :nodes
+_get_key(::EMB.Node) = :nodes
+_get_key(::Vector{<:Link}) = :links
+_get_key(::Link) = :links
+_get_key(::Vector{<:Resource}) = :products
+_get_key(::Resource) = :products
+_get_key(::TS.TimePeriod) = :t

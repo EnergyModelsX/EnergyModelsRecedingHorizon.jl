@@ -36,7 +36,7 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
 end
 
 """
-    _get_elements_rh(m, 𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
+    _get_elements_rh(m, 𝒳::Vector{T}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure) where {T<:AbstractElement}
     _get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
 
 Returns a new element vector identical to the original element vector`𝒩::Vector{<:EMB.Node}`
@@ -46,25 +46,34 @@ Parameter variables as well providing an `update_dict` that corresponds to the v
 In the case of a `ℒ::Vector{<:Link}`, it furthermore update all connections in the fields
 `to` and `from` with the respective nodes as outlined in the `map_dict`.
 """
-function _get_elements_rh(m, 𝒩::Vector{<:EMB.Node}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
+function _get_elements_rh(
+    m,
+    𝒳::Vector{T},
+    map_dict,
+    lens_dict,
+    𝒯ᴿᴴ::TimeStructure,
+) where {T<:AbstractElement}
     update_dict = Dict{EMB.Node,Dict}()
-    𝒩ʳʰ = deepcopy(𝒩)
-    for (k, n) ∈ enumerate(𝒩)
-        n_rh = 𝒩ʳʰ[k]
-        if !isempty(lens_dict[n])
-            update_dict[n] = Dict{Any,Any}()
-            for (field_id, lens) ∈ lens_dict[n]
-                val = lens(n)
-                n_rh, update_dict[n][field_id] = _reset_field(m, n_rh, lens, val, 𝒯ᴿᴴ)
+    𝒳ʳʰ = deepcopy(𝒳)
+    map_dict[_get_key(𝒳)] = Dict{T,T}()
+    for (k, x) ∈ enumerate(𝒳)
+        x_rh = 𝒳ʳʰ[k]
+        if !isempty(lens_dict[x])
+            update_dict[x] = Dict{Any,Any}()
+            for (field_id, lens) ∈ lens_dict[x]
+                val = lens(x)
+                x_rh, update_dict[x][field_id] = _reset_field(m, x_rh, lens, val, 𝒯ᴿᴴ)
             end
         end
-        𝒩ʳʰ[k] = n_rh
+        𝒳ʳʰ[k] = x_rh
+        map_dict[_get_key(𝒳)][𝒳[k]] = x_rh
     end
-    return 𝒩ʳʰ, update_dict
+    return 𝒳ʳʰ, map_dict, update_dict
 end
 function _get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
     update_dict = Dict{Link,Dict}()
     ℒʳʰ = deepcopy(ℒ)
+    map_dict[:links] = Dict{Link,Link}()
     for (k, l) ∈ enumerate(ℒ)
         l_rh = ℒʳʰ[k]
         update_dict[l] = Dict{Any,Any}()
@@ -79,8 +88,9 @@ function _get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿ�
         end
         isempty(update_dict[l]) && delete!(update_dict, l)
         ℒʳʰ[k] = l_rh
+        map_dict[:links][ℒ[k]] = l_rh
     end
-    return ℒʳʰ, update_dict
+    return ℒʳʰ, map_dict, update_dict
 end
 
 """

@@ -27,61 +27,24 @@ end
 
 EMB.has_input(n::IncrementInitNode) = false
 EMB.has_output(n::IncrementInitNode) = false
+EMB.has_opex(n::IncrementInitNode) = false
+EMB.has_capacity(n::IncrementInitNode) = false
 
-"""
-    variables_node(m, 𝒩ˢᵘᵇ::Vector{<:IncrementInitNode}, 𝒯, modeltype::EnergyModel)
-
-Declaration of the single variable of `IncrementInitNode`.
-"""
 function EMB.variables_node(m, 𝒩ˢᵘᵇ::Vector{<:IncrementInitNode}, 𝒯, modeltype::EnergyModel)
     @variable(m, state[𝒩ˢᵘᵇ, 𝒯])
 end
-
 function EMB.create_node(m, n::IncrementInitNode, 𝒯, 𝒫, modeltype::EnergyModel)
     for data ∈ node_data(n)
         constraints_data(m, n, 𝒯, 𝒫, modeltype, data)
     end
     constraints_state(m, n, 𝒯, modeltype)
-    constraints_extravars(m, n, 𝒯, modeltype)
 end
-
-"""
-    constraints_extravars(m, n::IncrementInitNode, 𝒯::TimeStructure, modeltype::EnergyModel)
-
-Defines extra variables not necessary for `IncrementInitNode`.
-"""
-function constraints_extravars(
-    m,
-    n::IncrementInitNode,
-    𝒯::TimeStructure,
-    modeltype::EnergyModel,
-)
-    𝒯ᴵⁿᵛ = strategic_periods(𝒯)
-    @constraint(m, [t_sp ∈ 𝒯ᴵⁿᵛ], m[:opex_var][n, t_sp] == 0)
-    @constraint(m, [t ∈ 𝒯], m[:cap_use][n, t] == 0)
-    @constraint(m, [t ∈ 𝒯], m[:cap_inst][n, t] == 0)
-    @constraint(m, [t_sp ∈ 𝒯ᴵⁿᵛ], m[:opex_fixed][n, t_sp] == 0)
-end
-
-"""
-    constraints_state(m, n::IncrementInitNode, 𝒯, modeltype::EnergyModel)
-
-Defines dynamic constraints for `IncrementInitNode`. Note that the initial behavior is not
-described.
-"""
 function constraints_state(m, n::IncrementInitNode, 𝒯, modeltype::EnergyModel)
     for (t_prev, t) ∈ withprev(𝒯)
         isnothing(t_prev) && continue
         @constraint(m, m[:state][n, t] == m[:state][n, t_prev] + n.increment)
     end
 end
-
-"""
-    constraints_data(m, n::IncrementInitNode, 𝒯, 𝒫, modeltype::RecHorEnergyModel, data::AbstractInitData)
-
-Defines initialization constraints for `IncrementInitNode`. Makes reference to the `AbstractInitData`
-object provided to the node.
-"""
 function EMB.constraints_data(
     m,
     n::IncrementInitNode,
@@ -92,6 +55,7 @@ function EMB.constraints_data(
 )
     @constraint(m, m[:state][n, first(𝒯)] == data.init_val_dict[:state] + n.increment)
 end
+EMB.constraints_couple(m, 𝒫, 𝒯, modeltype::EMRH.RecHorEnergyModel) = nothing
 
 """
     get_init_state(m, n::IncrementInitNode, 𝒯_rh, 𝒽)
@@ -106,12 +70,13 @@ function EMRH.get_init_state(m, n::IncrementInitNode, 𝒯_rh, 𝒽)
     return InitData(Dict(:state => level_t))
 end
 
+
 function create_case_newnode(; init_state = 0.0)
     co2 = ResourceEmit("co2", 1.0)
-    products = [co2]
+    𝒫 = [co2]
 
-    T = TwoLevel(1, 1, SimpleTimes([1, 2, 1, 4, 1, 3, 1, 3]))
-    hor = DurationHorizons([duration(t) for t ∈ T], 8, 4)
+    𝒯 = TwoLevel(1, 1, SimpleTimes([1, 2, 1, 4, 1, 3, 1, 3]))
+    ℋ = DurationHorizons([duration(t) for t ∈ 𝒯], 8, 4)
 
     model = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)),
@@ -119,7 +84,7 @@ function create_case_newnode(; init_state = 0.0)
         co2,
     )
 
-    nodes = [
+    𝒩 = [
         IncrementInitNode(
             "init node",
             1.5,
@@ -127,12 +92,9 @@ function create_case_newnode(; init_state = 0.0)
         ),
     ]
 
-    links = Vector{Direct}([])
+    ℒ = Link[]
 
-    case = Dict(
-        :nodes => nodes, :links => links, :products => products, :T => T,
-        :horizons => hor,
-    )
+    case = Case(𝒯, 𝒫, Vector{Vector}([𝒩]), [Function[]], Dict(:horizons => ℋ))
 
     return case, model
 end
