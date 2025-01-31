@@ -10,7 +10,7 @@ Pages = ["public.md"]
 
 ```@docs
 RecHorOperationalModel
-run_model_rh
+run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
 ```
 
 ## [Horizon](@id lib-pub-hor)

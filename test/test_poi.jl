@@ -91,7 +91,7 @@ end
 
     # Initialize the case
     caseᵣₕ, modelᵣₕ, map_dict, update_dict, m =
-        EMRH.init_rh_case_model(case, model, 𝒽₀, lens_dict, optimizer)
+        POIExt.init_rh_case_model(case, model, 𝒽₀, lens_dict, optimizer)
 
     # Test that the no variables are created for links and models
     @test isempty(update_dict[:links])

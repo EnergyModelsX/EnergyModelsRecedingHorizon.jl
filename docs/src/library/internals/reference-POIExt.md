@@ -1,0 +1,54 @@
+# [Internals - ParametricOptInterface extension](@id lib-int-POIExt)
+
+## [Index](@id lib-int-POIExt-idx)
+
+```@index
+Pages = ["reference_POIExt.md"]
+```
+
+```@meta
+CurrentModule =
+    Base.get_extension(EMRH, :POIExt)
+```
+
+## [Extension](@id lib-int-POIExt-ext)
+
+### [Utility functions](@id lib-POIExt-ext-util)
+
+```@docs
+init_rh_case_model
+update_model!
+```
+
+```@docs
+update_results_last!
+```
+
+```@docs
+_set_elements_rh!
+_set_parameter!
+```
+
+### [Unused functions](@id lib-POIExt-ext-unused)
+
+```@docs
+_set_POI_par_as_operational_profile
+_set_values_operational_profile
+_get_new_POI_values
+```
+
+## [EnergyModelsRecHorizon](@id lib-int-POIExt-EMRH)
+
+### [Exported methods](@id lib-int-POIExt-EMRH-exp_met)
+
+```@docs
+EMRH.run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
+```
+
+### [Internal methods](@id lib-int-POIExt-EMRH-int_met)
+
+```@docs
+EMRH._get_elements_rh
+EMRH._get_model_rh
+EMRH._reset_field
+```

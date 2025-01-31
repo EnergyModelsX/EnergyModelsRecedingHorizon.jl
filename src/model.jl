@@ -1,29 +1,27 @@
 
 """
-    run_model_rh(case::Dict, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
-    run_model_rh(case::Dict, model::RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool=true)
+    run_model_rh(case::AbstractCase, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
 
 Take the variables `case` and `model` and optimize the problem in a receding horizon fashion
 as a series of optimization problems.
 
-`case` is a dictionary that requires the keys:
- - `:nodes::Vector{Node}`
- - `:links::Vector{Link}`
- - `:products::Vector{Resource}`
- - `:T::TimeStructure`
- - `:horizons::AbstractHorizons`
+!!! warning "Required input"
+    While the [`Case`](@extref EnergyModelsBase.Case) type is flexible, we have to follow
+    certain structures.
+    - The `case` type requires as additional input in the dictionary field `misc` the entry
+      `:horizons` corresponding to to an [`AbstractHorizons`](@ref) type.
+    - The order of the individual elements vector in the field `elements` cannot be arbitrary
+      at the moment due to the structure of the code. You **must** use the following
+      order:
 
-`model` is an instance of `RecHorEnergyModel`.
+      1. `Vector{<:EMB.Node}`
+      2. `Vector{<:Link}`
+      3. `Vector{<:Area}`
+      4. `Vector{<:Transmission}`
 
-Returns `results` as a dictionary indexed by the model variables.
+      If you do not use this structure, the model will not run.
 
-When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
-`ParametricOptInterface` (POI) for resetting the individual values.
-
-!!! warn "Using POI"
-    When using POI, the horizon type must be a [`PeriodHorizons`](@ref) type with each
-    individual horizon having the same durations for its periods. This is checked using
-    an `@assert` macro.
+Returns `results` as a dataframe indexed by the model variables.
 """
 function run_model_rh(
     case::AbstractCase,
@@ -93,84 +91,3 @@ end
 #= function EMB.run_model(case::Dict, model::EnergyModel, optimizer; check_timeprofiles=true)
     throw MethodError(2, "This method should is not used in EMRH")
 end =#
-
-function run_model_rh(
-    case::Case,
-    model::RecHorEnergyModel,
-    optimizer::POI.Optimizer;
-    check_timeprofiles::Bool = true,
-)
-
-    # WIP Data structure
-    𝒯 = get_time_struct(case)
-    𝒳ᵛᵉᶜ = get_elements_vec(case)
-    𝒩 = get_nodes(𝒳ᵛᵉᶜ)
-    𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
-    ℋ = case.misc[:horizons]
-    𝒽₀ = first(ℋ)
-
-    # Assert that the horizon is functioning with the POI implementation.
-    horizons = collect(ℋ)
-    horizon_duration = all(
-        durations(h) == durations(horizons[1]) for
-        h ∈ horizons if length(h) == length(horizons[1])
-    )
-    @assert(
-        isa(ℋ, PeriodHorizons),
-        "The horizons type must be a `PeriodHorizons` in which all horizons have the same\n" *
-        "duration length for the individual periods."
-    )
-    @assert(
-        horizon_duration,
-        "All horizon types must have the same duration length for the individual periods."
-    )
-
-    𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
-    𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ)
-    init_data = Dict(n => node_data(n)[i] for (n, i) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ))
-
-    lens_dict = Dict{Symbol,Dict}()
-    for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        lens_dict[_get_key(𝒳)] = _create_lens_dict_oper_prof(𝒳)
-    end
-    lens_dict[:model] = _create_lens_dict_oper_prof(model)
-
-    # initializing loop variables and receding horizon case
-    results = Dict{Symbol,AbstractDataFrame}()
-    caseᵣₕ, modelᵣₕ, map_dict, update_dict, m =
-        init_rh_case_model(case, model, 𝒽₀, lens_dict, optimizer)
-
-    𝒯ᵣₕ = get_time_struct(caseᵣₕ)
-    𝒩ᵣₕ = get_nodes(caseᵣₕ)
-    𝒩ⁱⁿⁱᵗᵣₕ = filter(has_init, 𝒩ᵣₕ)
-
-    # Create the model
-    m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
-
-    for (𝒽_prev, 𝒽) ∈ withprev(ℋ)
-        @info "Solving for 𝒽: $𝒽"
-
-        # Necessary break as `ParametricOptInterface` requires that the number of operational
-        # periods is always the same
-        if length(𝒽) < length(𝒯ᵣₕ)
-            update_results_last!(results, m, case, caseᵣₕ, map_dict, 𝒽_prev)
-            break
-        end
-
-        # Update and solve model
-        if !isfirst(𝒽)
-            update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
-        end
-        optimize!(m)
-
-        # Update the results
-        # relies on overwriting - saves whole optimization results, not only implementation
-        update_results!(results, m, case, caseᵣₕ, map_dict, 𝒽)
-
-        # get initialization data from nodes
-        init_data =
-            Dict(n => get_init_state(m, nᵣₕ, 𝒯ᵣₕ, 𝒽) for (n, nᵣₕ) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒩ⁱⁿⁱᵗᵣₕ))
-    end
-
-    return results
-end

@@ -605,7 +605,7 @@ end
 
     #change to paramtric OperationalProfiles
     case_rh, update_dict, lens_dict =
-        EMRH._set_POI_par_as_operational_profile(m_rh, case_rh, case_rh_copy)
+        POIExt._set_POI_par_as_operational_profile(m_rh, case_rh, case_rh_copy)
 
     # Regenerate links after modifying nodes
     case_rh[:links] = create_links_from_nodes(case_rh[:nodes])
@@ -624,18 +624,18 @@ end
     @assert typeof(n_sink) <: Sink
     idx_sink = EMRH._get_node_index(n_sink, case_rh[:nodes])
 
-    # check that EMRH._get_new_POI_values returns the same values as originally provided
-    orig_cap_prof = EMRH._get_new_POI_values(n_sink, lens_dict[n_sink][Any[:cap]])
+    # check that POIExt._get_new_POI_values returns the same values as originally provided
+    orig_cap_prof = POIExt._get_new_POI_values(n_sink, lens_dict[n_sink][Any[:cap]])
     @test all(demand_prof .== orig_cap_prof)
 
-    demand_prof2 = EMRH._get_new_POI_values(
+    demand_prof2 = POIExt._get_new_POI_values(
         n_sink,
         lens_dict[n_sink][Any[:cap]]; multiplier = multiplier)
 
     @test all(demand_prof2 .== (multiplier .* demand_prof)) #the multiplier works as intended
 
     #change values of the POI parameters
-    m_rh = EMRH._set_values_operational_profile(
+    m_rh = POIExt._set_values_operational_profile(
         m_rh,
         case_rh_copy,
         𝒩ᵣₕ_copy[idx_sink],
@@ -649,19 +649,19 @@ end
     @assert typeof(n_storage) <: Storage
     idx_storage = EMRH._get_node_index(n_storage, case_rh[:nodes])
 
-    # check that EMRH._get_new_POI_values returns the same values as originally provided
+    # check that POIExt._get_new_POI_values returns the same values as originally provided
     orig_price_prof_stor =
-        EMRH._get_new_POI_values(n_storage, lens_dict[n_storage][Any[:charge, :opex_var]])
+        POIExt._get_new_POI_values(n_storage, lens_dict[n_storage][Any[:charge, :opex_var]])
     @test all(price_prof_stor .== orig_price_prof_stor)
 
-    price_prof_stor2 = EMRH._get_new_POI_values(
+    price_prof_stor2 = POIExt._get_new_POI_values(
         n_storage,
         lens_dict[n_storage][Any[:charge, :opex_var]]; multiplier = multiplier)
 
     @test all(price_prof_stor2 .== (multiplier .* price_prof_stor)) #the multiplier works as intended
 
     #change values of the POI parameters
-    m_rh = EMRH._set_values_operational_profile(
+    m_rh = POIExt._set_values_operational_profile(
         m_rh,
         case_rh_copy,
         𝒩ᵣₕ_copy[idx_storage],

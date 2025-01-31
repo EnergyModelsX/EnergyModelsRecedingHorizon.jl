@@ -16,7 +16,6 @@ EMRH.get_init_state
 
 ```@docs
 EMRH.update_results!
-EMRH.update_results_last!
 EMRH.save_results
 EMRH.get_results
 EMRH.get_results_df
@@ -54,25 +53,4 @@ is not deducible from the input and for types with inner constructors:
 
 ```@docs
 EMRH.Accessors.ConstructionBase.constructorof
-```
-
-### [ParametricOptInterface functions](@id lib-int-poi)
-
-```@docs
-EMRH.init_rh_case_model
-EMRH.update_model!
-EMRH._get_elements_rh(m, 𝒳::Vector{T}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure) where {T<:AbstractElement}
-EMRH._reset_field(m, x_rh, lens::L, val::T, 𝒯ᵣₕ::TimeStructure) where {L <: Union{EMRH.Accessors.PropertyLens, ComposedFunction}, T<:Real}
-EMRH._get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᵣₕ::TimeStructure)
-EMRH._set_elements_rh!
-EMRH._set_parameter!
-```
-
-The following functions are not in use, but remain in the code for potential
-later use.
-
-```@docs
-EMRH._set_POI_par_as_operational_profile
-EMRH._set_values_operational_profile
-EMRH._get_new_POI_values
 ```

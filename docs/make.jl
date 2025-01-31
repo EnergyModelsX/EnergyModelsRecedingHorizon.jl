@@ -9,6 +9,7 @@ using DocumenterCitations
 using TimeStruct
 using EnergyModelsBase
 using EnergyModelsRecHorizon
+using ParametricOptInterface
 const TS = TimeStruct
 const EMB = EnergyModelsBase
 const EMRH = EnergyModelsRecHorizon
@@ -42,6 +43,9 @@ makedocs(
     ),
     modules = [
         EMRH,
+        isdefined(Base, :get_extension) ?
+        Base.get_extension(EMRH, :POIExt) :
+        EMRH.POIExt
     ],
     pages = [
         "Home" => "index.md",
@@ -63,6 +67,7 @@ makedocs(
                 # "library/internals/methods-fields.md",
                 "library/internals/methods-EMRH.md",
                 "library/internals/methods-EMB.md",
+                "library/internals/reference-POIExt.md",
             ],
         ],
         "References" => "references.md",
