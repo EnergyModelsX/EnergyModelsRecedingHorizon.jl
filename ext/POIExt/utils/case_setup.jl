@@ -32,7 +32,15 @@ function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
         EMRH._get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᵣₕ)
 
     caseᵣₕ = Case(𝒯ᵣₕ, 𝒫ᵣₕ, collect(values(ele_dict)), get_couplings(case))
-    return caseᵣₕ, modelᵣₕ, map_dict, update_dict, m
+
+    # Create the inverse of the mapping dictionary
+    convert_dict = Dict{Symbol,Dict}()
+    convert_dict[:products] = Dict(zip(𝒫ᵣₕ, get_products(case)))
+    for (k, val_dict) ∈ map_dict
+        convert_dict[k] = Dict(map(reverse, collect(val_dict)))
+    end
+
+    return caseᵣₕ, modelᵣₕ, convert_dict, update_dict, m
 end
 """
     update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)

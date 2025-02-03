@@ -34,8 +34,16 @@ function get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
         end
     end
 
+    # Create the inverse of the mapping dictionary
+    convert_dict = Dict{Symbol,Dict}()
+    convert_dict[:products] = Dict(zip(𝒫ᵣₕ, get_products(case)))
+    convert_dict[:opers] = Dict(zip(𝒯ᵣₕ, opers))
+    for (k, val_dict) ∈ map_dict
+        convert_dict[k] = Dict(map(reverse, collect(val_dict)))
+    end
+
     caseᵣₕ = Case(𝒯ᵣₕ, 𝒫ᵣₕ, collect(values(ele_dict)), get_couplings(case))
-    return caseᵣₕ, modelᵣₕ, map_dict
+    return caseᵣₕ, modelᵣₕ, convert_dict
 end
 
 """

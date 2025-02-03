@@ -55,7 +55,7 @@
     lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(𝒩)
     lens_dict[:links] = EMRH._create_lens_dict_oper_prof(ℒ)
     lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
-    case_rh, model_rh, map_dict = EMRH.get_rh_case_model(case, model, hor_test, lens_dict)
+    case_rh, model_rh, convert_dict = EMRH.get_rh_case_model(case, model, hor_test, lens_dict)
 
     m_rh1 = run_model(case_rh, model_rh, optimizer)
     @test termination_status(m_rh1) == MOI.OPTIMAL
@@ -64,19 +64,20 @@
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
     results_EMRH = Dict{Symbol,AbstractDataFrame}()
-    EMRH.update_results!(results_EMRH, m_rh1, case, case_rh, map_dict, hor_test)
+    opers_impl = collect(𝒯)[indices_implementation(hor_test)]
+    EMRH.update_results!(results_EMRH, m_rh1, convert_dict, opers_impl)
     results_EMB = EMRH.get_results(m_EMB)
-    @test Set(keys(results_EMB)) == union(
-        keys(results_EMRH),
-        [:opex_var, :emissions_strategic, :opex_fixed, # fields for strategic horizons - to be implemented
-            :link_opex_fixed, :link_opex_var], #NEW fields when updated EMB. Are these important? Check with Julian
-    )
+    excl_var = [
+        # Strategic indexed and empty
+        :opex_var, :opex_fixed, :link_opex_var, :link_opex_fixed, :stor_level_Δ_sp,
+        # Strategic index variables
+        :emissions_strategic,
+        # Empty variables
+        :emissions_node, :emissions_link, :stor_discharge_inst, :link_cap_inst,
+    ]
+    @test Set(keys(results_EMB)) == union(keys(results_EMRH), excl_var)
     results_EMB_df = EMRH.get_results_df(m_EMB)
-    @test Set(keys(results_EMB_df)) == union(
-        keys(results_EMRH),
-        [:opex_var, :emissions_strategic, :opex_fixed,
-            :link_opex_fixed, :link_opex_var],
-    )
+    @test Set(keys(results_EMB_df)) == union(keys(results_EMRH), excl_var)
 end
 
 @testset "Identification of data to be changed" begin

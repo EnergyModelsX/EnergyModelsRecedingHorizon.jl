@@ -54,23 +54,22 @@ function run_model_rh(
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
-        caseᵣₕ, modelᵣₕ, map_dict = get_rh_case_model(case, model, 𝒽, lens_dict, init_data)
-
+        # Create the case description of the receding horizon model
+        caseᵣₕ, modelᵣₕ, convert_dict =
+            get_rh_case_model(case, model, 𝒽, lens_dict, init_data)
         𝒯ᵣₕ = get_time_struct(caseᵣₕ)
         𝒩ᵣₕ = get_nodes(caseᵣₕ)
         𝒩ⁱⁿⁱᵗᵣₕ = filter(has_init, 𝒩ᵣₕ)
+        opers_impl = collect(𝒯)[indices_implementation(𝒽)]
 
-        # create and solve model
+        # Create and solve model
         m = create_model(caseᵣₕ, modelᵣₕ; check_timeprofiles)
-        if !isnothing(optimizer)
-            set_optimizer(m, optimizer)
-            set_optimizer_attribute(m, MOI.Silent(), true)
-            optimize!(m)
-        else
-            @warn "No optimizer given"
-        end
-        update_results!(results, m, case, caseᵣₕ, map_dict, 𝒽)
-        # relies on overwriting - saves whole optimization results, not only implementation
+        set_optimizer(m, optimizer)
+        set_optimizer_attribute(m, MOI.Silent(), true)
+        optimize!(m)
+
+        # Update the results
+        update_results!(results, m, convert_dict, opers_impl)
 
         # get initialization data from nodes
         init_data = [get_init_state(m, n, 𝒯ᵣₕ, 𝒽) for n ∈ 𝒩ⁱⁿⁱᵗᵣₕ]

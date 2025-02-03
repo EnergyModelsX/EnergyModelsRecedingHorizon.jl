@@ -52,25 +52,33 @@ function EMRH.run_model_rh(
 
     # initializing loop variables and receding horizon case
     results = Dict{Symbol,AbstractDataFrame}()
-    caseᵣₕ, modelᵣₕ, map_dict, update_dict, m =
+    caseᵣₕ, modelᵣₕ, convert_dict, update_dict, m =
         init_rh_case_model(case, model, 𝒽₀, lens_dict, optimizer)
 
     𝒯ᵣₕ = get_time_struct(caseᵣₕ)
     𝒩ᵣₕ = get_nodes(caseᵣₕ)
     𝒩ⁱⁿⁱᵗᵣₕ = filter(has_init, 𝒩ᵣₕ)
+    opers_not_impl = collect(𝒯)[indices_implementation(𝒽₀)]
 
     # Create the model
     m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
+    set_optimizer_attribute(m, MOI.Silent(), true)
 
-    for (𝒽_prev, 𝒽) ∈ withprev(ℋ)
+    for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
         # Necessary break as `ParametricOptInterface` requires that the number of operational
         # periods is always the same
         if length(𝒽) < length(𝒯ᵣₕ)
-            update_results_last!(results, m, case, caseᵣₕ, map_dict, 𝒽_prev)
+            EMRH.update_results!(results, m, convert_dict, opers_not_impl)
             break
         end
+
+        # Update the conversion dictionary
+        opers_opt = collect(𝒯)[indices_optimization(𝒽)]
+        opers_impl = collect(𝒯)[indices_implementation(𝒽)]
+        opers_not_impl = setdiff(opers_opt, opers_impl)
+        convert_dict[:opers] = Dict(zip(𝒯ᵣₕ, opers_opt))
 
         # Update and solve model
         if !isfirst(𝒽)
@@ -80,7 +88,7 @@ function EMRH.run_model_rh(
 
         # Update the results
         # relies on overwriting - saves whole optimization results, not only implementation
-        EMRH.update_results!(results, m, case, caseᵣₕ, map_dict, 𝒽)
+        EMRH.update_results!(results, m, convert_dict, opers_impl)
 
         # get initialization data from nodes
         init_data =

@@ -21,10 +21,6 @@ update_model!
 ```
 
 ```@docs
-update_results_last!
-```
-
-```@docs
 _set_elements_rh!
 _set_parameter!
 ```
