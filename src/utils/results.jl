@@ -35,60 +35,36 @@ function _get_values_from_obj(
 end
 
 """
-    update_results!(results, m, case, case_rh, map_dict, 𝒽)
+    update_results!(results, m, opers, convert_dict)
 
 Update results dictionary `results` given the optimization results `m`. `m` was optimized using the
 problem definition in `case_rh`, which is a slice of the original problem defined by `case`
 at the time period `𝒽`. The containers in `results` are indexed by the elements in `case`.
 """
-function update_results!(results, m, case, case_rh, map_dict, 𝒽)
-    𝒯 = get_time_struct(case)
-    𝒯ᵣₕ = get_time_struct(case_rh)
-    opers_opt = collect(𝒯)[indices_optimization(𝒽)]
-    opers_impl = collect(𝒯)[indices_implementation(𝒽)]
+function update_results!(results, m, convert_dict, opers)
     results_rh = get_results(m)
     if isempty(results)
         # first iteration - create DataFrame instances
         for (k, container_rh) ∈ results_rh
-            if !isempty(container_rh) &&
-               any(typeof(val) <: TS.StrategicPeriod for val ∈ first(container_rh))
-                @warn "$k cannot be exported due to indexing with StrategicPeriod"
+            if isempty(container_rh)
+                continue
+            elseif any(typeof(val) <: TS.StrategicPeriod for val ∈ first(container_rh))
+                @warn "$k cannot be exported as is is indexed with `StrategicPeriod`."
+            else
+                results[k] = DataFrame()
             end
-            results[k] = DataFrame()
-        end
-    end
-    # adding time structure to conversion dictionary - changes at each implementation step
-    convert_dict = Dict()
-    convert_dict[:t] = Dict()
-    for (tᵣₕ, tₐᵤₓ) ∈ zip(𝒯ᵣₕ, opers_opt)
-        convert_dict[:t][tᵣₕ] = tₐᵤₓ
-    end
-    convert_dict[:products] = Dict{Resource}{Resource}()
-    for (pᵣₕ, p) ∈ zip(get_products(case_rh), get_products(case))
-        convert_dict[:products][pᵣₕ] = p
-    end
-    for (k, val_dict) ∈ map_dict
-        convert_dict[k] = Dict()
-        for (x, xᵣₕ) ∈ val_dict
-            convert_dict[k][xᵣₕ] = x
         end
     end
 
     # place values of results_rh into results
     for (k, container) ∈ results
-        if isempty(results_rh[k])
-            continue
-        end
-        if any(typeof(val) <: TS.StrategicPeriod for val ∈ first(results_rh[k]))
-            continue
-        end
         oper_idx =
             findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(results_rh[k])])
         results_rh_k_new = [
             NamedTuple(
                 (ax == :y) ? ax => v : ax => convert_dict[_get_key(v)][v] for (ax, v) ∈ pairs(row)
             )
-            for row ∈ results_rh[k] if convert_dict[_get_key(row[oper_idx])][row[oper_idx]] ∈ opers_impl
+            for row ∈ results_rh[k] if convert_dict[:opers][row[oper_idx]] ∈ opers
         ]
         append!(container, results_rh_k_new)
     end

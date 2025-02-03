@@ -44,4 +44,4 @@ _get_key(::Vector{<:Link}) = :links
 _get_key(::Link) = :links
 _get_key(::Vector{<:Resource}) = :products
 _get_key(::Resource) = :products
-_get_key(::TS.TimePeriod) = :t
+_get_key(::TS.TimePeriod) = :opers
