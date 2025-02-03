@@ -60,14 +60,15 @@ end
 
 """
     EMRH._get_elements_rh(m, 𝒳::Vector{T}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure) where {T<:AbstractElement}
-    EMRH._get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
 
-Returns a new element vector identical to the original element vector`𝒩::Vector{<:EMB.Node}`
-or ℒ::Vector{<:Link} with all fields identified through the lenses in `lens_dict` with JuMP
-Parameter variables as well providing an `update_dict` that corresponds to the varaibels.s.
+Returns a new element vector identical to the original element vector
+`𝒳::Vector{<:AbstractElement}` with all fields identified through the lenses in `lens_dict`
+with JuMP Parameter variables as well providing an `update_dict` that corresponds to the
+variables.
 
 In the case of a `ℒ::Vector{<:Link}`, it furthermore update all connections in the fields
-`to` and `from` with the respective nodes as outlined in the `map_dict`.
+`to` and `from` with the respective nodes as outlined in the `map_dict`. These values are
+not included in the dictionary `update_dict`.
 """
 function EMRH._get_elements_rh(
     m,
@@ -76,7 +77,7 @@ function EMRH._get_elements_rh(
     lens_dict,
     𝒯ᴿᴴ::TimeStructure,
 ) where {T<:AbstractElement}
-    update_dict = Dict{EMB.Node,Dict}()
+    update_dict = Dict{T,Dict}()
     𝒳ʳʰ = deepcopy(𝒳)
     map_dict[EMRH._get_key(𝒳)] = Dict{T,T}()
     for (k, x) ∈ enumerate(𝒳)
@@ -85,35 +86,15 @@ function EMRH._get_elements_rh(
             update_dict[x] = Dict{Any,Any}()
             for (field_id, lens) ∈ lens_dict[x]
                 val = lens(x)
-                x_rh, update_dict[x][field_id] = EMRH._reset_field(m, x_rh, lens, val, 𝒯ᴿᴴ)
+                x_rh, update_dict[x][field_id] = EMRH._reset_field(m, x_rh, lens, map_dict, val, 𝒯ᴿᴴ)
+                isa(val, AbstractElement) && delete!(update_dict[x], field_id)
             end
+            isempty(update_dict[x]) && delete!(update_dict, x)
         end
         𝒳ʳʰ[k] = x_rh
         map_dict[EMRH._get_key(𝒳)][𝒳[k]] = x_rh
     end
     return 𝒳ʳʰ, map_dict, update_dict
-end
-function EMRH._get_elements_rh(m, ℒ::Vector{<:Link}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
-    update_dict = Dict{Link,Dict}()
-    ℒʳʰ = deepcopy(ℒ)
-    map_dict[:links] = Dict{Link,Link}()
-    for (k, l) ∈ enumerate(ℒ)
-        l_rh = ℒʳʰ[k]
-        update_dict[l] = Dict{Any,Any}()
-        for (field_id, lens) ∈ lens_dict[l]
-            if field_id == [:to] || field_id == [:from]
-                n = lens(l)
-                @reset lens(l_rh) = map_dict[:nodes][n]
-            else
-                val = lens(l)
-                l_rh, update_dict[n][field_id] = EMRH._reset_field(m, l_rh, lens, val, 𝒯ᴿᴴ)
-            end
-        end
-        isempty(update_dict[l]) && delete!(update_dict, l)
-        ℒʳʰ[k] = l_rh
-        map_dict[:links][ℒ[k]] = l_rh
-    end
-    return ℒʳʰ, map_dict, update_dict
 end
 
 """
@@ -128,28 +109,31 @@ function EMRH._get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dic
     if !isempty(lens_dict)
         for (field_id, lens) ∈ lens_dict
             val = lens(model)
-            model_rh, update_dict[field_id] = EMRH._reset_field(m, model_rh, lens, val, 𝒯ᴿᴴ)
+            model_rh, update_dict[field_id] = EMRH._reset_field(m, model_rh, lens, map_dict, val, 𝒯ᴿᴴ)
         end
     end
     return model_rh, update_dict
 end
 
 """
-    EMRH._reset_field(m, x_rh, lens::L, val::T, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    EMRH._reset_field(m, x_rh, lens::L, val::Vector{T}, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    EMRH._reset_field(m, x_rh, lens::L, val::OperationalProfile, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}}
+    EMRH._reset_field(m, x_rh, lens::L, map_dict, val::T, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    EMRH._reset_field(m, x_rh, lens::L, map_dict, val::Vector{T}, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
+    EMRH._reset_field(m, x_rh, lens::L, map_dict, val::T, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:AbstractElement}
+    EMRH._reset_field(m, x_rh, lens::L, map_dict, val::OperationalProfile, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}}
 
 Resets the field identified through `lens` of element `x_rh` with a JuMP parameter variable
 and initialize the variable with the values provided in
 
 1. the value `val` as single `Real`,
-2. the values `Vector{T}` where `T<:Real`, indexed as `1:length(val)`, or
-3. as operational profile using the operational periods in `𝒯ᴿᴴ`.
+2. the values `Vector{T}` where `T<:Real`, indexed as `1:length(val)`,
+3. the node in `val` through the mapping dictionary, or
+4. as operational profile using the operational periods in `𝒯ᴿᴴ`.
 """
 function EMRH._reset_field(
     m,
     x_rh,
     lens::L,
+    map_dict,
     val::T,
     𝒯ᴿᴴ::TimeStructure,
 ) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
@@ -162,6 +146,18 @@ function EMRH._reset_field(
     m,
     x_rh,
     lens::L,
+    map_dict,
+    val::T,
+    𝒯ᴿᴴ::TimeStructure,
+) where {L<:Union{PropertyLens,ComposedFunction},T<:AbstractElement}
+    @reset lens(x_rh) = map_dict[:nodes][val]
+    return x_rh, nothing
+end
+function EMRH._reset_field(
+    m,
+    x_rh,
+    lens::L,
+    map_dict,
     val::Vector{T},
     𝒯ᴿᴴ::TimeStructure,
 ) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
@@ -174,6 +170,7 @@ function EMRH._reset_field(
     m,
     x_rh,
     lens::L,
+    map_dict,
     val::OperationalProfile,
     𝒯ᴿᴴ::TimeStructure,
 ) where {L<:Union{PropertyLens,ComposedFunction}}
