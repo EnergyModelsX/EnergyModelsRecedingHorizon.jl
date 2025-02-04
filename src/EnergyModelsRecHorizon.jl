@@ -18,6 +18,7 @@ const TS = TimeStruct
 include(joinpath("structures", "data.jl"))
 include(joinpath("structures", "horizons.jl"))
 include(joinpath("structures", "model.jl"))
+include(joinpath("structures", "reset.jl"))
 include(joinpath("structures", "node.jl"))
 
 include(joinpath("utils", "case_setup.jl"))
@@ -37,8 +38,8 @@ export get_rh_case_model
 
 # Types used for case setup
 export RecedingAccumulating
-export AbstractInitData, StorageInitData
-export InitData
+export AbstractInitData, InitData, StorageInitData
+export AbstractPath, AbstractInitDataPath
 
 # Auxiliary functions for nodes and node field checks
 export has_init, is_init_data

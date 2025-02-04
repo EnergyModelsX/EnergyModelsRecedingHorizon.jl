@@ -272,51 +272,59 @@ end
         # Test of all potential node input from EMRH
         @test issetequal(EMRH._find_paths_operational_profile(av), Any[])
         @test issetequal(EMRH._find_paths_operational_profile(source_fixed), Any[])
-        @test issetequal(EMRH._find_paths_operational_profile(source_oper), [[:opex_var]])
+        @test issetequal(
+            EMRH._find_paths_operational_profile(source_oper),
+            [[:opex_var, EMRH.OperPath()]])
         @test issetequal(
             EMRH._find_paths_operational_profile(network),
-            [[:opex_var], [:data, "[2]", :emissions, co2]],
+            [
+                [:opex_var, EMRH.OperPath()],
+                [:data, "[2]", :emissions, co2, EMRH.OperPath()]
+            ],
         )
         @test issetequal(EMRH._find_paths_operational_profile(storage), Any[])
         @test issetequal(
             EMRH._find_paths_operational_profile(storage_data),
-            [[:data, "[1]", :init_val_dict, "[:stor_level]"]],
+            [[:data, "[1]", :init_val_dict, "[:stor_level]", EMRH.InitDataPath(:stor_level)]],
         )
         @test issetequal(
             EMRH._find_paths_operational_profile(storage_charge_oper),
-            [[:charge, :capacity]],
+            [[:charge, :capacity, EMRH.OperPath()]],
         )
         @test issetequal(
             EMRH._find_paths_operational_profile(storage_level_oper),
-            [[:level, :capacity]],
+            [[:level, :capacity, EMRH.OperPath()]],
         )
         @test issetequal(
             EMRH._find_paths_operational_profile(storage_charge_level_data_oper),
             [
-                [:charge, :capacity],
-                [:level, :capacity],
-                [:data, "[1]", :init_val_dict, "[:stor_level]"],
+                [:charge, :capacity, EMRH.OperPath()],
+                [:level, :capacity, EMRH.OperPath()],
+                [:data, "[1]", :init_val_dict, "[:stor_level]", EMRH.InitDataPath(:stor_level)],
             ],
         )
         @test issetequal(
             EMRH._find_paths_operational_profile(sink),
-            [[:cap], [:penalty, "[:deficit]"]],
+            [[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]],
         )
 
         # Test of link and model
         @test issetequal(
             EMRH._find_paths_operational_profile(link),
-            [[:from], [:to], [:profile]],
+            [[:from, EMRH.ElementPath()], [:to, EMRH.ElementPath()], [:profile, EMRH.OperPath()]],
         )
         @test issetequal(
             EMRH._find_paths_operational_profile(model),
-            [[:emission_limit, co2]],
+            [[:emission_limit, co2, EMRH.OperPath()]],
         )
 
         # Test of the new node
         @test issetequal(
             EMRH._find_paths_operational_profile(string_dict),
-            Any[[:profile, "[\"a\"]"], [:profile, "[\"c\"]"]],
+            Any[
+                [:profile, "[\"a\"]", EMRH.OperPath()],
+                [:profile, "[\"c\"]", EMRH.OperPath()]
+            ],
         )
     end
 
@@ -358,7 +366,13 @@ end
 
         #checks for source
         paths_oper_source = EMRH._find_paths_operational_profile(source)
-        @test all(paths_oper_source .== Any[[:cap], [:data, "[1]", :emissions, co2]])
+        @test all(
+            paths_oper_source .==
+                Any[
+                    [:cap, EMRH.OperPath()],
+                    [:data, "[1]", :emissions, co2, EMRH.OperPath()]
+                ]
+        )
 
         lens_source_cap = EMRH._create_lens_for_field(paths_oper_source[1])
         lens_source_data = EMRH._create_lens_for_field(paths_oper_source[2])
@@ -383,7 +397,11 @@ end
 
         #checks for sink
         paths_oper_sink = EMRH._find_paths_operational_profile(sink)
-        @test all(paths_oper_sink .== Any[[:cap], [:penalty, "[:deficit]"]])
+        @test all(
+            paths_oper_sink .==
+                Any[[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]
+            ]
+        )
 
         lens_sink_cap = EMRH._create_lens_for_field(paths_oper_sink[1])
         lens_sink_data = EMRH._create_lens_for_field(paths_oper_sink[2])
@@ -418,9 +436,9 @@ end
         @test all(
             paths_oper_storage .==
             Any[
-                [:charge, :capacity],
-                [:data, "[1]", :init_val_dict, "[:stor_level]"],
-                [:data, "[3]", :emissions, co2],
+                [:charge, :capacity, EMRH.OperPath()],
+                [:data, "[1]", :init_val_dict, "[:stor_level]", EMRH.InitDataPath(:stor_level)],
+                [:data, "[3]", :emissions, co2, EMRH.OperPath()],
             ],
         )
 
@@ -626,12 +644,13 @@ end
     idx_sink = EMRH._get_node_index(n_sink, case_rh[:nodes])
 
     # check that POIExt._get_new_POI_values returns the same values as originally provided
-    orig_cap_prof = POIExt._get_new_POI_values(n_sink, lens_dict[n_sink][Any[:cap]])
+    orig_cap_prof =
+        POIExt._get_new_POI_values(n_sink, lens_dict[n_sink][Any[:cap, EMRH.OperPath()]])
     @test all(demand_prof .== orig_cap_prof)
 
     demand_prof2 = POIExt._get_new_POI_values(
         n_sink,
-        lens_dict[n_sink][Any[:cap]]; multiplier = multiplier)
+        lens_dict[n_sink][Any[:cap, EMRH.OperPath()]]; multiplier = multiplier)
 
     @test all(demand_prof2 .== (multiplier .* demand_prof)) #the multiplier works as intended
 
@@ -652,12 +671,17 @@ end
 
     # check that POIExt._get_new_POI_values returns the same values as originally provided
     orig_price_prof_stor =
-        POIExt._get_new_POI_values(n_storage, lens_dict[n_storage][Any[:charge, :opex_var]])
+        POIExt._get_new_POI_values(
+            n_storage,
+            lens_dict[n_storage][Any[:charge, :opex_var, EMRH.OperPath()]]
+    )
     @test all(price_prof_stor .== orig_price_prof_stor)
 
     price_prof_stor2 = POIExt._get_new_POI_values(
         n_storage,
-        lens_dict[n_storage][Any[:charge, :opex_var]]; multiplier = multiplier)
+        lens_dict[n_storage][Any[:charge, :opex_var, EMRH.OperPath()]];
+        multiplier = multiplier
+    )
 
     @test all(price_prof_stor2 .== (multiplier .* price_prof_stor)) #the multiplier works as intended
 

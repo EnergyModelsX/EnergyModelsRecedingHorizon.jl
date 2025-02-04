@@ -209,7 +209,7 @@ function _set_elements_rh!(
         for (field, var_arr) ∈ node_dict
             lens = lens_dict[x][field]
             val = nothing
-            if :init_val_dict ∈ field
+            if isa(field[end], EMRH.InitDataPath)
 # TODO: check if field points to AbstractInitData in a better way
                 init_field = field[findfirst(x -> x == :init_val_dict, field):end]
                 lens_init = EMRH._create_lens_for_field(init_field)

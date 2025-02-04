@@ -152,25 +152,12 @@ EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
 # all_paths are now a 2-element Vector{Any}: [Any[:a_path, :a, :b2], Any[:a_path, :a, :b1, :c]]
 ```
 """
-function _find_paths_operational_profile(n::EMB.Node)
+function _find_paths_operational_profile(x::AbstractElement)
     all_paths = []
     current_path = []
-    for f ∈ fieldnames(typeof(n))
+    for f ∈ fieldnames(typeof(x))
         new_path = vcat(current_path, f)
-        _find_paths_operational_profile(getfield(n, f), new_path, all_paths)
-    end
-    return all_paths
-end
-function _find_paths_operational_profile(l::Link)
-    all_paths = []
-    current_path = []
-    for f ∈ fieldnames(typeof(l))
-        new_path = vcat(current_path, f)
-        if isequal(f, :from) || isequal(f, :to)
-            push!(all_paths, new_path)
-        else
-            _find_paths_operational_profile(getfield(l, f), new_path, all_paths)
-        end
+        _find_paths_operational_profile(getfield(x, f), new_path, all_paths)
     end
     return all_paths
 end
@@ -182,6 +169,14 @@ function _find_paths_operational_profile(model::RecHorEnergyModel)
         _find_paths_operational_profile(getfield(model, f), new_path, all_paths)
     end
     return all_paths
+end
+function _find_paths_operational_profile(
+    field::AbstractElement,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    new_path = vcat(current_path, [ElementPath()])
+    push!(all_paths, new_path)
 end
 function _find_paths_operational_profile(
     field::Vector{T},
@@ -204,16 +199,16 @@ function _find_paths_operational_profile(
     end
 end
 function _find_paths_operational_profile(
-    field::AbstractInitData,
+    field::InitData,
     current_path::Vector{Any},
     all_paths::Vector{Any},
 )
     push!(current_path, :init_val_dict)
     for (key, _) ∈ field.init_val_dict    # all fields must be updated
         new_path = vcat(current_path, _dict_key(key))
+        append!(new_path, [InitDataPath(key)])
         push!(all_paths, new_path)
     end
-    # _find_paths_operational_profile(field.init_val_dict, current_path, all_paths)
 end
 function _find_paths_operational_profile(
     field::AbstractDict,
@@ -230,7 +225,8 @@ function _find_paths_operational_profile(
     current_path::Vector{Any},
     all_paths::Vector{Any},
 )
-    push!(all_paths, current_path)  # Add current_path to all_paths
+    new_path = vcat(current_path, [OperPath()])
+    push!(all_paths, new_path)  # Add current_path to all_paths
 end
 function _find_paths_operational_profile(
     field::StrategicProfile,

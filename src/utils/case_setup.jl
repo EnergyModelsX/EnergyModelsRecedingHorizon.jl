@@ -179,6 +179,7 @@ function _path_type(val::Resource)
     global res = val
     return "[res]"
 end
+_path_type(val::AbstractPath) = ""
 
 """
     _get_elements_rh(𝒳::Vector{T}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod}) where {T<:AbstractElement}
