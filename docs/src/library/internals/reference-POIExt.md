@@ -22,6 +22,7 @@ update_model!
 
 ```@docs
 _set_elements_rh!
+_get_model_rh
 _set_parameter!
 ```
 
@@ -45,6 +46,5 @@ EMRH.run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer::
 
 ```@docs
 EMRH._get_elements_rh
-EMRH._get_model_rh
 EMRH._reset_field
 ```

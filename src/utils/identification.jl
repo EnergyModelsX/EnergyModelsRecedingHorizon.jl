@@ -161,6 +161,15 @@ function _find_paths_operational_profile(x::AbstractElement)
     end
     return all_paths
 end
+function _find_paths_operational_profile(p::Resource)
+    all_paths = []
+    current_path = []
+    for f ∈ fieldnames(typeof(p))
+        new_path = vcat(current_path, f)
+        _find_paths_operational_profile(getfield(p, f), new_path, all_paths)
+    end
+    return all_paths
+end
 function _find_paths_operational_profile(model::RecHorEnergyModel)
     all_paths = []  # To store the paths to lists
     current_path = []

@@ -51,11 +51,12 @@
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
     hor_test = first(ℋ)
 
-    lens_dict = Dict{Symbol,Dict}()
-    lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(𝒩)
-    lens_dict[:links] = EMRH._create_lens_dict_oper_prof(ℒ)
-    lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
-    case_rh, model_rh, convert_dict = EMRH.get_rh_case_model(case, model, hor_test, lens_dict)
+    𝒰 = EMRH._create_updatetype(model)
+    EMRH._add_elements!(𝒰, 𝒫)
+    for 𝒳 ∈ get_elements_vec(case)
+        EMRH._add_elements!(𝒰, 𝒳)
+    end
+    case_rh, model_rh, convert_dict = EMRH.get_rh_case_model(case, 𝒰, hor_test)
 
     m_rh1 = run_model(case_rh, model_rh, optimizer)
     @test termination_status(m_rh1) == MOI.OPTIMAL

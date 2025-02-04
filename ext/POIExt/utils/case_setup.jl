@@ -24,12 +24,12 @@ function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
     for 𝒳 ∈ 𝒳ᵛᵉᶜ
         ele = EMRH._get_key(𝒳)
         ele_dict[ele], map_dict, update_dict[ele] =
-            EMRH._get_elements_rh(m, 𝒳, map_dict, lens_dict[ele], 𝒯ᵣₕ)
+            _get_elements_rh(m, 𝒳, map_dict, lens_dict[ele], 𝒯ᵣₕ)
     end
 
     # Update the model with the parameter variables
     modelᵣₕ, update_dict[:model] =
-        EMRH._get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᵣₕ)
+        _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᵣₕ)
 
     caseᵣₕ = Case(𝒯ᵣₕ, 𝒫ᵣₕ, collect(values(ele_dict)), get_couplings(case))
 
@@ -59,7 +59,7 @@ function update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
 end
 
 """
-    EMRH._get_elements_rh(m, 𝒳::Vector{T}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure) where {T<:AbstractElement}
+    _get_elements_rh(m, 𝒳::Vector{T}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure) where {T<:AbstractElement}
 
 Returns a new element vector identical to the original element vector
 `𝒳::Vector{<:AbstractElement}` with all fields identified through the lenses in `lens_dict`
@@ -70,7 +70,7 @@ In the case of a `ℒ::Vector{<:Link}`, it furthermore update all connections in
 `to` and `from` with the respective nodes as outlined in the `map_dict`. These values are
 not included in the dictionary `update_dict`.
 """
-function EMRH._get_elements_rh(
+function _get_elements_rh(
     m,
     𝒳::Vector{T},
     map_dict,
@@ -98,12 +98,12 @@ function EMRH._get_elements_rh(
 end
 
 """
-    EMRH._get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
+    _get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
 
 Returns a new model with adjustments in the values of `OperationalProfile`s due to the
 change in the horizon as indicated through the operational periods array `𝒯ᴿᴴ`.
 """
-function EMRH._get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
+function _get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
     update_dict = Dict{Any,Any}()
     model_rh = deepcopy(model)
     if !isempty(lens_dict)
