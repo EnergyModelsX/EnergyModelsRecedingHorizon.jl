@@ -5,18 +5,16 @@ Returns a pair `(case_rh, model_rh)` that corresponds to the receding horizon pr
 evaluated at the horizon indices `𝒽`, initialized using `init_data`.
 """
 function get_rh_case_model(case, 𝒰, 𝒽, init_data = nothing)
-    # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
-    # must be improved to deal with more cases
+    # Extract the time structure from the case to identify the used oeprational periods and
+    # the receding horizon time structure
     𝒯 = get_time_struct(case)
-    𝒮ᵛᵉᶜ = get_sub_elements_vec(𝒰)
-
     opers = collect(𝒯)[indices_optimization(𝒽)]
     𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
 
-    _update_elements_rh!(𝒰.model, 𝒰, opers)
-    _update_elements_rh!(𝒰.products, 𝒰, opers)
-    modelᵣₕ = 𝒰.model.new
-    for 𝒮 ∈ 𝒮ᵛᵉᶜ
+    # Update the individual Substitution types within the `UpdateCase`
+    _update_elements_rh!(get_sub_model(𝒰), 𝒰, opers)
+    _update_elements_rh!(get_sub_products(𝒰), 𝒰, opers)
+    for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_elements_rh!(𝒮, 𝒰, opers)
     end
     𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
@@ -31,8 +29,10 @@ function get_rh_case_model(case, 𝒰, 𝒽, init_data = nothing)
         end
     end
 
-    # Create the inverse of the mapping dictionary
+    # Extract the case and the model from the `UpdateCase`
     caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), update_to_case(𝒰), get_couplings(case))
+    modelᵣₕ = updated(get_sub_model(𝒰))
+
     return caseᵣₕ, modelᵣₕ, 𝒰
 end
 
@@ -172,8 +172,8 @@ end
 _path_type(val::AbstractPath) = ""
 
 """
-    _update_elements_rh!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateType, opers::Vector{<:TS.TimePeriod})
-    _update_elements_rh!(st:::AbstractSub, 𝒰::UpdateType, opers::Vector{<:TS.TimePeriod})
+    _update_elements_rh!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _update_elements_rh!(s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
 The update only takes place when the field `reset` of a given `AbstractSub` is not empty.
@@ -181,53 +181,53 @@ In this case, the subfunction [`_reset_field`](@ref) is called.
 """
 function _update_elements_rh!(
     𝒮::Vector{<:AbstractSub},
-    𝒰::UpdateType,
+    𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
-    for st ∈ 𝒮
-        _update_elements_rh!(st, 𝒰, opers)
+    for s ∈ 𝒮
+        _update_elements_rh!(s, 𝒰, opers)
     end
 end
 function _update_elements_rh!(
-    st::AbstractSub,
-    𝒰::UpdateType,
+    s::AbstractSub,
+    𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
-    if isempty(st.reset)
-        st.new = deepcopy(st.reference)
+    if isempty(s.resets)
+        s.new = deepcopy(original(s))
     else
-        for res_type ∈ st.reset
-            st.new = _reset_field(st.new, res_type, 𝒰, opers)
+        for res_type ∈ s.resets
+            s.new = _reset_field(updated(s), res_type, 𝒰, opers)
         end
     end
 end
 
 """
-    reset_field(x_rh, res_type::ElementReset, 𝒰::UpdateType, opers::Vector{<:TS.TimePeriod})
-    reset_field(x_rh, res_type::InitReset, 𝒰::UpdateType, opers::Vector{<:TS.TimePeriod})
-    reset_field(x_rh, res_type::OperReset, 𝒰::UpdateType, opers::Vector{<:TS.TimePeriod})
+    reset_field(x_rh, res_type::ElementReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    reset_field(x_rh, res_type::InitReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    reset_field(x_rh, res_type::OperReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
 of the new value is depending on the specified `res_type`:
 
 1. `res_type::ElementReset` uses the `map_dict` for identifying the correct node,
 2. `res_type::InitReset` uses the the value directly,
-4. `res_type::OperReset` creates a new operational profile based on the original
+3. `res_type::OperReset` creates a new operational profile based on the original
    operational profile and the set of operational periods `opers`.
 """
 function _reset_field(
     x_rh,
     res_type::ElementReset,
-    𝒰::UpdateType,
+    𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
-    @reset res_type.lens(x_rh) = new_el(𝒰, res_type.val)
+    @reset res_type.lens(x_rh) = updated(𝒰, res_type.val)
     return x_rh
 end
 function _reset_field(
     x_rh,
     res_type::InitReset,
-    𝒰::UpdateType,
+    𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
     @reset res_type.lens(x_rh) = res_type.val
@@ -236,7 +236,7 @@ end
 function _reset_field(
     x_rh,
     res_type::OperReset,
-    𝒰::UpdateType,
+    𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
     @reset res_type.lens(x_rh) = OperationalProfile(res_type.val[opers])
@@ -273,20 +273,20 @@ end
 function _create_updatetype(model::RecHorEnergyModel)
     paths_model = _find_paths_operational_profile(model)
     reset_model = AbstractReset[ResetType(field_id, field_id[end], x) for field_id ∈ paths_model]
-    return UpdateType(Substitution(model, reset_model), Dict(), ProductSub[], Vector[])
+    return UpdateCase(Substitution(model, reset_model), Dict(), ProductSub[], Vector[])
 end
-function _add_elements!(𝒰::UpdateType, 𝒫::Vector{T}) where {T<:Resource}
+function _add_elements!(𝒰::UpdateCase, 𝒫::Vector{T}) where {T<:Resource}
     for p ∈ 𝒫
         paths_oper = _find_paths_operational_profile(p)
         reset_types = AbstractReset[ResetType(field_id, field_id[end], p) for field_id ∈ paths_oper]
-        push!(𝒰.products, Substitution(p, reset_types))
+        push!(get_sub_products(𝒰), Substitution(p, reset_types))
     end
 end
-function _add_elements!(𝒰::UpdateType, 𝒳::Vector{T}) where {T <: AbstractElement}
-    push!(𝒰.elements, _ele_to_sub(T)[])
+function _add_elements!(𝒰::UpdateCase, 𝒳::Vector{T}) where {T <: AbstractElement}
+    push!(get_sub_elements_vec(𝒰), _ele_to_sub(T)[])
     for x ∈ 𝒳
         paths_oper = _find_paths_operational_profile(x)
         reset_types = AbstractReset[ResetType(field_id, field_id[end], x) for field_id ∈ paths_oper]
-        push!(𝒰.elements[end], Substitution(x, reset_types))
+        push!(get_sub_elements_vec(𝒰)[end], Substitution(x, reset_types))
     end
 end

@@ -62,9 +62,9 @@ function update_results!(results, m, 𝒰, opers)
             findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(results_rh[k])])
         results_rh_k_new = [
             NamedTuple(
-                (ax == :y) ? ax => v : ax => old_el(𝒰, v) for (ax, v) ∈ pairs(row)
+                (ax == :y) ? ax => v : ax => original(𝒰, v) for (ax, v) ∈ pairs(row)
             )
-            for row ∈ results_rh[k] if old_el(𝒰, row[oper_idx]) ∈ opers
+            for row ∈ results_rh[k] if original(𝒰, row[oper_idx]) ∈ opers
         ]
         append!(container, results_rh_k_new)
     end

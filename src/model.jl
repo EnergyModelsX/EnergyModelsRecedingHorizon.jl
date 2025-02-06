@@ -29,15 +29,14 @@ function run_model_rh(
     optimizer;
     check_timeprofiles::Bool = true,
 )
-    # TODO: dispatch over `EMB.run_model` in future releases
-
-    # WIP Data structure
+    # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
     𝒳ᵛᵉᶜ = get_elements_vec(case)
     𝒩 = get_nodes(𝒳ᵛᵉᶜ)
     𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
 
+    # Create the `UpdateCase` based on the original `Case` structure
     𝒰 = _create_updatetype(model)
     _add_elements!(𝒰, 𝒫)
     for 𝒳 ∈ 𝒳ᵛᵉᶜ
@@ -48,10 +47,11 @@ function run_model_rh(
     𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ) # index of init_data in nodes: depends on init data being unique
     init_data₀ = map((n, i) -> node_data(n)[i], 𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ)
 
-    # initializing loop variables
+    # Initialize loop variables
     results = Dict{Symbol,AbstractDataFrame}()
     init_data = copy(init_data₀)
 
+    # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
