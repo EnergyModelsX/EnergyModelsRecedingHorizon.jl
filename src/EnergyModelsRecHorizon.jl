@@ -34,7 +34,6 @@ export RecHorOperationalModel
 
 # Main function for receding horizon solver call
 export run_model_rh
-export get_rh_case_model
 
 # Types used for case setup
 export RecedingAccumulating

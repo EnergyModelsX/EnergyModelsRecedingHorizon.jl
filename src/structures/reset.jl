@@ -374,13 +374,6 @@ get_sub_ele(𝒰::UpdateCase, x::Type{<:AbstractElement}) = get_sub_ele(get_sub_
 """
     get_products(𝒰::UpdateCase)
 
-Method to extract he **new** `RecHorEnergyModel`s of the [`ModelSub`](@ref) type.
-"""
-get_model(𝒰::UpdateCase) = 𝒰.model
-
-"""
-    get_products(𝒰::UpdateCase)
-
 Method for the equivalent `EnergyModelsBase` function to extract the **new** `Resource`s of
 the individual [`ProductSub`](@ref) types.
 """

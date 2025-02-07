@@ -68,6 +68,7 @@ makedocs(
                 "library/internals/methods-EMRH.md",
                 "library/internals/methods-EMB.md",
                 "library/internals/reference-POIExt.md",
+                "library/internals/reset.md",
             ],
         ],
         "References" => "references.md",

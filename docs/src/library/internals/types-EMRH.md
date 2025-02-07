@@ -7,19 +7,19 @@
 Pages = ["types-EMRH.md"]
 ```
 
-## [Types](@id lib-int-typ)
+## [Types](@id lib-int-types-typ)
 
 ```@docs
 EMRH.EnergyModelsRecHorizon
 ```
 
-### [Model](@id lib-int-typ-mod)
+### [Model](@id lib-int-types-typ-mod)
 
 ```@docs
 EMRH.RecHorEnergyModel
 ```
 
-### [Horizons](@id lib-int-typ-mod)
+### [Horizons](@id lib-int-types-typ-mod)
 
 ```@docs
 EMRH.AbstractHorizons

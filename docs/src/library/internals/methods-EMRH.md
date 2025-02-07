@@ -19,6 +19,7 @@ EMRH.update_results!
 EMRH.save_results
 EMRH.get_results
 EMRH.get_results_df
+EMRH._update_val!
 ```
 
 ### [Miscellaneous functions](@id lib-int-ext)
@@ -41,11 +42,9 @@ EMRH._has_field_operational_profile
 ### [Functions for resetting values](@id lib-int-reset)
 
 ```@docs
-get_rh_case_model
-EMRH._get_elements_rh(𝒳::Vector{T}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod}) where {T<:AbstractElement}
-EMRH._get_model_rh(model::EMRH.RecHorEnergyModel, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
+EMRH.get_rh_case_model
+EMRH._reset_field(x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, opers::Vector{<:TS.TimePeriod})
 EMRH._create_lens_for_field
-EMRH._reset_field(x_rh::AbstractElement, lens::L, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{EMRH.Accessors.PropertyLens, ComposedFunction}}
 ```
 
 The following function is introduced for parametric types in which the type

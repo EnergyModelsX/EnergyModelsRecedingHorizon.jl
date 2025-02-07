@@ -53,7 +53,7 @@ end
 
 Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
 The update only takes place when the field `reset` of a given `AbstractSub` is not empty.
-In this case, the subfunction [`_reset_field`](@ref EnergyModelsRecHorizon._reset_field) is called.
+In this case, the subfunction [`_reset_field`](@ref EMRH._reset_field(m, x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, 𝒯ᴿᴴ::TimeStructure)) is called.
 
 The variables for `ParametricOptInterface` are saved in the model `m`.
 """
@@ -138,10 +138,8 @@ end
 
 Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
 The update only takes place when the field `reset` of a given `AbstractSub` is not empty.
-In this case, the subfunction [`_reset_field`](@ref) is called.
-
-The function calls the subroutine [`_set_parameter!`](@ref) to set the parameter to the new
-value.
+In this case, the subroutine [`_set_parameter!`](@ref) is called to set the parameter to the
+new value.
 """
 function _set_elements_rh!(
     m,
