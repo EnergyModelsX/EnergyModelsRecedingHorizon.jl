@@ -122,7 +122,7 @@ mutable struct OperReset <: AbstractReset
 end
 
 """
-    mutable struct InitReset <: AbstractReset
+    mutable struct InitReset{T} <: AbstractReset where {T<:AbstractInitDataPath}
 
 [`AbstractReset`](@ref) for resetting initial data of an element. The inner constructor is
 utilized for automatically creating the lens to the field path.
@@ -141,15 +141,15 @@ utilized for automatically creating the lens to the field path.
 - **`var`** is the variable when using `ParametricOptInterface`.
 - **`val`** is the initial data value that should be used in the analyses
 """
-mutable struct InitReset <: AbstractReset
+mutable struct InitReset{T} <: AbstractReset where {T<:AbstractInitDataPath}
     lens::Union{PropertyLens,ComposedFunction}
-    path::AbstractInitDataPath
+    path::T
     var
     val
-    function InitReset(field_path::Vector, path::AbstractInitDataPath, x)
+    function InitReset(field_path::Vector, path::T, x) where {T<:AbstractInitDataPath}
         lens = _create_lens_for_field(field_path)
         val = lens(x)
-        new(lens, path, nothing, val)
+        new{T}(lens, path, nothing, val)
     end
 end
 
@@ -275,9 +275,6 @@ Substitution(new::T, org::T, resets::Vector{<:AbstractReset}) where {T<:RecHorEn
 Substitution(new::T, org::T, resets::Vector{<:AbstractReset}) where {T<:AbstractElement} =
     _ele_to_sub(T)(new, org, resets)
 
-has_init(s::AbstractSub) = has_init(s.org)
-has_init(𝒮::Vector{<:AbstractSub}) = any(has_init(s) for s ∈ 𝒮)
-
 """
     resets(s::AbstractSub)
 
@@ -296,6 +293,11 @@ Returns the subtype of [`AbstractSub`](@ref) for a given element.
 """
 _ele_to_sub(::Type{<:EMB.Node}) = NodeSub
 _ele_to_sub(::Type{<:Link}) = LinkSub
+
+has_init(s::AbstractSub) = has_init(s.org)
+has_init(𝒮::Vector{<:AbstractSub}) = any(has_init(s) for s ∈ 𝒮)
+
+has_resets(s::AbstractSub) = !isempty(resets(s))
 
 """
     mutable struct UpdateCase <: AbstractCase
@@ -437,8 +439,3 @@ original(𝒰::UpdateCase, x_new::Resource) =
     original(filter(x -> updated(x) == x_new, get_sub_products(𝒰))[1])
 original(𝒰::UpdateCase, x_new::TS.TimePeriod) = get_sub_periods(𝒰)[x_new]
 original(s::AbstractSub) = s.org
-
-original(𝒰::Dict, x_new::EMB.Node) = 𝒰[:nodes][x_new]
-original(𝒰::Dict, x_new::Link) = 𝒰[:links][x_new]
-original(𝒰::Dict, x_new::Resource) = 𝒰[:products][x_new]
-original(𝒰::Dict, x_new::TS.TimePeriod) = 𝒰[:opers][x_new]

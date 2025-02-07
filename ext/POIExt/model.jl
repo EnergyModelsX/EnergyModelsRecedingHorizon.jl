@@ -15,20 +15,17 @@ function EMRH.run_model_rh(
     optimizer::POI.Optimizer;
     check_timeprofiles::Bool = true,
 )
-
-    # WIP Data structure
+    # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
     𝒳ᵛᵉᶜ = get_elements_vec(case)
-    𝒩 = get_nodes(𝒳ᵛᵉᶜ)
-    𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
+    𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
 
     # Assert that the horizon is functioning with the POI implementation.
-    horizons = collect(ℋ)
     horizon_duration = all(
-        durations(h) == durations(horizons[1]) for
-        h ∈ horizons if length(h) == length(horizons[1])
+        durations(𝒽) == durations(𝒽₀) for
+        𝒽 ∈ ℋ if length(𝒽) == length(𝒽₀)
     )
     @assert(
         isa(ℋ, PeriodHorizons),
@@ -40,59 +37,58 @@ function EMRH.run_model_rh(
         "All horizon types must have the same duration length for the individual periods."
     )
 
-    𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
-    𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ)
-    init_data = Dict(n => node_data(n)[i] for (n, i) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ))
-
-    lens_dict = Dict{Symbol,Dict}()
+    # Create the `UpdateCase` based on the original `Case` structure
+    𝒰 = _create_updatetype(model)
+    _add_elements!(𝒰, 𝒫)
     for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        lens_dict[EMRH._get_key(𝒳)] = EMRH._create_lens_dict_oper_prof(𝒳)
+        _add_elements!(𝒰, 𝒳)
     end
-    lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
+    𝒮ᵛᵉᶜ = get_sub_elements_vec(𝒰)
 
-    # initializing loop variables and receding horizon case
-    results = Dict{Symbol,AbstractDataFrame}()
-    caseᵣₕ, modelᵣₕ, convert_dict, update_dict, m =
-        init_rh_case_model(case, model, 𝒽₀, lens_dict, optimizer)
-
-    𝒯ᵣₕ = get_time_struct(caseᵣₕ)
-    𝒩ᵣₕ = get_nodes(caseᵣₕ)
-    𝒩ⁱⁿⁱᵗᵣₕ = filter(has_init, 𝒩ᵣₕ)
-    opers_not_impl = collect(𝒯)[indices_implementation(𝒽₀)]
-
-    # Create the model
+    # Create the receding horizon case and model as well as JuMP model
+    caseᵣₕ, modelᵣₕ, 𝒰, m = init_rh_case_model(case, 𝒽₀, 𝒰, optimizer)
     m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
     set_optimizer_attribute(m, MOI.Silent(), true)
 
+    # Initialize loop variables
+    results = Dict{Symbol,AbstractDataFrame}()
+    𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
+    𝒯ᵣₕ = get_time_struct(caseᵣₕ)
+    opers_not_impl = collect(𝒯)[indices_implementation(𝒽₀)]
+
+    # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
         # Necessary break as `ParametricOptInterface` requires that the number of operational
         # periods is always the same
         if length(𝒽) < length(𝒯ᵣₕ)
-            EMRH.update_results!(results, m, convert_dict, opers_not_impl)
+            update_results!(results, m, 𝒰, opers_not_impl)
             break
         end
 
-        # Update the conversion dictionary
+        # Extract the individual operational periods
         opers_opt = collect(𝒯)[indices_optimization(𝒽)]
-        opers_impl = collect(𝒯)[indices_implementation(𝒽)]
+        ind_impl = indices_implementation(𝒽)
+        opers_impl = collect(𝒯)[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
         opers_not_impl = setdiff(opers_opt, opers_impl)
-        convert_dict[:opers] = Dict(zip(𝒯ᵣₕ, opers_opt))
 
         # Update and solve model
-        if !isfirst(𝒽)
-            update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
-        end
+        isfirst(𝒽) || update_model!(m, case, 𝒰, 𝒽)
         optimize!(m)
 
         # Update the results
-        # relies on overwriting - saves whole optimization results, not only implementation
-        EMRH.update_results!(results, m, convert_dict, opers_impl)
+        𝒰.opers = Dict(zip(𝒯ᵣₕ, opers_opt))
+        update_results!(results, m, 𝒰, opers_impl)
 
-        # get initialization data from nodes
-        init_data =
-            Dict(n => EMRH.get_init_state(m, nᵣₕ, 𝒯ᵣₕ, 𝒽) for (n, nᵣₕ) ∈ zip(𝒩ⁱⁿⁱᵗ, 𝒩ⁱⁿⁱᵗᵣₕ))
+        # Update the value for the initial data
+        for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ
+            reset_init = filter(EMRH.is_init_reset, resets(s_in))
+            for ri ∈ reset_init
+                _update_val!(m, ri, s_in.new, ri.path, opers_implᵣₕ)
+            end
+        end
     end
 
     return results

@@ -1,239 +1,187 @@
 """
-    init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
+    init_rh_case_model(case, 𝒽₀, 𝒰, optimizer)
 
-Initialize the provided receding horizon `case_rh` and `model_rh` types, the JuMP model `m`,
-and the dictionary with the JuMP variables `update_dict` when utilizing `ParametricOptInterface`.
-
-The initialization is utilizing the first horizon `𝒽`.
+Initialize the horizon `caseᵣₕ` and `modelᵣₕ` types, the JuMP model `m`.
+The initialization is utilizing the first horizon `𝒽₀` and the identifies resets in the
+UpateCase `𝒰`.
 """
-function init_rh_case_model(case, model, 𝒽, lens_dict, optimizer)
+function init_rh_case_model(case, 𝒽₀, 𝒰, optimizer)
+    # Create the model
     m = Model(() -> optimizer)
 
-    # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
-    # must be improved to deal with more cases
-    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
-    𝒫ᵣₕ = get_products(case)
-    𝒳ᵛᵉᶜ = get_elements_vec(case)
+    # Extract the time structure from the case to identify the used oeprational periods and
+    # the receding horizon time structure
+    𝒯 = get_time_struct(case)
+    opers = collect(𝒯)[indices_optimization(𝒽₀)]
+    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽₀)))
 
-    # Initialize the dictionaries
-    ele_dict = Dict{Symbol,Vector}()
-    map_dict = Dict{Symbol,Dict}()
-    update_dict = Dict{Symbol,Dict}()
-
-    # Update the nodes with the parameter variables
-    for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        ele = EMRH._get_key(𝒳)
-        ele_dict[ele], map_dict, update_dict[ele] =
-            _get_elements_rh(m, 𝒳, map_dict, lens_dict[ele], 𝒯ᵣₕ)
+    # Update the individual Substitution types within the `UpdateCase`
+    _update_elements_rh!(m, get_sub_model(𝒰), 𝒰, 𝒯ᵣₕ)
+    _update_elements_rh!(m, get_sub_products(𝒰), 𝒰, 𝒯ᵣₕ)
+    for 𝒮 ∈ get_sub_elements_vec(𝒰)
+        _update_elements_rh!(m, 𝒮, 𝒰, 𝒯ᵣₕ)
     end
+    𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
 
-    # Update the model with the parameter variables
-    modelᵣₕ, update_dict[:model] =
-        _get_model_rh(m, model, map_dict, lens_dict[:model], 𝒯ᵣₕ)
+    # Extract the case and the model from the `UpdateCase`
+    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), update_to_case(𝒰), get_couplings(case))
+    modelᵣₕ = updated(get_sub_model(𝒰))
 
-    caseᵣₕ = Case(𝒯ᵣₕ, 𝒫ᵣₕ, collect(values(ele_dict)), get_couplings(case))
-
-    # Create the inverse of the mapping dictionary
-    convert_dict = Dict{Symbol,Dict}()
-    convert_dict[:products] = Dict(zip(𝒫ᵣₕ, get_products(case)))
-    for (k, val_dict) ∈ map_dict
-        convert_dict[k] = Dict(map(reverse, collect(val_dict)))
-    end
-
-    return caseᵣₕ, modelᵣₕ, convert_dict, update_dict, m
+    return caseᵣₕ, modelᵣₕ, 𝒰, m
 end
 """
-    update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
+    update_model!(m, case, 𝒰, 𝒽)
 
 Update the JuMP model `m` with the new values for horizon `𝒽`.
 """
-function update_model!(m, case, model, 𝒽, lens_dict, update_dict, init_data)
-    # Identify the operational period
+function update_model!(m, case, 𝒰, 𝒽)
+    # Identify the operational periods
     𝒯 = get_time_struct(case)
     opers = collect(𝒯)[indices_optimization(𝒽)]
 
     # Update the parameters of the nodes, links, and the model
-    for ele ∈ keys(lens_dict)
-        _set_elements_rh!(m, lens_dict[ele], update_dict[ele], init_data, opers)
+    _set_elements_rh!(m, get_sub_model(𝒰), opers)
+    _set_elements_rh!(m, get_sub_products(𝒰), opers)
+    for 𝒮 ∈ get_sub_elements_vec(𝒰)
+        _set_elements_rh!(m, 𝒮, opers)
     end
 end
 
 """
-    _get_elements_rh(m, 𝒳::Vector{T}, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure) where {T<:AbstractElement}
+    EMRH._update_elements_rh!(m, 𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    EMRH._update_elements_rh!(m, s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
-Returns a new element vector identical to the original element vector
-`𝒳::Vector{<:AbstractElement}` with all fields identified through the lenses in `lens_dict`
-with JuMP Parameter variables as well providing an `update_dict` that corresponds to the
-variables.
+Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
+The update only takes place when the field `reset` of a given `AbstractSub` is not empty.
+In this case, the subfunction [`_reset_field`](@ref EnergyModelsRecHorizon._reset_field) is called.
 
-In the case of a `ℒ::Vector{<:Link}`, it furthermore update all connections in the fields
-`to` and `from` with the respective nodes as outlined in the `map_dict`. These values are
-not included in the dictionary `update_dict`.
+The variables for `ParametricOptInterface` are saved in the model `m`.
 """
-function _get_elements_rh(
+function EMRH._update_elements_rh!(
     m,
-    𝒳::Vector{T},
-    map_dict,
-    lens_dict,
+    𝒮::Vector{<:AbstractSub},
+    𝒰::UpdateCase,
     𝒯ᴿᴴ::TimeStructure,
-) where {T<:AbstractElement}
-    update_dict = Dict{T,Dict}()
-    𝒳ʳʰ = deepcopy(𝒳)
-    map_dict[EMRH._get_key(𝒳)] = Dict{T,T}()
-    for (k, x) ∈ enumerate(𝒳)
-        x_rh = 𝒳ʳʰ[k]
-        if !isempty(lens_dict[x])
-            update_dict[x] = Dict{Any,Any}()
-            for (field_id, lens) ∈ lens_dict[x]
-                val = lens(x)
-                x_rh, update_dict[x][field_id] = EMRH._reset_field(m, x_rh, lens, map_dict, val, 𝒯ᴿᴴ)
-                isa(val, AbstractElement) && delete!(update_dict[x], field_id)
-            end
-            isempty(update_dict[x]) && delete!(update_dict, x)
-        end
-        𝒳ʳʰ[k] = x_rh
-        map_dict[EMRH._get_key(𝒳)][𝒳[k]] = x_rh
+)
+    for s ∈ 𝒮
+        EMRH._update_elements_rh!(m, s, 𝒰, 𝒯ᴿᴴ)
     end
-    return 𝒳ʳʰ, map_dict, update_dict
+end
+function EMRH._update_elements_rh!(
+    m,
+    s::AbstractSub,
+    𝒰::UpdateCase,
+    𝒯ᴿᴴ::TimeStructure,
+)
+    if isempty(resets(s))
+        s.new = deepcopy(original(s))
+    else
+        for res_type ∈ resets(s)
+            s.new = EMRH._reset_field(m, updated(s), res_type, 𝒰, 𝒯ᴿᴴ)
+        end
+    end
 end
 
 """
-    _get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
-
-Returns a new model with adjustments in the values of `OperationalProfile`s due to the
-change in the horizon as indicated through the operational periods array `𝒯ᴿᴴ`.
-"""
-function _get_model_rh(m, model::EMRH.RecHorEnergyModel, map_dict, lens_dict, 𝒯ᴿᴴ::TimeStructure)
-    update_dict = Dict{Any,Any}()
-    model_rh = deepcopy(model)
-    if !isempty(lens_dict)
-        for (field_id, lens) ∈ lens_dict
-            val = lens(model)
-            model_rh, update_dict[field_id] = EMRH._reset_field(m, model_rh, lens, map_dict, val, 𝒯ᴿᴴ)
-        end
-    end
-    return model_rh, update_dict
-end
-
-"""
-    EMRH._reset_field(m, x_rh, lens::L, map_dict, val::T, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    EMRH._reset_field(m, x_rh, lens::L, map_dict, val::Vector{T}, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    EMRH._reset_field(m, x_rh, lens::L, map_dict, val::T, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}, T<:AbstractElement}
-    EMRH._reset_field(m, x_rh, lens::L, map_dict, val::OperationalProfile, 𝒯ᴿᴴ::TimeStructure) where {L <: Union{PropertyLens, ComposedFunction}}
+    EMRH._reset_field(m, x_rh, res_type::ElementReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::InitReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::OperReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 
 Resets the field identified through `lens` of element `x_rh` with a JuMP parameter variable
-and initialize the variable with the values provided in
+and initialize the variable with the values provided in `res_type`:
 
-1. the value `val` as single `Real`,
-2. the values `Vector{T}` where `T<:Real`, indexed as `1:length(val)`,
-3. the node in `val` through the mapping dictionary, or
-4. as operational profile using the operational periods in `𝒯ᴿᴴ`.
+1. `res_type::ElementReset` uses the `map_dict` for identifying the correct node without
+   creating a new variable,
+2. `res_type::InitReset` creates a single new variables and uses the the value directly,
+3. `res_type::OperReset` creates multiple new variables and a new operational profile based
+   on the original operational profile and the set of operational periods in the time
+   structure `𝒯ᴿᴴ`.
 """
 function EMRH._reset_field(
     m,
     x_rh,
-    lens::L,
-    map_dict,
-    val::T,
+    res_type::ElementReset,
+    𝒰::UpdateCase,
     𝒯ᴿᴴ::TimeStructure,
-) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
-    val_par = MOI.Parameter(val)
-    var = @variable(m, set = val_par)
-    @reset lens(x_rh) = var
-    return x_rh, var
+)
+    @reset res_type.lens(x_rh) = updated(𝒰, res_type.val)
+    return x_rh
 end
 function EMRH._reset_field(
     m,
     x_rh,
-    lens::L,
-    map_dict,
-    val::T,
+    res_type::InitReset,
+    𝒰::UpdateCase,
     𝒯ᴿᴴ::TimeStructure,
-) where {L<:Union{PropertyLens,ComposedFunction},T<:AbstractElement}
-    @reset lens(x_rh) = map_dict[:nodes][val]
-    return x_rh, nothing
+)
+    val_par = MOI.Parameter(res_type.val)
+    res_type.var = @variable(m, set = val_par)
+    @reset res_type.lens(x_rh) = res_type.var
+    return x_rh
 end
 function EMRH._reset_field(
     m,
     x_rh,
-    lens::L,
-    map_dict,
-    val::Vector{T},
+    res_type::OperReset,
+    𝒰::UpdateCase,
     𝒯ᴿᴴ::TimeStructure,
-) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
-    val_par = MOI.Parameter.(val)
-    var = @variable(m, [1:length(val)] ∈ val_par)
-    @reset lens(x_rh) = var
-    return x_rh, var
-end
-function EMRH._reset_field(
-    m,
-    x_rh,
-    lens::L,
-    map_dict,
-    val::OperationalProfile,
-    𝒯ᴿᴴ::TimeStructure,
-) where {L<:Union{PropertyLens,ComposedFunction}}
-    val_par = OperationalProfile(MOI.Parameter.(val[𝒯ᴿᴴ]))
-    var = @variable(m, [𝒯ᴿᴴ] ∈ val_par[collect(𝒯ᴿᴴ)])
-    @reset lens(x_rh) = OperationalProfile([var[t] for t ∈ 𝒯ᴿᴴ])
-    return x_rh, var
+)
+    val_par = OperationalProfile(MOI.Parameter.(res_type.val[𝒯ᴿᴴ]))
+    res_type.var = @variable(m, [𝒯ᴿᴴ] ∈ val_par[collect(𝒯ᴿᴴ)])
+    @reset res_type.lens(x_rh) = OperationalProfile([res_type.var[t] for t ∈ 𝒯ᴿᴴ])
+    return x_rh
 end
 
 """
-    _set_elements_rh!(m, lens_dict, update_dict, init_data, opers::Vector{<:TS.TimePeriod})
+    _update_elements_rh!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _update_elements_rh!(s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
-Iterate through the inidividual elements (keys) in `update_dict` and extract the individual
-variables for each element x.
+Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
+The update only takes place when the field `reset` of a given `AbstractSub` is not empty.
+In this case, the subfunction [`_reset_field`](@ref) is called.
 
 The function calls the subroutine [`_set_parameter!`](@ref) to set the parameter to the new
-    value, either through new init data or through slicing.
-
-!!! warn
-    The current system is not really robust. It assumes that all data provided that is not
-    an `OperationalProfile` is pointing towards an `AbstractInitData`.
-
-!!! todo "Internal if loop"
-    The internal if loop is required as the lenses can point towards `AbstractInitData` objects.
-    This is solved through the if loop that checks for `:init_val_dict`, which only works
-    for the concrete `InitData`.
+value.
 """
 function _set_elements_rh!(
     m,
-    lens_dict,
-    update_dict,
-    init_data,
+    𝒮::EMRH.Vector{<:AbstractSub},
     opers::Vector{<:TS.TimePeriod},
 )
-    for (x, node_dict) ∈ update_dict
-        for (field, var_arr) ∈ node_dict
-            lens = lens_dict[x][field]
-            val = nothing
-            if isa(field[end], EMRH.InitDataPath)
-# TODO: check if field points to AbstractInitData in a better way
-                init_field = field[findfirst(x -> x == :init_val_dict, field):end]
-                lens_init = EMRH._create_lens_for_field(init_field)
-                val = lens_init(init_data[x])
-            else
-                val = lens(x)[opers]
-            end
-            _set_parameter!(m, var_arr, val)
-        end
+    for s ∈ 𝒮
+        _set_elements_rh!(m, s, opers)
+    end
+end
+function _set_elements_rh!(
+    m,
+    s::AbstractSub,
+    opers::Vector{<:TS.TimePeriod},
+)
+    for res_type ∈ s.resets
+        _set_parameter!(m, res_type, opers)
     end
 end
 
 """
-    _set_parameter!(m, var, val::Real)
-    _set_parameter!(m, var_arr, val::Vector)
+    _set_parameter!(m, res_type::ElementReset, opers::Vector)
+    _set_parameter!(m, res_type::OperReset, opers::Vector)
+    _set_parameter!(m, res_type::InitReset{EMRH.InitDataPath}, opers::Vector)
 
-Set the parameter of variable `var` or variable array `var_arr` depending on whether the
-value is a `Real` or a `Vector`.
+Set the parameter parameter value for a given `res_type`:
+
+1. `res_type::ElementReset` results in no update,
+2. `res_type::InitReset{EMRH.InitDataPath}` updates the value based on the value of the
+   [`InitReset`](@ref EnergyModelsRecHorizon.InitReset) type,
+3. `res_type::OperReset` creates a new operational profile based on the original
+   operational profile and the set of operational periods in the time structure `𝒯ᴿᴴ`.
 """
-function _set_parameter!(m, var, val::Real)
-    MOI.set(m, POI.ParameterValue(), var, val)
-end
-function _set_parameter!(m, var_arr, val::Vector)
-    for (i, var) ∈ enumerate(var_arr)
+_set_parameter!(m, res_type::ElementReset, opers::Vector) = nothing
+function _set_parameter!(m, res_type::OperReset, opers::Vector)
+    val = res_type.val[opers]
+    for (i, var) ∈ enumerate(res_type.var)
         MOI.set(m, POI.ParameterValue(), var, val[i])
     end
+end
+function _set_parameter!(m, res_type::InitReset{EMRH.InitDataPath}, opers::Vector)
+    MOI.set(m, POI.ParameterValue(), res_type.var, res_type.val)
 end
