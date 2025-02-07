@@ -49,6 +49,7 @@ has_init(n::Node)
 Checks whether the Node `n` has initialization data.
 """
 has_init(n::EMB.Node) = any(is_init_data(data) for data ∈ node_data(n))
+has_init(l::Link) = any(is_init_data(data) for data ∈ link_data(l))
 
 """
     data_init(n::EMB.Node)

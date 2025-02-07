@@ -25,3 +25,20 @@ function get_init_state(m, n::EMB.Node, 𝒯_rh, 𝒽)
         Dict(key => value.(m[key][n, t_impl]) for key ∈ keys(init_data₀.init_val_dict)) # TODO: will NOT work for differently indexed variables
     return InitData(new_val_dict)
 end
+
+"""
+    _update_val!(m, ri::AbstractReset, x::AbstractElement, idp::InitDataPath, opers_implᵣₕ)
+
+Updats the values of AbstractElement `x` for the AbstractReset `ri` with the value specified
+by the `key` of the `idp`.
+"""
+function _update_val!(
+    m,
+    ri::AbstractReset,
+    x::AbstractElement,
+    idp::InitDataPath,
+    opers_implᵣₕ,
+)
+    t_last = last(opers_implᵣₕ)
+    ri.val = value.(m[model_key(idp)][x, t_last])
+end

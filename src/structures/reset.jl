@@ -42,6 +42,13 @@ struct InitDataPath <: AbstractInitDataPath
 end
 
 """
+    model_key(idp::InitDataPath)
+
+Returns the model key (field `key`) of InitDataPath `idp`.
+"""
+model_key(idp::InitDataPath) = idp.key
+
+"""
     abstract type AbstractReset
 
 Supertype for for types resetting values in fields in the individual
@@ -164,6 +171,14 @@ ResetType(field_path::Vector, _::ElementPath, x) = ElementReset(field_path, x)
 ResetType(field_path::Vector, path::AbstractInitDataPath, x) = InitReset(field_path, path, x)
 
 """
+    is_init_reset(rt::AbstractReset)
+
+Function fo identifying whether the AbstractReset `rt` is of type `InitReset`.
+"""
+is_init_reset(rt::AbstractReset) = false
+is_init_reset(rt::InitReset) = true
+
+"""
     abstract type AbstractSub
 
 Supertype for the creation of *Substitution* types.
@@ -175,8 +190,6 @@ Supertype for the creation of *Substitution* types.
     element.
 """
 abstract type AbstractSub end
-
-has_init(s::AbstractSub) = has_init(s.org)
 
 """
     mutable struct ModelSub{T<:RecHorEnergyModel} <: AbstractSub
@@ -262,6 +275,15 @@ Substitution(new::T, org::T, resets::Vector{<:AbstractReset}) where {T<:RecHorEn
 Substitution(new::T, org::T, resets::Vector{<:AbstractReset}) where {T<:AbstractElement} =
     _ele_to_sub(T)(new, org, resets)
 
+has_init(s::AbstractSub) = has_init(s.org)
+has_init(𝒮::Vector{<:AbstractSub}) = any(has_init(s) for s ∈ 𝒮)
+
+"""
+    resets(s::AbstractSub)
+
+Returns the `Vector{AbstractReset}` of the AbstractSub `s`.
+"""
+resets(s::AbstractSub) = s.resets
 
 """
     _ele_to_sub(::Type{<:EMB.Node})

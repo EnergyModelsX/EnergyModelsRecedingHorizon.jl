@@ -32,7 +32,6 @@ function run_model_rh(
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
     𝒳ᵛᵉᶜ = get_elements_vec(case)
-    𝒩 = get_nodes(𝒳ᵛᵉᶜ)
     𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
 
@@ -42,26 +41,22 @@ function run_model_rh(
     for 𝒳 ∈ 𝒳ᵛᵉᶜ
         _add_elements!(𝒰, 𝒳)
     end
-
-    𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
-    𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ) # index of init_data in nodes: depends on init data being unique
-    init_data₀ = map((n, i) -> node_data(n)[i], 𝒩ⁱⁿⁱᵗ, 𝒾ⁱⁿⁱᵗ)
+    𝒮ᵛᵉᶜ = get_sub_elements_vec(𝒰)
 
     # Initialize loop variables
     results = Dict{Symbol,AbstractDataFrame}()
-    init_data = copy(init_data₀)
+    𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
         # Create the case description of the receding horizon model
-        caseᵣₕ, modelᵣₕ, 𝒰 =
-            get_rh_case_model(case, 𝒰, 𝒽, init_data)
+        caseᵣₕ, modelᵣₕ, 𝒰 = get_rh_case_model(case, 𝒰, 𝒽)
         𝒯ᵣₕ = get_time_struct(caseᵣₕ)
-        𝒩ᵣₕ = get_nodes(caseᵣₕ)
-        𝒩ⁱⁿⁱᵗᵣₕ = filter(has_init, 𝒩ᵣₕ)
-        opers_impl = collect(𝒯)[indices_implementation(𝒽)]
+        ind_impl = indices_implementation(𝒽)
+        opers_impl = collect(𝒯)[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
         # Create and solve model
         m = create_model(caseᵣₕ, modelᵣₕ; check_timeprofiles)
@@ -72,8 +67,13 @@ function run_model_rh(
         # Update the results
         update_results!(results, m, 𝒰, opers_impl)
 
-        # get initialization data from nodes
-        init_data = [get_init_state(m, n, 𝒯ᵣₕ, 𝒽) for n ∈ 𝒩ⁱⁿⁱᵗᵣₕ]
+        # Update the value for the initial data
+        for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ
+            reset_init = filter(is_init_reset, resets(s_in))
+            for ri ∈ reset_init
+                _update_val!(m, ri, s_in.new, ri.path, opers_implᵣₕ)
+            end
+        end
     end
 
     return results

@@ -1,10 +1,10 @@
 """
-    get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
+    get_rh_case_model(case, model, 𝒽, lens_dict)
 
 Returns a pair `(case_rh, model_rh)` that corresponds to the receding horizon problem of `(case, model)`
-evaluated at the horizon indices `𝒽`, initialized using `init_data`.
+evaluated at the horizon indices `𝒽`.
 """
-function get_rh_case_model(case, 𝒰, 𝒽, init_data = nothing)
+function get_rh_case_model(case, 𝒰, 𝒽)
     # Extract the time structure from the case to identify the used oeprational periods and
     # the receding horizon time structure
     𝒯 = get_time_struct(case)
@@ -18,16 +18,6 @@ function get_rh_case_model(case, 𝒰, 𝒽, init_data = nothing)
         _update_elements_rh!(𝒮, 𝒰, opers)
     end
     𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
-
-    if !isnothing(init_data)
-        𝒩ⁱⁿⁱᵗ_rh = filter(has_init, get_nodes(𝒰))
-        # index of init_data in nodes: depends on init data being unique
-        𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ_rh)
-        # place initialization data in nodes
-        for (n, i, init_data_node) ∈ zip(𝒩ⁱⁿⁱᵗ_rh, 𝒾ⁱⁿⁱᵗ, init_data)
-            node_data(n)[i] = init_data_node
-        end
-    end
 
     # Extract the case and the model from the `UpdateCase`
     caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), update_to_case(𝒰), get_couplings(case))
