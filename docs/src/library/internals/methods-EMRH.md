@@ -9,7 +9,7 @@ Pages = ["methods-EMH.md"]
 ### [Extension functions](@id lib-int-ext)
 
 ```@docs
-EMRH._update_val!
+EMRH.update_init_data!
 ```
 
 ### [Utility functions](@id lib-int-util)
@@ -41,7 +41,7 @@ EMRH._has_field_operational_profile
 ### [Functions for resetting values](@id lib-int-reset)
 
 ```@docs
-EMRH.get_rh_case_model
+EMRH._update_update_case!
 EMRH._reset_field(x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, opers::Vector{<:TS.TimePeriod})
 EMRH._create_lens_for_field
 ```

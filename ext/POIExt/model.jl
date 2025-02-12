@@ -58,7 +58,7 @@ function EMRH.run_model_rh(
     # Update the receding horizon case and model as well as JuMP model
     m = Model(() -> optimizer)
     set_optimizer_attribute(m, MOI.Silent(), true)
-    init_rh_case_model(m, 𝒰, opers_opt, 𝒯ᵣₕ)
+    _init_update_case!(m, 𝒰, opers_opt, 𝒯ᵣₕ)
 
     # Extract the case and the model from the `UpdateCase`
     caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
@@ -101,7 +101,7 @@ function EMRH.run_model_rh(
         for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ
             reset_init = filter(EMRH.is_init_reset, resets(s_in))
             for ri ∈ reset_init
-                _update_val!(m, ri, s_in.new, ri.path, opers_implᵣₕ)
+                update_init_data!(m, ri, s_in.new, ri.path, opers_implᵣₕ)
             end
         end
     end

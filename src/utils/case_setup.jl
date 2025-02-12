@@ -1,5 +1,5 @@
 """
-    get_rh_case_model(𝒰, opers, 𝒯ᵣₕ)
+    _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
 
 Update the UpdateCase `𝒰` with the new values in the optimization problem given by the
 time structure 𝒯ᵣₕ.
@@ -7,12 +7,12 @@ time structure 𝒯ᵣₕ.
 In addition, the UpdateCase `𝒰` is updated with the new mapping between the operational
 periods of the optimization (through `𝒯ᵣₕ`) and the original (through `opers`) problem.
 """
-function get_rh_case_model(𝒰, opers, 𝒯ᵣₕ)
+function _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
     # Update the individual Substitution types within the `UpdateCase`
-    _update_elements_rh!(get_sub_model(𝒰), 𝒰, opers)
-    _update_elements_rh!(get_sub_products(𝒰), 𝒰, opers)
+    _update_case_types!(get_sub_model(𝒰), 𝒰, opers)
+    _update_case_types!(get_sub_products(𝒰), 𝒰, opers)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
-        _update_elements_rh!(𝒮, 𝒰, opers)
+        _update_case_types!(𝒮, 𝒰, opers)
     end
     𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
 end
@@ -153,23 +153,23 @@ end
 _path_type(val::AbstractPath) = ""
 
 """
-    _update_elements_rh!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
-    _update_elements_rh!(s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _update_case_types!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _update_case_types!(s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
 The update only takes place when the field `reset` of a given `AbstractSub` is not empty.
 In this case, the subfunction [`_reset_field`](@ref) is called.
 """
-function _update_elements_rh!(
+function _update_case_types!(
     𝒮::Vector{<:AbstractSub},
     𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
     for s ∈ 𝒮
-        _update_elements_rh!(s, 𝒰, opers)
+        _update_case_types!(s, 𝒰, opers)
     end
 end
-function _update_elements_rh!(
+function _update_case_types!(
     s::AbstractSub,
     𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},

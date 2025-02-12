@@ -97,7 +97,7 @@ end
 
     # Update the receding horizon case and model as well as JuMP model
     m = Model(() -> optimizer)
-    POIExt.init_rh_case_model(m, 𝒰, opers_opt, 𝒯ᵣₕ)
+    POIExt._init_update_case!(m, 𝒰, opers_opt, 𝒯ᵣₕ)
 
     # Extract the case and the model from the `UpdateCase`
     caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))

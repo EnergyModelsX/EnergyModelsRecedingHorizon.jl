@@ -60,7 +60,7 @@ function run_model_rh(
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
         # Update the `UpdateCase` with the new values
-        get_rh_case_model(𝒰, opers_opt, 𝒯ᵣₕ)
+        _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
 
         # Extract the case and the model from the `UpdateCase`
         caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
@@ -79,7 +79,7 @@ function run_model_rh(
         for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ
             reset_init = filter(is_init_reset, resets(s_in))
             for ri ∈ reset_init
-                _update_val!(m, ri, updated(s_in), ri.path, opers_implᵣₕ)
+                update_init_data!(m, ri, updated(s_in), ri.path, opers_implᵣₕ)
             end
         end
     end

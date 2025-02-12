@@ -58,7 +58,7 @@
     end
     𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(hor_test)))
     opers_opt = collect(𝒯)[indices_optimization(hor_test)]
-    EMRH.get_rh_case_model(𝒰, opers_opt, 𝒯ᵣₕ)
+    EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
 
     # Extract the case and the model from the `UpdateCase`
     case_rh = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))

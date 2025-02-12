@@ -16,13 +16,13 @@ CurrentModule =
 ### [Utility functions](@id lib-POIExt-ext-util)
 
 ```@docs
-init_rh_case_model
+_init_update_case!
 update_model!
 ```
 
 ```@docs
-_set_elements_rh!
-_set_parameter!
+_update_parameter_values!
+_update_parameter!
 ```
 
 ### [Unused functions](@id lib-POIExt-ext-unused)
@@ -44,6 +44,6 @@ EMRH.run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer::
 ### [Internal methods](@id lib-int-POIExt-EMRH-int_met)
 
 ```@docs
-EMRH._update_elements_rh!(m, 𝒮::Vector{<:EMRH.AbstractSub}, 𝒰::EMRH.UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+EMRH._update_case_types!(m, 𝒮::Vector{<:EMRH.AbstractSub}, 𝒰::EMRH.UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 EMRH._reset_field(m, x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 ```

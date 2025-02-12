@@ -11,12 +11,12 @@ function init_level(n::Storage{RecedingAccumulating})
 end
 
 """
-    _update_val!(m, ri::AbstractReset, x::AbstractElement, idp::InitDataPath, opers_implᵣₕ)
+    update_init_data!(m, ri::AbstractReset, x::AbstractElement, idp::InitDataPath, opers_implᵣₕ)
 
 Updats the values of AbstractElement `x` for the AbstractReset `ri` with the value specified
 by the `key` of the `idp`.
 """
-function _update_val!(
+function update_init_data!(
     m,
     ri::AbstractReset,
     x::AbstractElement,
