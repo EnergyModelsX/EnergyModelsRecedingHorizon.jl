@@ -1,16 +1,13 @@
 """
-    get_rh_case_model(case, model, 𝒽, lens_dict)
+    get_rh_case_model(𝒰, opers, 𝒯ᵣₕ)
 
-Returns a pair `(case_rh, model_rh)` that corresponds to the receding horizon problem of `(case, model)`
-evaluated at the horizon indices `𝒽`.
+Update the UpdateCase `𝒰` with the new values in the optimization problem given by the
+time structure 𝒯ᵣₕ.
+
+In addition, the UpdateCase `𝒰` is updated with the new mapping between the operational
+periods of the optimization (through `𝒯ᵣₕ`) and the original (through `opers`) problem.
 """
-function get_rh_case_model(case, 𝒰, 𝒽)
-    # Extract the time structure from the case to identify the used oeprational periods and
-    # the receding horizon time structure
-    𝒯 = get_time_struct(case)
-    opers = collect(𝒯)[indices_optimization(𝒽)]
-    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
-
+function get_rh_case_model(𝒰, opers, 𝒯ᵣₕ)
     # Update the individual Substitution types within the `UpdateCase`
     _update_elements_rh!(get_sub_model(𝒰), 𝒰, opers)
     _update_elements_rh!(get_sub_products(𝒰), 𝒰, opers)
@@ -18,12 +15,6 @@ function get_rh_case_model(case, 𝒰, 𝒽)
         _update_elements_rh!(𝒮, 𝒰, opers)
     end
     𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
-
-    # Extract the case and the model from the `UpdateCase`
-    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
-    modelᵣₕ = updated(get_sub_model(𝒰))
-
-    return caseᵣₕ, modelᵣₕ, 𝒰
 end
 
 """

@@ -1,50 +1,36 @@
 """
-    init_rh_case_model(case, 𝒽₀, 𝒰, optimizer)
+    init_rh_case_model(m, 𝒰, opers, 𝒯ᵣₕ)
 
-Initialize the horizon `caseᵣₕ` and `modelᵣₕ` types, the JuMP model `m`.
-The initialization is utilizing the first horizon `𝒽₀` and the identifies resets in the
-UpateCase `𝒰`.
+Initialize the JuMP model `m` and the UpdateCase `𝒰` with the anonymous variables
+corresponding to the inidividual fields of all types whose value(s) change(s).
+
+In addition, the UpdateCase `𝒰` is updated with the new mapping between the operational
+periods of the optimization (through `𝒯ᵣₕ`) and the original (through `opers`) problem.
 """
-function init_rh_case_model(case, 𝒽₀, 𝒰, optimizer)
-    # Create the model
-    m = Model(() -> optimizer)
-
-    # Extract the time structure from the case to identify the used oeprational periods and
-    # the receding horizon time structure
-    𝒯 = get_time_struct(case)
-    opers = collect(𝒯)[indices_optimization(𝒽₀)]
-    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽₀)))
-
-    # Update the individual Substitution types within the `UpdateCase`
+function init_rh_case_model(m, 𝒰, opers, 𝒯ᵣₕ)
     _update_elements_rh!(m, get_sub_model(𝒰), 𝒰, 𝒯ᵣₕ)
     _update_elements_rh!(m, get_sub_products(𝒰), 𝒰, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_elements_rh!(m, 𝒮, 𝒰, 𝒯ᵣₕ)
     end
     𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
-
-    # Extract the case and the model from the `UpdateCase`
-    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
-    modelᵣₕ = updated(get_sub_model(𝒰))
-
-    return caseᵣₕ, modelᵣₕ, 𝒰, m
 end
 """
-    update_model!(m, case, 𝒰, 𝒽)
+    update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
 
-Update the JuMP model `m` with the new values for horizon `𝒽`.
+Update the JuMP model `m` with the new values given by the vector of operational periods of
+the original problem `opers`.
+
+In addition, the UpdateCase `𝒰` is updated with the new mapping between the operational
+periods of the optimization (through `𝒯ᵣₕ`) and the original (through `opers`) problem.
 """
-function update_model!(m, case, 𝒰, 𝒽)
-    # Identify the operational periods
-    𝒯 = get_time_struct(case)
-    opers = collect(𝒯)[indices_optimization(𝒽)]
-
-    # Update the parameters of the nodes, links, and the model
+function update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
     _set_elements_rh!(m, get_sub_model(𝒰), opers)
     _set_elements_rh!(m, get_sub_products(𝒰), opers)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _set_elements_rh!(m, 𝒮, opers)
     end
+    𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
 end
 
 """

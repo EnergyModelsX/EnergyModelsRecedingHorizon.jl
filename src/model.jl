@@ -50,13 +50,21 @@ function run_model_rh(
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
-
-        # Create the case description of the receding horizon model
-        caseᵣₕ, modelᵣₕ, 𝒰 = get_rh_case_model(case, 𝒰, 𝒽)
-        𝒯ᵣₕ = get_time_struct(caseᵣₕ)
+        # Extract the time structure from the case to identify the used operational periods
+        # and the receding horizon time structure
+        𝒯 = get_time_struct(case)
+        𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
+        opers_opt = collect(𝒯)[indices_optimization(𝒽)]
         ind_impl = indices_implementation(𝒽)
         opers_impl = collect(𝒯)[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+
+        # Update the `UpdateCase` with the new values
+        get_rh_case_model(𝒰, opers_opt, 𝒯ᵣₕ)
+
+        # Extract the case and the model from the `UpdateCase`
+        caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
+        modelᵣₕ = updated(get_sub_model(𝒰))
 
         # Create and solve model
         m = create_model(caseᵣₕ, modelᵣₕ; check_timeprofiles)
@@ -71,7 +79,7 @@ function run_model_rh(
         for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ
             reset_init = filter(is_init_reset, resets(s_in))
             for ri ∈ reset_init
-                _update_val!(m, ri, s_in.new, ri.path, opers_implᵣₕ)
+                _update_val!(m, ri, updated(s_in), ri.path, opers_implᵣₕ)
             end
         end
     end

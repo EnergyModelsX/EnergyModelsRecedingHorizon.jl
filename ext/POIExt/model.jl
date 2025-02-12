@@ -45,23 +45,39 @@ function EMRH.run_model_rh(
     end
     𝒮ᵛᵉᶜ = get_sub_elements_vec(𝒰)
 
-    # Create the receding horizon case and model as well as JuMP model
-    caseᵣₕ, modelᵣₕ, 𝒰, m = init_rh_case_model(case, 𝒽₀, 𝒰, optimizer)
-    m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
+    # Extract the time structure from the case to identify the used operational periods
+    # and the receding horizon time structure
+    𝒯 = get_time_struct(case)
+    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽₀)))
+    opers_opt = collect(𝒯)[indices_optimization(𝒽₀)]
+    ind_impl = indices_implementation(𝒽₀)
+    opers_impl = collect(𝒯)[ind_impl]
+    opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+    opers_not_impl = setdiff(opers_opt, opers_impl)
+
+    # Update the receding horizon case and model as well as JuMP model
+    m = Model(() -> optimizer)
     set_optimizer_attribute(m, MOI.Silent(), true)
+    init_rh_case_model(m, 𝒰, opers_opt, 𝒯ᵣₕ)
+
+    # Extract the case and the model from the `UpdateCase`
+    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
+    modelᵣₕ = updated(get_sub_model(𝒰))
+
+    # Create the EMX model
+    m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
 
     # Initialize loop variables
     results = Dict{Symbol,AbstractDataFrame}()
     𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
-    𝒯ᵣₕ = get_time_struct(caseᵣₕ)
-    opers_not_impl = collect(𝒯)[indices_implementation(𝒽₀)]
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
 
         # Necessary break as `ParametricOptInterface` requires that the number of operational
-        # periods is always the same
+        # periods is always the same. In this case, we use the last values from the previous
+        # horizon
         if length(𝒽) < length(𝒯ᵣₕ)
             update_results!(results, m, 𝒰, opers_not_impl)
             break
@@ -75,11 +91,10 @@ function EMRH.run_model_rh(
         opers_not_impl = setdiff(opers_opt, opers_impl)
 
         # Update and solve model
-        isfirst(𝒽) || update_model!(m, case, 𝒰, 𝒽)
+        isfirst(𝒽) || update_model!(m, 𝒰, opers_opt, 𝒯ᵣₕ)
         optimize!(m)
 
         # Update the results
-        𝒰.opers = Dict(zip(𝒯ᵣₕ, opers_opt))
         update_results!(results, m, 𝒰, opers_impl)
 
         # Update the value for the initial data

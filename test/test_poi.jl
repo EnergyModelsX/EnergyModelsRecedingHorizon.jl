@@ -89,9 +89,19 @@ end
     @test isempty(setdiff(get_links(case), get_links(𝒰)))
     @test !EMRH.has_resets(EMRH.get_sub_model(𝒰))
 
-    # Initialize the case
-    caseᵣₕ, modelᵣₕ, 𝒰, m =
-        POIExt.init_rh_case_model(case, 𝒽₀, 𝒰, optimizer)
+    # Extract the time structure from the case to identify the used operational periods
+    # and the receding horizon time structure
+    𝒯 = get_time_struct(case)
+    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽₀)))
+    opers_opt = collect(𝒯)[indices_optimization(𝒽₀)]
+
+    # Update the receding horizon case and model as well as JuMP model
+    m = Model(() -> optimizer)
+    POIExt.init_rh_case_model(m, 𝒰, opers_opt, 𝒯ᵣₕ)
+
+    # Extract the case and the model from the `UpdateCase`
+    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
+    modelᵣₕ = EMRH.updated(EMRH.get_sub_model(𝒰))
 
     # Test that the no variables are created for links and models
     # 3*4 for operational profiles and 1 for initial data

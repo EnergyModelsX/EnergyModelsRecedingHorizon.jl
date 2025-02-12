@@ -56,7 +56,13 @@
     for 𝒳 ∈ get_elements_vec(case)
         EMRH._add_elements!(𝒰, 𝒳)
     end
-    case_rh, model_rh, convert_dict = EMRH.get_rh_case_model(case, 𝒰, hor_test)
+    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(hor_test)))
+    opers_opt = collect(𝒯)[indices_optimization(hor_test)]
+    EMRH.get_rh_case_model(𝒰, opers_opt, 𝒯ᵣₕ)
+
+    # Extract the case and the model from the `UpdateCase`
+    case_rh = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
+    model_rh = EMRH.updated(EMRH.get_sub_model(𝒰))
 
     m_rh1 = run_model(case_rh, model_rh, optimizer)
     @test termination_status(m_rh1) == MOI.OPTIMAL
@@ -66,7 +72,7 @@
 
     results_EMRH = Dict{Symbol,AbstractDataFrame}()
     opers_impl = collect(𝒯)[indices_implementation(hor_test)]
-    EMRH.update_results!(results_EMRH, m_rh1, convert_dict, opers_impl)
+    EMRH.update_results!(results_EMRH, m_rh1, 𝒰, opers_impl)
     results_EMB = EMRH.get_results(m_EMB)
     excl_var = [
         # Strategic indexed and empty
