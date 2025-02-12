@@ -35,13 +35,13 @@ function _get_values_from_obj(
 end
 
 """
-    update_results!(results, m, opers, convert_dict)
+    update_results!(results, m, 𝒰, opers)
 
 Update results dictionary `results` given the optimization results `m`. `m` was optimized using the
 problem definition in `case_rh`, which is a slice of the original problem defined by `case`
 at the time period `𝒽`. The containers in `results` are indexed by the elements in `case`.
 """
-function update_results!(results, m, convert_dict, opers)
+function update_results!(results, m, 𝒰, opers)
     results_rh = get_results(m)
     if isempty(results)
         # first iteration - create DataFrame instances
@@ -62,9 +62,9 @@ function update_results!(results, m, convert_dict, opers)
             findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(results_rh[k])])
         results_rh_k_new = [
             NamedTuple(
-                (ax == :y) ? ax => v : ax => convert_dict[_get_key(v)][v] for (ax, v) ∈ pairs(row)
+                (ax == :y) ? ax => v : ax => original(𝒰, v) for (ax, v) ∈ pairs(row)
             )
-            for row ∈ results_rh[k] if convert_dict[:opers][row[oper_idx]] ∈ opers
+            for row ∈ results_rh[k] if original(𝒰, row[oper_idx]) ∈ opers
         ]
         append!(container, results_rh_k_new)
     end

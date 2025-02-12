@@ -72,30 +72,40 @@ end
     # Extract the data
     𝒯 = get_time_struct(case)
     𝒳ᵛᵉᶜ = get_elements_vec(case)
-    𝒩 = get_nodes(𝒳ᵛᵉᶜ)
-    ℒ = get_links(𝒳ᵛᵉᶜ)
-    𝒩ⁱⁿⁱᵗ = filter(has_init, 𝒩)
+    𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
 
     # Create the lenses
-    lens_dict = Dict{Symbol,Dict}()
-    lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(𝒩)
-    lens_dict[:links] = EMRH._create_lens_dict_oper_prof(ℒ)
-    lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
+    𝒰 = EMRH._create_updatetype(model)
+    EMRH._add_elements!(𝒰, 𝒫)
+    for 𝒳 ∈ 𝒳ᵛᵉᶜ
+        EMRH._add_elements!(𝒰, 𝒳)
+    end
+    𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
 
-    # Test that the lenses are created for all nodes and links
-    @test all(haskey(lens_dict[:nodes], n) for n ∈ 𝒩)
-    @test all(haskey(lens_dict[:links], l) for l ∈ ℒ)
-    @test isempty(lens_dict[:model])
+    # Test that the UpdateCase is correctly created with all types
+    @test isempty(setdiff(get_nodes(case), get_nodes(𝒰)))
+    @test isempty(setdiff(get_links(case), get_links(𝒰)))
+    @test !EMRH.has_resets(EMRH.get_sub_model(𝒰))
 
-    # Initialize the case
-    caseᵣₕ, modelᵣₕ, map_dict, update_dict, m =
-        POIExt.init_rh_case_model(case, model, 𝒽₀, lens_dict, optimizer)
+    # Extract the time structure from the case to identify the used operational periods
+    # and the receding horizon time structure
+    𝒯 = get_time_struct(case)
+    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽₀)))
+    opers_opt = collect(𝒯)[indices_optimization(𝒽₀)]
+
+    # Update the receding horizon case and model as well as JuMP model
+    m = Model(() -> optimizer)
+    POIExt._init_update_case!(m, 𝒰, opers_opt, 𝒯ᵣₕ)
+
+    # Extract the case and the model from the `UpdateCase`
+    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
+    modelᵣₕ = EMRH.updated(EMRH.get_sub_model(𝒰))
 
     # Test that the no variables are created for links and models
-    @test isempty(update_dict[:links])
-    @test isempty(update_dict[:model])
+    # 3*4 for operational profiles and 1 for initial data
+    @test length(all_variables(m)) == 13
 
     # Extract the data from the receding horizon model
     𝒩ᵣₕ = get_nodes(caseᵣₕ)
@@ -109,7 +119,7 @@ end
     @test length(opex_var(source).vals) == length(𝒽₀)
     @test isa(process_emissions(node_data(source)[1], co2), OperationalProfile{VariableRef})
     @test length(process_emissions(node_data(source)[1], co2).vals) == length(𝒽₀)
-    # @test isa(node_data(stor)[1].init_val_dict[:stor_level], VariableRef)
+    @test isa(node_data(stor)[1].init_val_dict[:stor_level], AffExpr)
     @test length(node_data(stor)[1].init_val_dict) == 1
     @test isa(capacity(sink), OperationalProfile{VariableRef})
     @test length(capacity(sink).vals) == length(𝒽₀)
@@ -118,11 +128,11 @@ end
 @testset "Full model run" begin
     optimizer = POI.Optimizer(HiGHS.Optimizer())
     # Test that the wrong horizon type is caught
-    dur_op = [1, 2, 1, 4, 1, 3, 1, 3]
-    case, model = create_poi_case(; HorizonType = DurationHorizons, dur_op)
+    case, model = create_poi_case(; HorizonType = DurationHorizons)
     @test_throws AssertionError run_model_rh(case, model, optimizer)
 
     # Test that a wrong duration vector is caught
+    dur_op = [1, 2, 1, 4, 1, 3, 1, 3]
     case, model = create_poi_case(; dur_op)
     @test_throws AssertionError run_model_rh(case, model, optimizer)
 

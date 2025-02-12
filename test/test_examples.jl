@@ -16,14 +16,14 @@
         RefSource(
             "electricity source", # id
             FixedProfile(1e12), # cap
-            OperationalProfile([1, 10, 1, 10, 1]), # opex_var
+            OperationalProfile([10, 100, 10, 100, 10]), # opex_var
             FixedProfile(0), # opex_fixed
             Dict(power => 1), # output
         ),
         RefStorage{RecedingAccumulating}(
             "electricity storage", # id
-            StorCapOpexVar(FixedProfile(100), FixedProfile(0)), # rate_cap, opex_var
-            StorCapOpexFixed(FixedProfile(1.5), FixedProfile(0)), # stor_cap, opex_fixed
+            StorCapOpexVar(FixedProfile(1.5), FixedProfile(1)), # rate_cap, opex_var
+            StorCapOpexFixed(FixedProfile(5), FixedProfile(0)), # stor_cap, opex_fixed
             power, # stor_res::T
             Dict(power => 1), # input::Dict{<:Resource, <:Real}
             Dict(power => 1), # output::Dict{<:Resource, <:Real}
@@ -56,24 +56,19 @@
 
     results_EMRH = run_model_rh(case, model, optimizer)
     @test filter(r -> r.x1 == 𝒩[3], results_EMRH[:stor_level])[!, :y] ==
-          [1.5, 0, 1.5, 0, 0]
-    @test filter(r -> r.x1 == 𝒩[4] && r.x3 == power,
-        results_EMRH[:flow_in])[!,:y] ==
-          [3.0, 4.0, 5.0, 6.0, 3.0]
-    @test filter(r -> r.x1 == 𝒩[2] && r.x3 == power,
-        results_EMRH[:flow_out])[!,:y] == [3.5, 3.5, 5.375, 5.25, 3.0]
+        [3.5, 0, 5.0, 0, 0]
+    @test filter(r -> r.x1 == 𝒩[4] && r.x3 == power, results_EMRH[:flow_in])[!,:y] ==
+        [3.0, 4.0, 5.0, 6.0, 3.0]
+    @test filter(r -> r.x1 == 𝒩[2] && r.x3 == power, results_EMRH[:flow_out])[!,:y] ≈
+        [4.5, 17/6, 6.25, 3.5, 3.0]
 
     results_EMB = EMRH.get_results_df(m_EMB)
-    @test filter(r -> r.x1 == 𝒩[2] && r.x3 == power,
-        results_EMB[:flow_out])[!,:y] ==
-          filter(r -> r.x1 == 𝒩[2] && r.x3 == power,
-        results_EMRH[:flow_out])[!,:y]
-    @test filter(r -> r.x1 == 𝒩[3], results_EMB[:stor_level])[!, :y] ==
-          filter(r -> r.x1 == 𝒩[3], results_EMRH[:stor_level])[!, :y]
-    @test filter(r -> r.x1 == 𝒩[4] && r.x3 == power,
-        results_EMB[:flow_in])[!,:y] ==
-          filter(r -> r.x1 == 𝒩[4] && r.x3 == power,
-        results_EMRH[:flow_in])[!,:y]
+    @test filter(r -> r.x1 == 𝒩[2] && r.x3 == power, results_EMB[:flow_out])[!,:y] ≈
+        filter(r -> r.x1 == 𝒩[2] && r.x3 == power, results_EMRH[:flow_out])[!,:y]
+    @test filter(r -> r.x1 == 𝒩[3], results_EMB[:stor_level])[!, :y] ≈
+        filter(r -> r.x1 == 𝒩[3], results_EMRH[:stor_level])[!, :y]
+    @test filter(r -> r.x1 == 𝒩[4] && r.x3 == power, results_EMB[:flow_in])[!,:y] ≈
+        filter(r -> r.x1 == 𝒩[4] && r.x3 == power, results_EMRH[:flow_in])[!,:y]
 
     @test 𝒩[3].data[1].init_val_dict[:stor_level] == 0.5 # StorageInitData object unchanged
 

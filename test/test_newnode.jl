@@ -53,13 +53,6 @@
         )
     end
 
-    function EMRH.get_init_state(m, n::SampleInitNode, 𝒯_rh, 𝒽)
-        t_impl = collect(𝒯_rh)[length(indices_implementation(𝒽))]
-        level_t = value.(m[:state][n, t_impl])
-        level_t2 = value.(m[:state2][n, t_impl])
-        return InitData(Dict(:state => level_t, :state2 => level_t2))
-    end
-
     𝒯 = TwoLevel(1, 1, SimpleTimes([1, 2, 1, 4, 1, 3, 1, 3]))
     ℋ = DurationHorizons([duration(t) for t ∈ 𝒯], 8, 4)
     𝒩 = [SampleInitNode("init node", 1.5, 0.6, [InitData(Dict(:state => 1.0, :state2 => 1.3))])]

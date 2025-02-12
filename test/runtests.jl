@@ -7,6 +7,7 @@ using TimeStruct
 using ParametricOptInterface
 using Accessors
 using DataFrames
+using Logging
 
 # Declare shortcuts to the different packages
 const EMRH = EnergyModelsRecHorizon
@@ -17,8 +18,12 @@ const POI = ParametricOptInterface
 # Declare shortcut to the extension for simplified testing
 const POIExt = Base.get_extension(EMRH, :POIExt)
 
-
 const TEST_ATOL = 1e-6
+
+# Get the global logger and set the loglevel to Error
+logger_org = global_logger()
+logger_new = ConsoleLogger(Error)
+global_logger(logger_new)
 
 @testset "RecedingHorizons" begin
     include("test_general.jl")
@@ -42,3 +47,5 @@ const TEST_ATOL = 1e-6
         include("test_newnode.jl")
     end
 end
+# Reset the loglevel
+global_logger(logger_org)

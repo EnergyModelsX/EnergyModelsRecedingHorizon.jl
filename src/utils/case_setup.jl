@@ -1,49 +1,20 @@
 """
-    get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
+    _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
 
-Returns a pair `(case_rh, model_rh)` that corresponds to the receding horizon problem of `(case, model)`
-evaluated at the horizon indices `𝒽`, initialized using `init_data`.
+Update the UpdateCase `𝒰` with the new values in the optimization problem given by the
+time structure 𝒯ᵣₕ.
+
+In addition, the UpdateCase `𝒰` is updated with the new mapping between the operational
+periods of the optimization (through `𝒯ᵣₕ`) and the original (through `opers`) problem.
 """
-function get_rh_case_model(case, model, 𝒽, lens_dict, init_data = nothing)
-    # only works for operational profiles due to case[:T] definition and dispatches on get_property_rh,
-    # must be improved to deal with more cases
-    𝒯 = get_time_struct(case)
-    𝒫ᵣₕ = get_products(case)
-    𝒳ᵛᵉᶜ = get_elements_vec(case)
-
-    opers = collect(𝒯)[indices_optimization(𝒽)]
-    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
-
-    map_dict = Dict{Symbol,Dict}()
-    ele_dict = Dict{Symbol,Vector}()
-
-    for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        ele = _get_key(𝒳)
-        ele_dict[ele], map_dict =
-            _get_elements_rh(𝒳, map_dict, lens_dict[ele], opers)
+function _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
+    # Update the individual Substitution types within the `UpdateCase`
+    _update_case_types!(get_sub_model(𝒰), 𝒰, opers)
+    _update_case_types!(get_sub_products(𝒰), 𝒰, opers)
+    for 𝒮 ∈ get_sub_elements_vec(𝒰)
+        _update_case_types!(𝒮, 𝒰, opers)
     end
-    modelᵣₕ = _get_model_rh(model, map_dict, lens_dict[:model], opers)
-
-    if !isnothing(init_data)
-        𝒩ⁱⁿⁱᵗ_rh = filter(has_init, ele_dict[:nodes])
-        # index of init_data in nodes: depends on init data being unique
-        𝒾ⁱⁿⁱᵗ = collect(findfirst(map(is_init_data, node_data(n))) for n ∈ 𝒩ⁱⁿⁱᵗ_rh)
-        # place initialization data in nodes
-        for (n, i, init_data_node) ∈ zip(𝒩ⁱⁿⁱᵗ_rh, 𝒾ⁱⁿⁱᵗ, init_data)
-            node_data(n)[i] = init_data_node
-        end
-    end
-
-    # Create the inverse of the mapping dictionary
-    convert_dict = Dict{Symbol,Dict}()
-    convert_dict[:products] = Dict(zip(𝒫ᵣₕ, get_products(case)))
-    convert_dict[:opers] = Dict(zip(𝒯ᵣₕ, opers))
-    for (k, val_dict) ∈ map_dict
-        convert_dict[k] = Dict(map(reverse, collect(val_dict)))
-    end
-
-    caseᵣₕ = Case(𝒯ᵣₕ, 𝒫ᵣₕ, collect(values(ele_dict)), get_couplings(case))
-    return caseᵣₕ, modelᵣₕ, convert_dict
+    𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
 end
 
 """
@@ -179,117 +150,78 @@ function _path_type(val::Resource)
     global res = val
     return "[res]"
 end
+_path_type(val::AbstractPath) = ""
 
 """
-    _get_elements_rh(𝒳::Vector{T}, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod}) where {T<:AbstractElement}
+    _update_case_types!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _update_case_types!(s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
-Returns a new element vector identical to the original element vector
-`𝒳::Vector{<:AbstractElement}` with all fields identified through the lenses in `lens_dict`
-with adjustments in the values of `OperationalProfile`s due to the change in the horizon as
-indicated through the operational periods array `opers`.
+Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
+The update only takes place when the field `reset` of a given `AbstractSub` is not empty.
+In this case, the subfunction [`_reset_field`](@ref) is called.
 """
-function _get_elements_rh(
-    𝒳::Vector{T},
-    map_dict,
-    lens_dict,
+function _update_case_types!(
+    𝒮::Vector{<:AbstractSub},
+    𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
-) where {T<:AbstractElement}
-    𝒳ʳʰ = deepcopy(𝒳)
-    map_dict[_get_key(𝒳)] = Dict{T,T}()
-    for (k, x) ∈ enumerate(𝒳)
-        if isempty(lens_dict[x])
-            x_rh = deepcopy(x)
-        else
-            for (_, lens) ∈ lens_dict[x]
-                val = lens(x)
-                x = _reset_field(x, lens, val, map_dict, opers)
-            end
-            x_rh = x
-        end
-        𝒳ʳʰ[k] = x_rh
-        map_dict[_get_key(𝒳)][𝒳[k]] = x_rh
+)
+    for s ∈ 𝒮
+        _update_case_types!(s, 𝒰, opers)
     end
-    return 𝒳ʳʰ, map_dict
+end
+function _update_case_types!(
+    s::AbstractSub,
+    𝒰::UpdateCase,
+    opers::Vector{<:TS.TimePeriod},
+)
+    if isempty(s.resets)
+        s.new = deepcopy(original(s))
+    else
+        for res_type ∈ s.resets
+            s.new = _reset_field(updated(s), res_type, 𝒰, opers)
+        end
+    end
 end
 
 """
-    _reset_field(x_rh::AbstractElement, lens::L, val::EMB.Node, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
-    _reset_field(x_rh::AbstractElement, lens::L, val::Real, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    _reset_field(x_rh::AbstractElement, lens::L, val::Vector{T}, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}, T<:Real}
-    _reset_field(x_rh::AbstractElement, lens::L, val::OperationalProfile, map_dict, opers::Vector{<:TS.TimePeriod}) where {L <: Union{PropertyLens, ComposedFunction}}
+    reset_field(x_rh, res_type::ElementReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    reset_field(x_rh, res_type::InitReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    reset_field(x_rh, res_type::OperReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
+Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
+of the new value is depending on the specified `res_type`:
 
-Resets the field expressed through `lens` of element `x_rh` with the value provided through
-`val`. The following methods are implemented:
-
-1. `val::EMB.Node` uses the `map_dict` for identifying the correct node,
-2. `val::Real` uses the the value directly,
-3. `Vector{T}` where `T<:Real` uses the the value directly, and
-4. `val::OperationalProfile` creates a new operational profile based on the original
+1. `res_type::ElementReset` uses `𝒰` for identifying the new element,
+2. `res_type::InitReset` uses the value in `res_type` directly,
+3. `res_type::OperReset` creates a new operational profile based on the original
    operational profile and the set of operational periods `opers`.
 """
 function _reset_field(
-    x_rh::AbstractElement,
-    lens::L,
-    val::EMB.Node,
-    map_dict,
-    opers::Vector{<:TS.TimePeriod},
-) where {L<:Union{PropertyLens,ComposedFunction}}
-    @reset lens(x_rh) = map_dict[:nodes][val]
-    return x_rh
-end
-function _reset_field(
-    x_rh::AbstractElement,
-    lens::L,
-    val::T,
-    map_dict,
-    opers::Vector{<:TS.TimePeriod},
-) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
-    @reset lens(x_rh) = val
-    return x_rh
-end
-function _reset_field(
-    x_rh::AbstractElement,
-    lens::L,
-    val::Vector{T},
-    map_dict,
-    opers::Vector{<:TS.TimePeriod},
-) where {L<:Union{PropertyLens,ComposedFunction},T<:Real}
-    @reset lens(x_rh) = val
-    return x_rh
-end
-function _reset_field(
-    x_rh::AbstractElement,
-    lens::L,
-    val::OperationalProfile,
-    map_dict,
-    opers::Vector{<:TS.TimePeriod},
-) where {L<:Union{PropertyLens,ComposedFunction}}
-    @reset lens(x_rh) = OperationalProfile(val[opers])
-    return x_rh
-end
-
-"""
-    _get_model_rh(model::RecHorEnergyModel, map_dict, lens_dict, opers::Vector{<:TS.TimePeriod})
-
-Returns a new model with adjustments in the values of `OperationalProfile`s due to the
-change in the horizon as indicated through the operational periods array `opers`.
-"""
-function _get_model_rh(
-    model::RecHorEnergyModel,
-    map_dict,
-    lens_dict,
+    x_rh,
+    res_type::ElementReset,
+    𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
-    if isempty(lens_dict)
-        return deepcopy(model)
-    else
-        for (_, lens) ∈ lens_dict
-            val = lens(model)
-            @reset lens(model) = OperationalProfile(val[opers])
-        end
-        return model
-    end
+    @reset res_type.lens(x_rh) = updated(𝒰, res_type.val)
+    return x_rh
+end
+function _reset_field(
+    x_rh,
+    res_type::InitReset,
+    𝒰::UpdateCase,
+    opers::Vector{<:TS.TimePeriod},
+)
+    @reset res_type.lens(x_rh) = res_type.val
+    return x_rh
+end
+function _reset_field(
+    x_rh,
+    res_type::OperReset,
+    𝒰::UpdateCase,
+    opers::Vector{<:TS.TimePeriod},
+)
+    @reset res_type.lens(x_rh) = OperationalProfile(res_type.val[opers])
+    return x_rh
 end
 
 """
@@ -316,4 +248,26 @@ Returns `true` if all the strings in `v` are unique, `false` otherwise.
 """
 function _has_unique_strings(v::Vector{String})
     return length(v) == length(Set(v)) #Set(v) contains only unique elements
+end
+
+
+function _create_updatetype(model::RecHorEnergyModel)
+    paths_model = _find_paths_operational_profile(model)
+    reset_model = AbstractReset[ResetType(field_id, field_id[end], x) for field_id ∈ paths_model]
+    return UpdateCase(Substitution(model, reset_model), Dict(), ProductSub[], Vector[])
+end
+function _add_elements!(𝒰::UpdateCase, 𝒫::Vector{T}) where {T<:Resource}
+    for p ∈ 𝒫
+        paths_oper = _find_paths_operational_profile(p)
+        reset_types = AbstractReset[ResetType(field_id, field_id[end], p) for field_id ∈ paths_oper]
+        push!(get_sub_products(𝒰), Substitution(p, reset_types))
+    end
+end
+function _add_elements!(𝒰::UpdateCase, 𝒳::Vector{T}) where {T <: AbstractElement}
+    push!(get_sub_elements_vec(𝒰), _ele_to_sub(T)[])
+    for x ∈ 𝒳
+        paths_oper = _find_paths_operational_profile(x)
+        reset_types = AbstractReset[ResetType(field_id, field_id[end], x) for field_id ∈ paths_oper]
+        push!(get_sub_elements_vec(𝒰)[end], Substitution(x, reset_types))
+    end
 end
