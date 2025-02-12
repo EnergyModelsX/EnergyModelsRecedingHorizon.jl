@@ -19,6 +19,7 @@ They extract the [`updated`](@ref EMRH.updated) value.
 
 ```@docs
 EnergyModelsBase.get_products
+EnergyModelsBase.get_elements_vec
 EnergyModelsBase.get_nodes
 EnergyModelsBase.get_links
 ```

@@ -118,11 +118,11 @@ end
 @testset "Full model run" begin
     optimizer = POI.Optimizer(HiGHS.Optimizer())
     # Test that the wrong horizon type is caught
-    dur_op = [1, 2, 1, 4, 1, 3, 1, 3]
-    case, model = create_poi_case(; HorizonType = DurationHorizons, dur_op)
+    case, model = create_poi_case(; HorizonType = DurationHorizons)
     @test_throws AssertionError run_model_rh(case, model, optimizer)
 
     # Test that a wrong duration vector is caught
+    dur_op = [1, 2, 1, 4, 1, 3, 1, 3]
     case, model = create_poi_case(; dur_op)
     @test_throws AssertionError run_model_rh(case, model, optimizer)
 

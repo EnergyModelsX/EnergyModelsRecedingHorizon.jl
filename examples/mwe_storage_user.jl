@@ -15,7 +15,6 @@ using EnergyModelsRecHorizon
 
 const EMRH = EnergyModelsRecHorizon
 
-optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
 
 op_dur_vec = [1, 2, 1, 4, 1, 3, 1, 3]
 demand_profile_full = [20, 30, 40, 30, 10, 50, 35, 20]
@@ -91,6 +90,7 @@ end
 x0 = 5
 case, model = create_case(init_state = x0)
 m = create_model(case, model)
+optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true) # , "tol" => 1.0e-10
 set_optimizer(m, optimizer)
 optimize!(m)
 

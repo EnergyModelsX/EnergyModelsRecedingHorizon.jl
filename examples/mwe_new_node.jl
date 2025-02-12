@@ -11,7 +11,6 @@ using JuMP
 using EnergyModelsBase
 using TimeStruct
 using EnergyModelsRecHorizon
-optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
 const EMB = EnergyModelsBase
 const EMRH = EnergyModelsRecHorizon
@@ -57,18 +56,6 @@ function EMB.constraints_data(
 end
 EMB.constraints_couple(m, 𝒫, 𝒯, modeltype::EMRH.RecHorEnergyModel) = nothing
 
-"""
-    get_init_state(m, n::IncrementInitNode, 𝒯_rh, 𝒽)
-
-Take the optimization solution `m` and find the initialization data of `n` corresponding to
-the model state at the end of the implementation horizon defined in `𝒽`. The model `m` is
-internally defined for the time structure `𝒯_rh`.
-"""
-function EMRH.get_init_state(m, n::IncrementInitNode, 𝒯_rh, 𝒽)
-    t_impl = collect(𝒯_rh)[length(indices_implementation(𝒽))]
-    level_t = value.(m[:state][n, t_impl])
-    return InitData(Dict(:state => level_t))
-end
 
 
 function create_case_newnode(; init_state = 0.0)
@@ -101,6 +88,7 @@ end
 
 case, model = create_case_newnode(init_state = 1.0)
 m = create_model(case, model)
+optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 set_optimizer(m, optimizer)
 optimize!(m)
 

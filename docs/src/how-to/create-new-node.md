@@ -14,7 +14,7 @@ Some nodes may have a more specialized way of initialization, such as [`Storage`
 Here, we implement the [`RecedingAccumulating`](@ref) behavior, where the initial level state can be defined through an [`StorageInitData`](@ref) object.
 Initialization here is defined by dispatching on [`previous_level`](@ref EMRH.EnergyModelsBase.previous_level), which is already used in the core [`Storage`](@extref EnergyModelsBase.Storage) functionality (see the *[EnergyModelsBase documentation](@extref EnergyModelsBase.previous_level))*.
 
-Additionally, one must create dispatches upon [`get_init_state`](@ref EMRH.get_init_state) for new nodes.
+Additionally, one must create dispatches upon [`_update_val!`](@ref EMRH._update_val!) for new nodes.
 This function should return an [`AbstractInitData`](@ref) object based on the solution of the optimization problem in a previous time window, such that the system is initialized properly for the solution of the following receding horizon problems.
 
 !!! todo "Rewrite"

@@ -4,7 +4,7 @@ using EnergyModelsBase
 using EnergyModelsRecHorizon
 using .EnergyModelsRecHorizon: UpdateCase, AbstractSub, ElementReset, InitReset, OperReset,
 _create_updatetype, _add_elements!, update_results!, _update_val!, _update_elements_rh!,
-get_sub_model, get_sub_products, get_sub_elements_vec, update_to_case,
+get_sub_model, get_sub_products, get_sub_elements_vec,
 updated, original, resets
 
 using JuMP

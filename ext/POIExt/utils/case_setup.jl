@@ -24,7 +24,7 @@ function init_rh_case_model(case, 𝒽₀, 𝒰, optimizer)
     𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
 
     # Extract the case and the model from the `UpdateCase`
-    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), update_to_case(𝒰), get_couplings(case))
+    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
     modelᵣₕ = updated(get_sub_model(𝒰))
 
     return caseᵣₕ, modelᵣₕ, 𝒰, m
@@ -133,8 +133,8 @@ function EMRH._reset_field(
 end
 
 """
-    _update_elements_rh!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
-    _update_elements_rh!(s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _set_elements_rh!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _set_elements_rh!(s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
 The update only takes place when the field `reset` of a given `AbstractSub` is not empty.

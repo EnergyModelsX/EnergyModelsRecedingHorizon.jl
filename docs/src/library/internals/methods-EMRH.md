@@ -9,7 +9,7 @@ Pages = ["methods-EMH.md"]
 ### [Extension functions](@id lib-int-ext)
 
 ```@docs
-EMRH.get_init_state
+EMRH._update_val!
 ```
 
 ### [Utility functions](@id lib-int-util)
@@ -19,7 +19,6 @@ EMRH.update_results!
 EMRH.save_results
 EMRH.get_results
 EMRH.get_results_df
-EMRH._update_val!
 ```
 
 ### [Miscellaneous functions](@id lib-int-ext)

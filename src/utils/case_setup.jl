@@ -20,7 +20,7 @@ function get_rh_case_model(case, 𝒰, 𝒽)
     𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
 
     # Extract the case and the model from the `UpdateCase`
-    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), update_to_case(𝒰), get_couplings(case))
+    caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
     modelᵣₕ = updated(get_sub_model(𝒰))
 
     return caseᵣₕ, modelᵣₕ, 𝒰
@@ -200,8 +200,8 @@ end
 Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
 of the new value is depending on the specified `res_type`:
 
-1. `res_type::ElementReset` uses the `map_dict` for identifying the correct node,
-2. `res_type::InitReset` uses the the value directly,
+1. `res_type::ElementReset` uses `𝒰` for identifying the new element,
+2. `res_type::InitReset` uses the value in `res_type` directly,
 3. `res_type::OperReset` creates a new operational profile based on the original
    operational profile and the set of operational periods `opers`.
 """

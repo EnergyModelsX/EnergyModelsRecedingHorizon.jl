@@ -55,14 +55,14 @@ Supertype for for types resetting values in fields in the individual
 [`AbstractElement`](@extref EnergyModelsBase.AbstractElement)s. The individual subtype is
 related to the chosen [`AbstractPath`](@ref) as outlined above.
 
-!!! note "New types"
+!!! note "New subtypes"
     We currently reset types for elements (*e.g.*, nodes, links, areas, or transmission),
     operational profiles, and initial data. The individual types are automatically deduced
     through the constructor [`ResetType`](@ref).
 
     If you require resetting different fields than the provided, you must include a new
-    [`AbstractPath`](@ref) subtype, a new mutable composite type, and a new method for the
-    the constructor [`ResetType`](@ref).
+    [`AbstractPath`](@ref) subtype, a new mutable composite type as subtype of `AbstractReset`,
+    and a new method for the the constructor [`ResetType`](@ref) are required.
 """
 abstract type AbstractReset end
 
@@ -325,14 +325,6 @@ mutable struct UpdateCase <: AbstractCase
     elements::Vector{Vector}
 end
 
-function update_to_case(𝒰::UpdateCase)
-    𝒳ᵛᵉᶜ = Vector[]
-    for 𝒮 ∈ get_sub_elements_vec(𝒰)
-        𝒳 = [updated(s) for s ∈ 𝒮]
-        isempty(𝒳) || push!(𝒳ᵛᵉᶜ, 𝒳)
-    end
-    return 𝒳ᵛᵉᶜ
-end
 
 """
     get_sub_model(𝒰::UpdateCase)
@@ -365,7 +357,8 @@ get_sub_elements_vec(𝒰::UpdateCase) = 𝒰.elements
 
 Returns the `Vector` of [`AbstractSub`](@ref) corresponding to the type provided by `x`.
 
-The function can be used both on an [`UpdateCase`](@ref) and the corresponding `Vector{Vector`.
+The function can be used both on an [`UpdateCase`](@ref) and the corresponding
+`Vector{Vector}`.
 """
 get_sub_ele(𝒮ᵛᵉᶜ::Vector{Vector}, x::Type{<:AbstractElement}) =
     filter(𝒮 -> typeof(𝒮) == Vector{_ele_to_sub(x)}, 𝒮ᵛᵉᶜ)[1]
@@ -376,20 +369,48 @@ get_sub_ele(𝒰::UpdateCase, x::Type{<:AbstractElement}) = get_sub_ele(get_sub_
 
 Method for the equivalent `EnergyModelsBase` function to extract the **new** `Resource`s of
 the individual [`ProductSub`](@ref) types.
+
+This element vector can be directly utilized for the field elements of a
+[`Case`](@extref EnergyModelsBase.Case).
 """
 EMB.get_products(𝒰::UpdateCase) = Resource[𝒮.new for 𝒮 ∈ get_sub_products(𝒰)]
+
+"""
+    get_elements_vec(𝒰::UpdateCase)
+
+Method for the equivalent `EnergyModelsBase` function to extract the **new** vector of
+element vectors `𝒳ᵛᵉᶜ` of UpdateCase `𝒰`.
+
+This element vector can be directly utilized for the field elements of a
+[`Case`](@extref EnergyModelsBase.Case).
+"""
+function EMB.get_elements_vec(𝒰::UpdateCase)
+    𝒳ᵛᵉᶜ = Vector[]
+    for 𝒮 ∈ get_sub_elements_vec(𝒰)
+        𝒳 = [updated(s) for s ∈ 𝒮]
+        isempty(𝒳) || push!(𝒳ᵛᵉᶜ, 𝒳)
+    end
+    return 𝒳ᵛᵉᶜ
+end
+
 """
     get_products(𝒰::UpdateCase)
 
 Method for the equivalent `EnergyModelsBase` function to extract the **new** `Node`s of
-the individual [`NodeSub`](@ref) types.
+the individual [`NodeSub`](@ref) types of UpdateCase `𝒰`.
+
+This element vector can be directly utilized for the field elements of a
+[`Case`](@extref EnergyModelsBase.Case).
 """
 EMB.get_nodes(𝒰::UpdateCase) = EMB.Node[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, EMB.Node)]
 """
     get_products(𝒰::UpdateCase)
 
 Method for the equivalent `EnergyModelsBase` function to extract the **new** `Link`s of
-the individual [`LinkSub`](@ref) types.
+the individual [`LinkSub`](@ref) types of UpdateCase `𝒰`.
+
+This element vector can be directly utilized for the field elements of a
+[`Case`](@extref EnergyModelsBase.Case).
 """
 EMB.get_links(𝒰::UpdateCase) = Link[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, EMB.Link)]
 

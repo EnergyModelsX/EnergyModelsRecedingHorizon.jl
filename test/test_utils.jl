@@ -520,7 +520,6 @@ end
     end
 
     function solve_EMB_case(demand_profile, price_profile, price_profile_stor)
-        println("demand profile = $(demand_profile)")
         case_EMB, modeltype_EMB =
             create_case(demand_profile, price_profile, price_profile_stor;
                 init_state = 5, modeltype = OperationalModel,
@@ -622,6 +621,7 @@ end
 
     # Define JuMP.Model
     m_rh = Model(() -> ParametricOptInterface.Optimizer(HiGHS.Optimizer()))
+    set_optimizer_attribute(m_rh, MOI.Silent(), true)
 
     #change to paramtric OperationalProfiles
     case_rh, update_dict, lens_dict =
