@@ -1,6 +1,14 @@
 # Release notes
 
 
+## Version 0.4.0 (2025-XX-XX)
+
+### Support for ParametricOptInterface and EMB 0.9.0
+
+* Time-dependent fields are internally updated through lenses (see [Accessors.jl](https://juliaobjects.github.io/Accessors.jl/stable/lenses/))
+* Introduced standard behavior for simple initializable objects
+* `ParametricOptInterface` can be used for horizons with a constant length (`PeriodHorizons`)
+
 ## Version 0.3.2 (2025-01-08)
 
 ### Introduced documentation; added example of node initialization

@@ -15,11 +15,12 @@ const EMB = EnergyModelsBase
 const EMRH = EnergyModelsRecHorizon
 
 # Copy the NEWS.md file
-cp("NEWS.md", "docs/src/manual/NEWS.md"; force = true)
+cp(joinpath(@__DIR__, "..", "NEWS.md"), joinpath(@__DIR__, "src", "manual", "NEWS.md"); force = true)
 
 links = InterLinks(
-    # "TimeStruct" => "https://sintefore.github.io/TimeStruct.jl/stable/",
+    "TimeStruct" => "https://sintefore.github.io/TimeStruct.jl/stable/",
     "EnergyModelsBase" => "https://energymodelsx.github.io/EnergyModelsBase.jl/stable/",
+    # "ParametricOptInterface" => "https://jump.dev/ParametricOptInterface.jl/stable/",
 )
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "references.bib"))
@@ -52,13 +53,17 @@ makedocs(
         "Manual" => Any[
             "Quick Start"=>"manual/quick-start.md",
             "Philosophy"=>"manual/philosophy.md",
-            "Initialization"=>"manual/initialization.md",
-            "Cost to go"=>"manual/cost-to-go.md",
             "Example"=>"manual/simple-example.md",
             "Release notes"=>"manual/NEWS.md",
         ],
         "How to" => Any[
-            "Create a new node"=>"how-to/create-new-node.md",
+            "Adapt an EMX element"=>"how-to/adapt-emx-elem.md",
+            "Use the package"=>"how-to/use-emrh.md",
+        ],
+        "Developer notes" => Any[
+            "Code structure"=>"dev-notes/code-structure.md",
+            "Problem initialization"=>"dev-notes/initialization.md",
+            "Cost to go"=>"dev-notes/cost-to-go.md",
         ],
         "Library" => Any[
             "Public"=>"library/public.md",
