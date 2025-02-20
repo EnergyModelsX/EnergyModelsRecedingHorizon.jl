@@ -6,6 +6,12 @@
 Pages = ["public.md"]
 ```
 
+## [Module](@id lib-pub-module)
+
+```@docs
+EnergyModelsRecHorizon
+```
+
 ## [Model](@id lib-pub-mod)
 
 ```@docs

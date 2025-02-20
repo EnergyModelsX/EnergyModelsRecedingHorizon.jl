@@ -3,7 +3,7 @@
 ## [Index](@id lib-int-met-idx)
 
 ```@index
-Pages = ["methods-EMH.md"]
+Pages = ["methods-EMRH.md"]
 ```
 
 ### [Extension functions](@id lib-int-ext)
