@@ -68,7 +68,7 @@ function _find_update_paths(
     return all_paths
 end
 function _find_update_paths(x::StorageValueCuts)
-    all_paths = []
+    all_paths = Any[[:time_weight, TimeWeightPath()]]
     current_path = []
     for (i, c) ∈ enumerate(cuts(x))
         new_path = vcat(current_path, [:cuts, "[$(i)]"])

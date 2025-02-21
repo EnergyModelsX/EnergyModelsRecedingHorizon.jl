@@ -21,13 +21,8 @@ const EMRH = EnergyModelsRecHorizon
 
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
-
 op_dur_vec = [1, 2, 1, 4, 1, 3, 1, 3, 1, 2, 1, 4]
 price_profile_full = [10, 20, 50, 100, 50, 40, 20, 70, 10, 5, 90, 42]
-#op_dur_vec = [6,6,6,6]
-#price_profile_full = [10,2, 80,100]
-#demand_profile_full = [20, 30, 40, 30, 10, 50, 35, 20]
-
 
 function create_future_value_case(; init_state=0)
     #Define resources with their emission intensities
@@ -99,9 +94,10 @@ function create_future_value_case(; init_state=0)
         # representation since we consider future value and not future cost.
         StorageValueCuts(
             "wv0",
+            0,
             1,
             0,
-            [   #StorageValueCut(1, Dict(storage => -50), 0),
+            [
                 StorageValueCut(1, Dict(storage => -50), 0),
                 StorageValueCut(2, Dict(storage => -40), 250),
                 StorageValueCut(3, Dict(storage => -30), 750),
@@ -113,9 +109,11 @@ function create_future_value_case(; init_state=0)
         ),
         StorageValueCuts(
             "wv24",
-            1,
             24,
-            [   #StorageValueCut(1, Dict(storage => -100), 0),
+            1,
+            1,
+            [
+                StorageValueCut(1, Dict(storage => -100), 0),
                 StorageValueCut(2, Dict(storage => -80), 500),
                 StorageValueCut(3, Dict(storage => -60), 1500),
                 StorageValueCut(4, Dict(storage => -40), 2800),
@@ -157,11 +155,34 @@ storage, electricity_buy, electricity_sale = get_nodes(case)
 CO2, Power = get_products(case)
 
 results_full = EMRH.get_results_df(m)
-buy_full_problem = filter(r -> r.x1 == electricity_buy, results_full[:cap_use])
-sale_full_problem = filter(r -> r.x1 == electricity_sale, results_full[:cap_use])
+buy_full_problem = filter(r -> r.x1 == electricity_buy, results_full[:cap_use])[!, :y]'
+sale_full_problem = filter(r -> r.x1 == electricity_sale, results_full[:cap_use])[!, :y]'
 
-charge_full_problem = filter(r -> r.x1 == storage && r.x3 == Power, results_full[:flow_in])
-discharge_full_problem = filter(r -> r.x1 == storage && r.x3 == Power, results_full[:flow_out])
-stor_full_problem = filter(r -> r.x1 == storage, results_full[:stor_level])
+charge_full_problem = filter(r -> r.x1 == storage && r.x3 == Power, results_full[:flow_in])[!, :y]'
+discharge_full_problem = filter(r -> r.x1 == storage && r.x3 == Power, results_full[:flow_out])[!, :y]'
+stor_full_problem = filter(r -> r.x1 == storage, results_full[:stor_level])[!, :y]'
 
 cost_full_problem = objective_value(m)
+
+results_EMRH = run_model_rh(case, model, optimizer);
+
+buy_rec_horizon = filter(r -> r.x1 == electricity_buy, results_EMRH[:cap_use])[!, :y]'
+sale_rec_horizon = filter(r -> r.x1 == electricity_sale, results_EMRH[:cap_use])[!, :y]'
+charge_rec_horizon = filter(r -> r.x1 == storage && r.x3 ==Power, results_EMRH[:flow_in])[!, :y]'
+discharge_rec_horizon = filter(r -> r.x1 == storage && r.x3 ==Power, results_EMRH[:flow_out])[!, :y]'
+stor_rec_horizon = filter(r -> r.x1 == storage, results_EMRH[:stor_level])[!, :y]'
+
+println("\nReceding horizon buy: $buy_rec_horizon")
+println("Original problem buy: $buy_full_problem")
+
+println("\nReceding horizon sale: $sale_rec_horizon")
+println("Original problem sale: $sale_full_problem")
+
+println("\nReceding horizon charge: $charge_rec_horizon")
+println("Original problem charge: $charge_full_problem")
+
+println("\nReceding horizon discharge: $discharge_rec_horizon")
+println("Original problem discharge: $discharge_full_problem")
+
+println("\nReceding horizon storage level: $stor_rec_horizon")
+println("Original problem storage level: $stor_full_problem")

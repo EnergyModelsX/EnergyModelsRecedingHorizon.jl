@@ -288,8 +288,9 @@ end
     # Creation of a StorageValueCuts type
     svcs = StorageValueCuts(
         "wv0",
-        1,
         0,
+        1,
+        1,
         [
             StorageValueCut(1, Dict(storage => -50, storage_data => -70), 0),
             StorageValueCut(2, Dict(storage => -40, storage_data => -30), 250),
@@ -359,6 +360,7 @@ end
         @test issetequal(
             EMRH._find_update_paths(svcs),
             Any[
+                [:time_weight, EMRH.TimeWeightPath()],
                 [:cuts, "[1]", :coeffs, "[1]", :element, EMRH.ElementPath()],
                 [:cuts, "[1]", :coeffs, "[2]", :element, EMRH.ElementPath()],
                 [:cuts, "[2]", :coeffs, "[1]", :element, EMRH.ElementPath()],

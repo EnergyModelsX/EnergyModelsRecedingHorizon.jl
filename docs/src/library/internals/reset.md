@@ -15,6 +15,7 @@ They are used internally for dispatch.
 EMRH.AbstractPath
 EMRH.OperPath
 EMRH.ElementPath
+EMRH.TimeWeightPath
 EMRH.AbstractInitDataPath
 EMRH.InitDataPath
 ```
@@ -38,6 +39,7 @@ They are used internally for dispatch.
 EMRH.AbstractReset
 EMRH.ElementReset
 EMRH.OperReset
+EMRH.TimeWeightReset
 EMRH.InitReset
 EMRH.ResetType
 ```
@@ -64,6 +66,7 @@ EMRH.ModelSub
 EMRH.ProductSub
 EMRH.NodeSub
 EMRH.LinkSub
+EMRH.FutureValueSub
 EMRH.Substitution
 ```
 

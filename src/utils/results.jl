@@ -50,6 +50,8 @@ function update_results!(results, m, 𝒰, opers)
                 continue
             elseif any(typeof(val) <: TS.StrategicPeriod for val ∈ first(container_rh))
                 @warn "$k cannot be exported as is is indexed with `StrategicPeriod`."
+            elseif k == :future_value
+                continue
             else
                 results[k] = DataFrame()
             end
