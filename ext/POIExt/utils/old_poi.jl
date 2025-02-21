@@ -18,7 +18,7 @@ function _set_POI_par_as_operational_profile(m::JuMP.Model, case::Dict, case_cop
         T = case[:T]
         update_dict[n_old] = Dict{Any,Any}()
         lens_dict[n_old] = Dict{Any,Any}()
-        paths_oper = EMRH._find_paths_operational_profile(n_new)
+        paths_oper = EMRH._find_update_paths(n_new)
 
         for field_id ∈ paths_oper
             lens = EMRH._create_lens_for_field(field_id)

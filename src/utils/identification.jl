@@ -1,185 +1,71 @@
-
 """
-    _fields_with_operational_profile(n::Union{NetworkNode, Source, Sink})
-    _fields_with_operational_profile(n::Storage)
-    _fields_with_operational_profile(n::Availability)
-    _fields_with_operational_profile(n::EMB.Node)
+    _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
 
-Function for returning the fields in a node containing an `OperationalProfile`.
-If no fields are found, it returns `Symbol[]`.
+Function for returning all paths within an [`AbstractElement`](@extref EnergyModelsBase.AbstractElement),
+a [`Resource`](@extref EnergyModelsBase.Resource), or a [`RecHorEnergyModel`](@ref) that
+**must** be updated in the receding horizon framework  as `Vector{Vector}`.
 
-!!! note
-    This function is currently not in use. Function is kept since it may be beneficial later.
+The individual subfunctions are given as:
+
+    _find_update_paths(field::AbstractElement, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::Union{Data, EMB.AbstractStorageParameters}, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::AbstractInitData, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::InitData, current_path::Vector{Any}, all_paths::Vector{Any})
+
+!!! note "Introducing new `AbstractInitData`"
+    When introducing a new subtype to [`AbstractInitData`](@ref), you **must** also create a
+    new method for this function as it is not possible to cover all potential cases in which
+    the new data is designed.
 
 # Example
 
 ```julia
-el = ResourceCarrier("el", 0.2)
-heat = ResourceCarrier("heat", 0.0)
-co2 = ResourceEmit("co2", 1.0)
-n = RefNetworkNode(
-    "my_id", :id
-    FixedProfile(1e12), # :cap
-    OperationalProfile([1,2]), # :opex_var
-    FixedProfile(0), # :opex_fixed
-    Dict(el => 1), # :input
-    Dict(heat => 1), # :output
-    [EmissionsProcess(Dict(co2 => OperationalProfile([2,2])))] # :data
-)
-_fields_with_operational_profile(n) # returns [:opex_var, :data]
-```
-"""
-function _fields_with_operational_profile(n::EMB.Node)
-    return [
-        fn for fn ∈ fieldnames(typeof(n)) if _has_field_operational_profile(getfield(n, fn))
-    ]
-end
-
-function _fields_with_operational_profile(n::Availability)
-    return Symbol[]
-end
-
-"""
-    _has_field_operational_profile(field::OperationalProfile)
-    _has_field_operational_profile(field::StrategicProfile)
-    _has_field_operational_profile(field::Vector{Data})
-    _has_field_operational_profile(field::Data)
-    _has_field_operational_profile(field::EMB.AbstractStorageParameters)
-    _has_field_operational_profile(field::Dict)
-    _has_field_operational_profile(field)
-
-Function for recursively checking if `field` contains an `OperationalProfile`, returning
-true or false
-
-!!! note
-    This function is currently not in use. Function is kept since it may be beneficial later.
-
-# Example
-
-```julia
-co2 = ResourceEmit("co2", 1.0)
-
-# The following calls return true
-_has_field_operational_profile(OperationalProfile([1]))
-_has_field_operational_profile(EmissionsProcess(Dict(co2 => OperationalProfile(profile))))
-_has_field_operational_profile(StorCapOpexFixed(OperationalProfile([1]), FixedProfile(0)))
-_has_field_operational_profile(Dict(:a => Dict(:b => Dict(:c => OperationalProfile([1])))))
-
-# The following calls return false
-_has_field_operational_profile(Dict(:a => Dict(:b => Dict(:c => FixedProfile(1)))))
-_has_field_operational_profile(EmissionsProcess(Dict(co2 => FixedProfile(2))))
-_has_field_operational_profile(EmptyData())
-_has_field_operational_profile(StorageInitData(4.0))
-
-_has_field_operational_profile(EmissionsEnergy(OperationalProfile([1])))
-# EmissionsEnergy accepts any inputs, but does not store `OperationalProfiles`
-
-# The following calls return an error
-_has_field_operational_profile(StrategicProfile([1]))
-_has_field_operational_profile(Dict(:a => StrategicProfile([1, 2])))
-```
-"""
-_has_field_operational_profile(field::OperationalProfile) = true
-function _has_field_operational_profile(field::StrategicProfile)
-    error("EMRH should not be used with strategic profiles")
-    return nothing
-end
-function _has_field_operational_profile(field::Vector{<:Data})
-    return any([_has_field_operational_profile(d) for d ∈ field])
-end
-function _has_field_operational_profile(field::Data)
-    return any([
-        _has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))
-    ])
-end
-function _has_field_operational_profile(field::Dict)
-    return any([_has_field_operational_profile(val) for (key, val) ∈ field])
-end
-function _has_field_operational_profile(field::EMB.AbstractStorageParameters)
-    return any([
-        _has_field_operational_profile(getfield(field, f)) for f ∈ fieldnames(typeof(field))
-    ])
-end
-_has_field_operational_profile(field) = false
-
-"""
-    _find_paths_operational_profile(n::Union{NetworkNode, Source, Sink, Storage})
-    _find_paths_operational_profile(field::Union{NetworkNode, Source, Sink, Storage},
-        current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_paths_operational_profile(field::Vector{<:Data}, current_path::Vector{Any},
-        all_paths::Vector{Any})
-    _find_paths_operational_profile(field::Union{Data, EMB.AbstractStorageParameters},
-        current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_paths_operational_profile(field::AbstractDict, current_path::Vector{Any},
-        all_paths::Vector{Any})
-    _find_paths_operational_profile(field::OperationalProfile, current_path::Vector{Any},
-        all_paths::Vector{Any})
-    _find_paths_operational_profile(field::StrategicProfile, current_path::Vector{Any},
-        all_paths::Vector{Any})
-    _find_paths_operational_profile(field::Any, current_path::Vector{Any},
-        all_paths::Vector{Any})
-
-Function for returning the fields in a node `n` containing an `OperationalProfile`, returning
-a list of the path. The list can be nested, depending on the number of `OperationalProfile`said
-within the type
-
-# Example
-
-```julia
+power = ResourceCarrier("power", 0.0)
 co2 = ResourceEmit("co2", 1.0)
 sink = RefSink(
-    "a_sink", # :id
-    FixedProfile(1e5), # :cap
-    Dict(:surplus => OperationalProfile(zeros(dim_t)),
-        :deficit => OperationalProfile(1e6*ones(dim_t))), # :penalty
-    Dict(heat => 1), # :input
-    [EmptyData(), EmissionsProcess(Dict(co2 => OperationalProfile(profile)))] # :data
+    "a_sink",                                               # Field `:id`
+    FixedProfile(1e5),                                      # Field `:cap`
+    Dict(:surplus => OperationalProfile(zeros(10)),
+         :deficit => OperationalProfile(10*ones(10))),      # Field `:penalty`
+    Dict(power => 1),                                       # Field `:input`
+    [EmissionsProcess(Dict(co2 => OperationalProfile(rand(10))))] # Field `:data`
 )
 
-EMRH._find_paths_operational_profile(sink)
+EMRH._find_update_paths(sink)
 # returns a 3-element Vector{Any}:
-#  Any[:penalty, :deficit]
-#  Any[:penalty, :surplus]
-#  Any[:data, "idx_2", :emissions, co2]
+#  Any[:penalty, "[:deficit]", EnergyModelsRecHorizon.OperPath()]
+#  Any[:penalty, "[:surplus]", EnergyModelsRecHorizon.OperPath()]
+#  Any[:data, "[1]", :emissions, co2, EnergyModelsRecHorizon.OperPath()]
 
 # The function can also be used for checking other `types`:
 all_paths = []
 current_path = Any[:a_path]
 a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])),
     :b2 => OperationalProfile([1]), :b3 => [1]))
-EMRH._find_paths_operational_profile(a_dict, current_path, all_paths)
+EMRH._find_update_paths(a_dict, current_path, all_paths)
 
-# all_paths are now a 2-element Vector{Any}: [Any[:a_path, :a, :b2], Any[:a_path, :a, :b1, :c]]
+# all_paths is now a 2-element Vector{Any}:
+ Any[:a_path, "[:a]", "[:b2]", EnergyModelsRecHorizon.OperPath()]
+ Any[:a_path, "[:a]", "[:b1]", "[:c]", EnergyModelsRecHorizon.OperPath()]
 ```
 """
-function _find_paths_operational_profile(x::AbstractElement)
+function _find_update_paths(
+    x::T
+) where {T <: Union{AbstractElement, Resource, RecHorEnergyModel}}
     all_paths = []
     current_path = []
-    for f ∈ fieldnames(typeof(x))
+    for f ∈ fieldnames(T)
         new_path = vcat(current_path, f)
-        _find_paths_operational_profile(getfield(x, f), new_path, all_paths)
+        _find_update_paths(getfield(x, f), new_path, all_paths)
     end
     return all_paths
 end
-function _find_paths_operational_profile(p::Resource)
-    all_paths = []
-    current_path = []
-    for f ∈ fieldnames(typeof(p))
-        new_path = vcat(current_path, f)
-        _find_paths_operational_profile(getfield(p, f), new_path, all_paths)
-    end
-    return all_paths
-end
-function _find_paths_operational_profile(model::RecHorEnergyModel)
-    all_paths = []  # To store the paths to lists
-    current_path = []
-    for f ∈ fieldnames(typeof(model))
-        new_path = vcat(current_path, f)
-        _find_paths_operational_profile(getfield(model, f), new_path, all_paths)
-    end
-    return all_paths
-end
-function _find_paths_operational_profile(
+function _find_update_paths(
     field::AbstractElement,
     current_path::Vector{Any},
     all_paths::Vector{Any},
@@ -187,27 +73,68 @@ function _find_paths_operational_profile(
     new_path = vcat(current_path, [ElementPath()])
     push!(all_paths, new_path)
 end
-function _find_paths_operational_profile(
-    field::Vector{T},
-    current_path::Vector{Any},
-    all_paths::Vector{Any},
-) where {T<:Data}
-    for (i, d) ∈ enumerate(field)
-        new_path = vcat(current_path, ["[$(i)]"])
-        _find_paths_operational_profile(d, new_path, all_paths)
-    end
-end
-function _find_paths_operational_profile(
-    field::Union{Data,EMB.AbstractStorageParameters},
+function _find_update_paths(
+    field::Vector{<:Data},
     current_path::Vector{Any},
     all_paths::Vector{Any},
 )
-    for f ∈ fieldnames(typeof(field))
-        new_path = vcat(current_path, f)
-        _find_paths_operational_profile(getfield(field, f), new_path, all_paths)
+    for (i, d) ∈ enumerate(field)
+        new_path = vcat(current_path, ["[$(i)]"])
+        _find_update_paths(d, new_path, all_paths)
     end
 end
-function _find_paths_operational_profile(
+function _find_update_paths(
+    field::T,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+) where {T <: Union{Data,EMB.AbstractStorageParameters}}
+    for f ∈ fieldnames(T)
+        new_path = vcat(current_path, f)
+        _find_update_paths(getfield(field, f), new_path, all_paths)
+    end
+end
+function _find_update_paths(
+    field::AbstractDict,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    for (key, value) ∈ field
+        new_path = vcat(current_path, _dict_key(key))
+        _find_update_paths(value, new_path, all_paths)
+    end
+end
+function _find_update_paths(
+    field::OperationalProfile,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    new_path = vcat(current_path, [OperPath()])
+    push!(all_paths, new_path)  # Add current_path to all_paths
+end
+function _find_update_paths(
+    field::StrategicProfile,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    @warn("EMRH should not be used with strategic profiles", maxlog=1)
+end
+function _find_update_paths(
+    field::Any,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+end
+function _find_update_paths(
+    field::AbstractInitData,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    error(
+        "No method of the function `_find_update_paths(field, current_path, all_path)` " *
+        "defined for `$(typeof(field))`"
+    )
+end
+function _find_update_paths(
     field::InitData,
     current_path::Vector{Any},
     all_paths::Vector{Any},
@@ -219,38 +146,170 @@ function _find_paths_operational_profile(
         push!(all_paths, new_path)
     end
 end
-function _find_paths_operational_profile(
-    field::AbstractDict,
-    current_path::Vector{Any},
-    all_paths::Vector{Any},
-)
-    for (key, value) ∈ field
-        new_path = vcat(current_path, _dict_key(key))
-        _find_paths_operational_profile(value, new_path, all_paths)
-    end
-end
-function _find_paths_operational_profile(
-    field::OperationalProfile,
-    current_path::Vector{Any},
-    all_paths::Vector{Any},
-)
-    new_path = vcat(current_path, [OperPath()])
-    push!(all_paths, new_path)  # Add current_path to all_paths
-end
-function _find_paths_operational_profile(
-    field::StrategicProfile,
-    current_path::Vector{Any},
-    all_paths::Vector{Any},
-)
-    error("EMRH should not be used with strategic profiles")
-end
-function _find_paths_operational_profile(
-    field::Any,
-    current_path::Vector{Any},
-    all_paths::Vector{Any},
-)
-end
 
+"""
+    _dict_key(key::Symbol)
+    _dict_key(key::String)
+    _dict_key(key::Resource)
+
+Function for translating a dictionary key type to an input which can be translated into a
+custom lens.
+"""
 _dict_key(key::Symbol) = ["[:" * String(key) * "]"]
 _dict_key(key::String) = ["[\"" * key * "\"]"]
 _dict_key(key::Resource) = key
+
+
+"""
+    _create_lens_dict(𝒳::Vector{<:AbstractElement}
+    _create_lens_dict(x::Union{AbstractElement, RecHorEnergyModel})
+
+Returns a dictionary with the field id as keys and lenses pointing to fields that are
+updated in the individual type instances as values. The individual field ids are created
+through calling the function [`_find_update_paths`](@ref).
+
+Lenses are created for
+
+1. all `OperationalProfile`s,
+2. other `AbstractElement`, and
+3. [`InitData`](@ref).
+
+# Example
+
+```julia
+using EnergyModelsBase
+using EnergyModelsRecHorizon
+using TimeStruct
+const EMRH = EnergyModelsRecHorizon
+
+# Generate objects
+cap_prof = OperationalProfile([20, 300])
+em_prof = OperationalProfile([1, 2])
+price_prof = OperationalProfile([40, 60])
+
+power = ResourceCarrier("power", 0.0)
+co2 = ResourceEmit("co2", 1.0)
+
+source1 = RefSource(
+    "source1",
+    cap_prof,
+    FixedProfile(100),
+    FixedProfile(0),
+    Dict(power => 1),
+    [EmissionsProcess(Dict(co2 => em_prof))]
+)
+source2 = RefSource(
+    "source2",
+    FixedProfile(100),
+    price_prof,
+    FixedProfile(0),
+    Dict(power => 1),
+)
+
+# Create a dictionary containing lenses to the OperationalProfile
+d_all = EMRH._create_lens_dict([source1, source2])
+# Returns Dict{RefSource, Dict{Vector{Any}}} with 2 entries:
+#  n_source1 => Dict{Vector{Any}, Any}([:data, "[1]", :emissions, co2, OperPath()]=>_.data[1].emissions[co2], [:cap, OperPath()]=>_.cap)
+#  n_source2 => Dict{Vector{Any}, PropertyLens{:opex_var}}([:opex_var, OperPath()]=>_.opex_var)
+
+d_s1 = EMRH._create_lens_dict(source1)
+# Returns Dict{Vector{Any}, Any} with 2 entries:
+#  [:data, "[1]", :emissions, co2, OperPath()] => _.data[1].emissions[co2]
+#  [:cap, OperPath()]                          => _.cap
+
+# Keys to the dictionaries are the paths containing OperationalProfile
+paths_oper_s1 = EMRH._find_update_paths(source1)
+# Returns 2-element Vector{Any}:
+# Any[:cap, EnergyModelsRecHorizon.OperPath()]
+# Any[:data, "[1]", :emissions, co2, EnergyModelsRecHorizon.OperPath()]
+
+# Example usage
+lens_s1_cap = d_all[source1][paths_oper_s1[1]]
+lens_s1_em = d_all[source1][paths_oper_s1[2]]
+lens_s1_cap_v2 = d_s1[paths_oper_s1[1]]
+@assert all(lens_s1_cap(source1) == capacity(source1))
+@assert all(lens_s1_em(source1) == process_emissions(node_data(source1)[1], co2))
+@assert all(lens_s1_cap_v2(source1) == capacity(source1))
+```
+"""
+function _create_lens_dict(𝒳::Vector{<:AbstractElement})
+    return Dict(x => _create_lens_dict(x) for x ∈ 𝒳)
+end
+function _create_lens_dict(x::Union{AbstractElement, RecHorEnergyModel})
+    paths_oper = _find_update_paths(x)
+    return Dict(field_id => _create_lens_for_field(field_id) for field_id ∈ paths_oper)
+end
+
+"""
+    _create_lens_for_field(field_id::Vector{<:Any})
+
+Returns a `lens`, which can be used to inspect or reset variables. The lens is based on the
+`field_id` obtained through the function [`_find_update_paths`](@ref).
+
+Example:
+```julia
+using Accessors: @reset
+using EnergyModelsBase
+using EnergyModelsRecHorizon
+using TimeStruct
+const EMRH = EnergyModelsRecHorizon
+
+cap_prof = OperationalProfile([20, 300])
+em_prof = OperationalProfile([1,2])
+power = ResourceCarrier("power", 0.0)
+co2 = ResourceEmit("co2", 1.0)
+
+source = RefSource(
+    "power_source",                         # Node id or name
+    cap_prof,                               # Capacity
+    FixedProfile(100),                      # Variable OPEX
+    FixedProfile(0),                        # Fixed OPEX
+    Dict(power => 1),                       # Output from the node
+    [EmissionsProcess(Dict(co2 => em_prof))] # Line above: CO2 process emissions
+)
+
+paths_oper_source = EMRH._find_update_paths(source)
+@assert all(paths_oper_source .== Any[
+    [:cap, EMRH.OperPath()], [:data, "[1]", :emissions, co2, EMRH.OperPath()]
+])
+lens_source_cap = EMRH._create_lens_for_field(paths_oper_source[1])
+lens_source_data = EMRH._create_lens_for_field(paths_oper_source[2])
+
+# Check that the values returned through the lenses are based on the actual values
+@assert all(cap_prof == lens_source_cap(source))
+@assert all(em_prof == lens_source_data(source))
+
+# Lenses can also be used for resetting values using @reset
+cap_prof_new = OperationalProfile([90,100])
+@reset lens_source_cap(source) = cap_prof_new
+@assert all(cap_prof_new == lens_source_cap(source))
+```
+"""
+function _create_lens_for_field(field_id::Vector{<:Any})
+    str = ""
+    for k ∈ field_id
+        str *= _path_type(k)
+    end
+    global global_str_lens = "@o _" * str
+    lens = eval(Meta.parse(global_str_lens))
+    return lens
+end
+
+"""
+    _path_type(val::Symbol)
+    _path_type(val::String)
+    _path_type(val::Resource)
+    _path_type(val::AbstractPath)
+
+Translate the individual value to the required format for creating the lense string.
+
+In the case of a resource, it creates a global variable calles `res` which can be evaluated
+in the parse
+"""
+_path_type(val::Symbol) = "." * String(val)
+_path_type(val::String) = val
+function _path_type(val::Resource)
+    global res = val
+    return "[res]"
+end
+_path_type(val::AbstractPath) = ""

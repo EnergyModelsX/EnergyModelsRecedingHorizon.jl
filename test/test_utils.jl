@@ -145,6 +145,8 @@ end
         EmissionsProcess(Dict(co2 => FixedProfile(2))),
     ]
 
+    struct TestInitData <: AbstractInitData end
+
     #create individual nodes of the system
     av = GenAvailability("Availability", resources)
     source_fixed = RefSource(
@@ -153,6 +155,14 @@ end
         FixedProfile(100), #variable OPEX
         FixedProfile(0), #Fixed OPEN in EUR/8h
         Dict(el => 1), #output from the node
+    )
+    source_initdata = RefSource(
+        "electricity source", #Node id or name
+        FixedProfile(1e12), #Capacity
+        FixedProfile(100), #variable OPEX
+        FixedProfile(0), #Fixed OPEN in EUR/8h
+        Dict(el => 1), #output from the node
+        Data[TestInitData()]
     )
     source_oper = RefSource(
         "electricity source", #Node id or name
@@ -277,33 +287,33 @@ end
 
     @testset "Identification - paths" begin
         # Test of all potential node input from EMRH
-        @test issetequal(EMRH._find_paths_operational_profile(av), Any[])
-        @test issetequal(EMRH._find_paths_operational_profile(source_fixed), Any[])
+        @test issetequal(EMRH._find_update_paths(av), Any[])
+        @test issetequal(EMRH._find_update_paths(source_fixed), Any[])
         @test issetequal(
-            EMRH._find_paths_operational_profile(source_oper),
+            EMRH._find_update_paths(source_oper),
             [[:opex_var, EMRH.OperPath()]])
         @test issetequal(
-            EMRH._find_paths_operational_profile(network),
+            EMRH._find_update_paths(network),
             [
                 [:opex_var, EMRH.OperPath()],
                 [:data, "[2]", :emissions, co2, EMRH.OperPath()]
             ],
         )
-        @test issetequal(EMRH._find_paths_operational_profile(storage), Any[])
+        @test issetequal(EMRH._find_update_paths(storage), Any[])
         @test issetequal(
-            EMRH._find_paths_operational_profile(storage_data),
+            EMRH._find_update_paths(storage_data),
             [[:data, "[1]", :init_val_dict, "[:stor_level]", EMRH.InitDataPath(:stor_level)]],
         )
         @test issetequal(
-            EMRH._find_paths_operational_profile(storage_charge_oper),
+            EMRH._find_update_paths(storage_charge_oper),
             [[:charge, :capacity, EMRH.OperPath()]],
         )
         @test issetequal(
-            EMRH._find_paths_operational_profile(storage_level_oper),
+            EMRH._find_update_paths(storage_level_oper),
             [[:level, :capacity, EMRH.OperPath()]],
         )
         @test issetequal(
-            EMRH._find_paths_operational_profile(storage_charge_level_data_oper),
+            EMRH._find_update_paths(storage_charge_level_data_oper),
             [
                 [:charge, :capacity, EMRH.OperPath()],
                 [:level, :capacity, EMRH.OperPath()],
@@ -311,28 +321,31 @@ end
             ],
         )
         @test issetequal(
-            EMRH._find_paths_operational_profile(sink),
+            EMRH._find_update_paths(sink),
             [[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]],
         )
 
         # Test of link and model
         @test issetequal(
-            EMRH._find_paths_operational_profile(link),
+            EMRH._find_update_paths(link),
             [[:from, EMRH.ElementPath()], [:to, EMRH.ElementPath()], [:profile, EMRH.OperPath()]],
         )
         @test issetequal(
-            EMRH._find_paths_operational_profile(model),
+            EMRH._find_update_paths(model),
             [[:emission_limit, co2, EMRH.OperPath()]],
         )
 
         # Test of the new node
         @test issetequal(
-            EMRH._find_paths_operational_profile(string_dict),
+            EMRH._find_update_paths(string_dict),
             Any[
                 [:profile, "[\"a\"]", EMRH.OperPath()],
                 [:profile, "[\"c\"]", EMRH.OperPath()]
             ],
         )
+
+        # Test that init data throws error, when wrongly used
+        @test_throws ErrorException EMRH._find_update_paths(source_initdata)
     end
 
     @testset "Case creation - lenses and resets" begin
@@ -341,9 +354,9 @@ end
 
         # Create the lenses
         lens_dict = Dict{Symbol,Dict}()
-        lens_dict[:nodes] = EMRH._create_lens_dict_oper_prof(𝒩)
-        lens_dict[:links] = EMRH._create_lens_dict_oper_prof(ℒ)
-        lens_dict[:model] = EMRH._create_lens_dict_oper_prof(model)
+        lens_dict[:nodes] = EMRH._create_lens_dict(𝒩)
+        lens_dict[:links] = EMRH._create_lens_dict(ℒ)
+        lens_dict[:model] = EMRH._create_lens_dict(model)
 
         # Test that the lenses are created for all nodes and links
         @test all(haskey(lens_dict[:nodes], n) for n ∈ 𝒩)
@@ -372,7 +385,7 @@ end
         )
 
         #checks for source
-        paths_oper_source = EMRH._find_paths_operational_profile(source)
+        paths_oper_source = EMRH._find_update_paths(source)
         @test all(
             paths_oper_source .==
                 Any[
@@ -403,7 +416,7 @@ end
         )
 
         #checks for sink
-        paths_oper_sink = EMRH._find_paths_operational_profile(sink)
+        paths_oper_sink = EMRH._find_update_paths(sink)
         @test all(
             paths_oper_sink .==
                 Any[[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]
@@ -439,7 +452,7 @@ end
             Dict(power => 1),
             data_storage,
         )
-        paths_oper_storage = EMRH._find_paths_operational_profile(storage)
+        paths_oper_storage = EMRH._find_update_paths(storage)
         @test all(
             paths_oper_storage .==
             Any[
@@ -473,7 +486,7 @@ end
             ),
         )
 
-        paths_node = EMRH._find_paths_operational_profile(string_dict)
+        paths_node = EMRH._find_update_paths(string_dict)
 
         #test getting values
         path_a = filter(path -> path[2] == "[\"a\"]", paths_node)

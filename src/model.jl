@@ -9,7 +9,7 @@ as a series of optimization problems.
     While the [`Case`](@extref EnergyModelsBase.Case) type is flexible, we have to follow
     certain structures.
     - The `case` type requires as additional input in the dictionary field `misc` the entry
-      `:horizons` corresponding to to an [`AbstractHorizons`](@ref) type.
+      `:horizons` corresponding to an [`AbstractHorizons`](@ref) type.
     - The order of the individual elements vector in the field `elements` cannot be arbitrary
       at the moment due to the structure of the code. You **must** use the following
       order:
@@ -86,19 +86,6 @@ function run_model_rh(
 
     return results
 end
-
-function update_objective(m, cost_to_go)
-    # println("in emrh.objective with obj.func: $(objective_function(m))")
-    original_objective = objective_function(m) #this is a JuMP function
-    new_objective = @expression(m, original_objective + cost_to_go) #JuMP function/macro
-    set_objective_function(m, new_objective) #this is a JuMP function
-    return m_obj = objective_function(m) #this is a JuMP function
-    # println("objective_function is now: $(objective_function(m))")
-end
-
-#= function EMB.run_model(case::Dict, model::EnergyModel, optimizer; check_timeprofiles=true)
-    throw MethodError(2, "This method should is not used in EMRH")
-end =#
 
 """
     EMB.variables_capacity(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒯, modeltype::EnergyModel)

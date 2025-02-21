@@ -16,7 +16,7 @@ The user that implements new [`AbstractInitData`](@ref) types must implement met
 The functions to be dispatched upon for a new [`AbstractInitData`](@ref) are:
 
 - [`update_init_data!`](@ref EMRH.update_init_data!): function used to update the receding horizon [`AbstractInitData`](@ref) object based on the solution of the receding horizon problem in a previous time window
-- [`_find_paths_operational_profile`](@ref EMRH._find_paths_operational_profile): function used to detect the fields in the [`AbstractInitData`](@ref) object to be updated over changing horizons
+- [`_find_update_paths`](@ref EMRH._find_update_paths): function used to detect the fields in the [`AbstractInitData`](@ref) object to be updated over changing horizons
 
 These functions are automatically used in the main function [`run_model_rh`](@ref), and they can be easily dispatched upon for custom elements.
 
