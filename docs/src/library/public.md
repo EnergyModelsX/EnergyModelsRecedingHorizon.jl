@@ -54,6 +54,23 @@ is_init_data
 EMRH.data_init
 ```
 
+## [Future value](@id lib-pub-fut_val)
+
+### [Types](@id lib-pub-fut_val-typ)
+
+```@docs
+FutureValue
+StorageValueCuts
+StorageValueCut
+```
+
+### [Functions](@id lib-pub-fut_val-fcn)
+
+```@docs
+get_future_value
+has_cuts
+```
+
 ## [Miscellaneous](@id lib-pub-misc)
 
 ```@docs
