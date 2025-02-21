@@ -13,11 +13,11 @@
         ]
     )
     # Create the StorageValueCut type
-    svc = StorageValueCut("stor_1", Dict(storage => 1), 5)
+    svc = StorageValueCut("stor_1", [ElementValue(storage, 1)], 5)
 
     # Test that the access functions are working
     @test EMRH.cut_rhs(svc) == 5
-    @test EMRH.coefficients(svc) == Dict(storage => 1)
+    @test EMRH.coefficients(svc) == [(storage, 1)]
 end
 
 @testset "StorageValueCuts" begin
@@ -31,11 +31,9 @@ end
             Power,              # stor_res, stored resource
             Dict(Power => 1),
             Dict(Power => 1),
-            [
-                StorageInitData(0)
-            ]
+            [StorageInitData(0)],
         )
-        storage_value_cut = StorageValueCut("stor_1", Dict(storage => 1), 5)
+        storage_value_cut = StorageValueCut("stor_1", [ElementValue(storage, 1)], 5)
 
         # Function for creating different StorageValueCuts
         stor_val_cuts(svc::StorageValueCut, time_profile::Vector) =

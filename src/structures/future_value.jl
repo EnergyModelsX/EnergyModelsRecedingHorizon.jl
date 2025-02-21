@@ -7,21 +7,42 @@ abstract type  FutureValue <: AbstractElement end
 Base.show(io::IO, v::FutureValue) = print(io, "fut_val_$(v.id)")
 
 """
+    ElementValue{T<:Union{TimeProfile, Real}}
+
+An `ElementValue` represents an instance of a given
+[`AbstractElement`](@extref EnergyModelsBase.AbstractElement) with an assigned value.
+It replaces dictionaries in which an `AbstractElement` is used as key value so that it is
+possible to reset the `AbstractElement`
+
+## Fields
+- **`element::N`** is the instance of the element.
+- **`value::T`** is the used value.
+"""
+struct ElementValue{T<:Union{TimeProfile, Real}}
+    element::AbstractElement
+    value::T
+end
+
+"""
     StorageValueCut
 
 A `StorageValueCut` represents a cutting hyperplanes that puts an upper bound on
 the value of the stored resource at the end of the optimization horizon.
 
 ## Fields
-- **`id::Any`** is the name/identifier of the `StorageValueCut`.\n
-- **`coeffs::Dict{<:EMB.Storage{<:EMB.Accumulating}, <:Real}`** are the cut coefficients
-  associated with the level of the given `Storage` nodes.
+- **`id::Any`** is the name/identifier of the `StorageValueCut`.
+- **`Vector{<:ElementValue}`** are the cut coefficients associated with the level of the
+  given `Storage` nodes. They can also be provided as `Dict{<:Storage{<:Accumulating}, <:Real}`.
 - **`rhs::Real`** is the cut right hand side constant.
 """
 struct StorageValueCut
     id::Any
-    coeffs::Dict{<:EMB.Storage{<:EMB.Accumulating}, <:Real}
+    coeffs::Vector{<:ElementValue}
     rhs::Real
+end
+function StorageValueCut(id, coeffs::Dict{<:Storage{<:Accumulating}, <:Real}, rhs::Real)
+    ele_val_vect = [ElementValue(rsv, coeff) for (rsv, coeff) ∈ coeffs]
+    return StorageValueCut(id, ele_val_vect, rhs)
 end
 Base.show(io::IO, svc::StorageValueCut) = print(io, "cut_$(svc.id)")
 
@@ -37,7 +58,7 @@ cut_rhs(svc::StorageValueCut) = svc.rhs
 
 Returns the cut coefficients associated with the level of the given `Storage` nodes.
 """
-coefficients(svc::StorageValueCut) = svc.coeffs
+coefficients(svc::StorageValueCut) = [(eleval.element, eleval.value) for eleval ∈ svc.coeffs]
 
 """
     StorageValueCuts <: FutureValue
