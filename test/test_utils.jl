@@ -285,6 +285,17 @@ end
     )
     Base.show(io::IO, w::StringDict) = "StringDict"
 
+    # Creation of a StorageValueCuts type
+    svcs = StorageValueCuts(
+        "wv0",
+        1,
+        0,
+        [
+            StorageValueCut(1, Dict(storage => -50, storage_data => -70), 0),
+            StorageValueCut(2, Dict(storage => -40, storage_data => -30), 250),
+        ]
+    )
+
     @testset "Identification - paths" begin
         # Test of all potential node input from EMRH
         @test issetequal(EMRH._find_update_paths(av), Any[])
@@ -341,6 +352,17 @@ end
             Any[
                 [:profile, "[\"a\"]", EMRH.OperPath()],
                 [:profile, "[\"c\"]", EMRH.OperPath()]
+            ],
+        )
+
+        # Test of StorageValueCuts type
+        @test issetequal(
+            EMRH._find_update_paths(svcs),
+            Any[
+                [:cuts, "[1]", :coeffs, "[1]", :element, EMRH.ElementPath()],
+                [:cuts, "[1]", :coeffs, "[2]", :element, EMRH.ElementPath()],
+                [:cuts, "[2]", :coeffs, "[1]", :element, EMRH.ElementPath()],
+                [:cuts, "[2]", :coeffs, "[2]", :element, EMRH.ElementPath()],
             ],
         )
 
