@@ -33,7 +33,6 @@ for each `Storage{RecedingAccumulating}` instance.
 function StorageInitData(val::Real)
     return InitData(Dict(:stor_level => val))
 end
-# TODO: RecHorData with init and cost_to_go; cost_to_go defined for each node
 
 """
     is_init_data(data)
@@ -42,7 +41,6 @@ Checks whether the argument `data` has initialization settings.
 """
 is_init_data(data) = (typeof(data) <: AbstractInitData)
 
-# is_initializable(n) = # (typeof(data) <: AbstractInitData)
 """
 has_init(n::Node)
 

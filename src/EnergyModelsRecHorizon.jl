@@ -28,6 +28,9 @@ include(joinpath("utils", "identification.jl"))
 include(joinpath("utils", "other.jl"))
 include(joinpath("utils", "results.jl"))
 
+# The following functions are kept, but are not used in the core structure
+include(joinpath("utils", "unused.jl"))
+
 include("constraint_functions.jl")
 include("model.jl")
 

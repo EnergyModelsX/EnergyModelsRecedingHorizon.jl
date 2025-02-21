@@ -74,7 +74,7 @@ utilized for automatically creating the lens to the field path.
 
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
-  [`_find_paths_operational_profile`](@ref).
+  [`_find_update_paths`](@ref).
 - **`x`** is the instance of a type for which the which the reset type is created.
 
 # Fields
@@ -100,7 +100,7 @@ constructor is utilized for automatically creating the lens to the field path.
 
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
-  [`_find_paths_operational_profile`](@ref).
+  [`_find_update_paths`](@ref).
 - **`x`** is the instance of a type for which the which the reset type is created.
 
 # Fields
@@ -129,7 +129,7 @@ utilized for automatically creating the lens to the field path.
 
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
-  [`_find_paths_operational_profile`](@ref).
+  [`_find_update_paths`](@ref).
 - **`path::AbstractInitDataPath`** is the [`AbstractPath`](@ref) of the init data. It
   includes additional information that is utilized when resetting an element.
 - **`x`** is the instance of a type for which the which the reset type is created.

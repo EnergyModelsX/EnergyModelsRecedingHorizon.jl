@@ -25,29 +25,28 @@ EMRH.get_results_df
 
 ```@docs
 EMRH.init_level
-EMRH._get_node_index
-EMRH._create_lens_dict_oper_prof
+EMRH._create_lens_dict
 ```
 
 ### [Identification functions](@id lib-int-ident)
 
 ```@docs
-EMRH._has_unique_strings
-EMRH._find_paths_operational_profile
-EMRH._fields_with_operational_profile
-EMRH._has_field_operational_profile
+EMRH._find_update_paths
+EMRH._dict_key
+EMRH._create_lens_for_field
+EMRH._path_type
 ```
 
 ### [Functions for resetting values](@id lib-int-reset)
 
 ```@docs
+EMRH._create_updatetype
+EMRH._add_elements!
 EMRH._update_update_case!
 EMRH._reset_field(x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, opers::Vector{<:TS.TimePeriod})
-EMRH._create_lens_for_field
 ```
 
-The following function is introduced for parametric types in which the type
-is not deducible from the input and for types with inner constructors:
+The following function is introduced for parametric types in which the type is not deducible from the input and for types with inner constructors:
 
 ```@docs
 EMRH.Accessors.ConstructionBase.constructorof
@@ -70,4 +69,13 @@ EMRH.cut_rhs
 EMRH.weight
 EMRH.cuts_time
 EMRH.cuts
+```
+
+### [Unused functions](@id lib-int-unused)
+
+```@docs
+EMRH._get_node_index
+EMRH._has_unique_strings
+EMRH._fields_with_operational_profile
+EMRH._has_field_operational_profile
 ```
