@@ -16,6 +16,7 @@ const EMB = EnergyModelsBase
 const TS = TimeStruct
 
 include(joinpath("structures", "data.jl"))
+include(joinpath("structures", "future_value.jl"))
 include(joinpath("structures", "horizons.jl"))
 include(joinpath("structures", "model.jl"))
 include(joinpath("structures", "reset.jl"))
@@ -48,5 +49,11 @@ export DurationHorizons, PeriodHorizons
 
 # Functions for accessing the fields of `SingleHorizon` instances
 export durations, indices_optimization, indices_implementation
+
+# Types used for the future value
+export FutureValue, StorageValueCuts, StorageValueCut
+
+# Auxiliary functions for future values
+export get_future_value, has_cuts
 
 end # module EnergyModelsRecHorizon

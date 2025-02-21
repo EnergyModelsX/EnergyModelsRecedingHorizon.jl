@@ -31,6 +31,10 @@ global_logger(logger_new)
         include("test_examples.jl")
     end
 
+    @testset "EMRecedingHorizon - FutureValue" begin
+        include("test_future_value.jl")
+    end
+
     @testset "RecedingHorizon - POI implementation" begin
         include("test_poi.jl")
     end

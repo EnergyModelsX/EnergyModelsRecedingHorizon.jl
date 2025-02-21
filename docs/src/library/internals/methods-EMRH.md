@@ -52,3 +52,22 @@ is not deducible from the input and for types with inner constructors:
 ```@docs
 EMRH.Accessors.ConstructionBase.constructorof
 ```
+
+### [Future value functions](@id lib-int-fut_val)
+
+```@docs
+EMRH.get_active_cut_time_weights
+EMRH.get_future_value_expression
+EMRH.create_future_value
+EMRH.create_future_value_couple
+```
+
+The following functions for accessing fields of the types are introduced:
+
+```@docs
+EMRH.coefficients
+EMRH.cut_rhs
+EMRH.weight
+EMRH.cuts_time
+EMRH.cuts
+```

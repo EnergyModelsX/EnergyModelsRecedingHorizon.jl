@@ -15,6 +15,7 @@ This means that users are able to implement new technologies as new nodes withou
 Pages = [
     "manual/quick-start.md",
     "manual/philosophy.md",
+    "manual/future-value.md",
     "manual/simple-example.md",
     "manual/NEWS.md",
 ]
