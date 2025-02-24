@@ -189,3 +189,147 @@ end
             parameter_value(EMRH.time_weight(𝒱ᵣₕ[2]))
     end
 end
+
+@testset "Complete modelruns" begin
+
+    init_state = 50
+    op_dur_vec = ones(Int64, 24)
+    price_profile = [
+        10, 20, 20, 50, 95, 100, 105, 100, 50, 40, 40,
+        40, 20, 70, 65, 65, 10, 5, 5, 90, 42, 42, 42, 42
+    ]
+    CO2 = ResourceEmit("CO2", 1.0)
+    Power = ResourceCarrier("Power", 0.0)
+    products = [CO2, Power]
+
+    𝒯 = TwoLevel(1, 24, SimpleTimes(op_dur_vec))
+    hor = PeriodHorizons([duration(t) for t ∈ 𝒯], 8, 4)
+
+    # Create a hydro reservoir
+    rsv = RefStorage{RecedingAccumulating}(
+        "storage",  # Node ID
+        StorCap(FixedProfile(10)), # Charge
+        StorCap(FixedProfile(100)), # level, UnionCap
+        Power,              # stor_res, stored resource
+        Dict(Power => 1),
+        Dict(Power => 1),
+        [
+            StorageInitData(init_state)
+        ]
+    )
+    snk = RefSink(
+        "market_sale",
+        FixedProfile(0),
+        Dict(
+            :surplus => OperationalProfile(-price_profile),
+            :deficit => FixedProfile(1000)
+        ),
+        Dict(Power => 1),
+        Data[]
+    )
+    src = RefSource(
+        "market_buy",
+        FixedProfile(10),
+        OperationalProfile(price_profile.+0.01),
+        FixedProfile(0),
+        Dict(Power => 1),
+        Data[]
+    )
+    𝒩 = [rsv, src, snk]
+
+    # Connect the 𝒩 with ℒ
+    ℒ = [
+        Direct("rsv-gen", rsv, snk),
+        Direct("gen-ocean", src, rsv),
+    ]
+
+
+    𝒱 = [
+        StorageValueCuts("wv0", 0, 1, 0,
+            [
+                StorageValueCut(1, Dict(rsv => -50), 0),
+                StorageValueCut(2, Dict(rsv => -40), 250),
+                StorageValueCut(3, Dict(rsv => -30), 750),
+                StorageValueCut(4, Dict(rsv => -20), 1400),
+                StorageValueCut(5, Dict(rsv => -10), 2150),
+                StorageValueCut(6, Dict(rsv => -5), 2600),
+                StorageValueCut(7, Dict(rsv => 0), 3100),
+            ]
+        ),
+        StorageValueCuts("wv24", 24, 1, 1,
+            [
+                StorageValueCut(1, Dict(rsv => -100), 0),
+                StorageValueCut(2, Dict(rsv => -80), 500),
+                StorageValueCut(3, Dict(rsv => -60), 1500),
+                StorageValueCut(4, Dict(rsv => -40), 2800),
+                StorageValueCut(5, Dict(rsv => -20), 4300),
+                StorageValueCut(6, Dict(rsv => -10), 5200),
+                StorageValueCut(7, Dict(rsv => 0), 6200),
+            ]
+        )
+    ]
+
+    case = Case(
+        𝒯,
+        products,
+        [𝒩, ℒ, 𝒱],
+        [[get_nodes, get_links], [get_future_value]],
+        Dict(:horizons => hor)
+    )
+
+    model = RecHorOperationalModel(
+        Dict(CO2 => FixedProfile(10)), #upper bound for CO2 in t/8h
+        Dict(CO2 => FixedProfile(0)), # emission price for CO2 in EUR/t
+        CO2,
+    )
+
+    # Function for calculating the results in a common format
+    function ext_res(res)
+        use_src = abs.(round.(filter(r -> r.x1 == src, res[:cap_use])[!, :y]'))
+        use_snk = abs.(round.(filter(r -> r.x1 == snk, res[:cap_use])[!, :y]'))
+        charge = abs.(round.(
+            filter(r -> r.x1 == rsv && r.x3 ==Power, res[:flow_in])[!, :y]'
+        ))
+        discharge = abs.(round.(
+            filter(r -> r.x1 == rsv && r.x3 ==Power, res[:flow_out])[!, :y]'
+        ))
+        lvl = abs.(round.(filter(r -> r.x1 == rsv, res[:stor_level])[!, :y]'))
+        (use_src, use_snk, charge, discharge, lvl)
+    end
+
+    # Calculate the results from the complete run to check the future value calculations
+    optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+    m_comp = run_model(case, model, optimizer)
+    @test objective_value(m_comp) ≈ 16168.1
+
+    # Test that the value is correctly restricted
+    # - create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::RecHorOperationalModel)
+    @test all(
+        value.(m_comp[:future_value][v]) +
+        sum(value.(m_comp[:stor_level][rsv, last(𝒯)]) * coeff for (rsv, coeff) ∈ EMRH.coefficients(svc))
+            ≤ value.(EMRH.cut_rhs(svc))
+    for v ∈ 𝒱 for svc ∈ EMRH.cuts(v))
+
+    # Test that the objective value is correctly calculated
+    # - get_future_value_expression(m, 𝒱::Vector{StorageValueCuts}, 𝒯ᴵⁿᵛ::TS.AbstractStratPers, modeltype::EnergyModel)
+    t_inv = first(strat_periods(𝒯))
+    @test objective_value(m_comp) ≈
+        -sum(value.(m_comp[:opex_var][n, t_inv]) for n ∈ 𝒩) * duration_strat(t_inv) +
+        sum(value.(m_comp[:future_value][v]) * EMRH.weight(v) * EMRH.time_weight(v) for v ∈ 𝒱)
+
+    # Extract the results in DataFrames format
+    res_full_df = EMRH.get_results_df(m_comp)
+    res_full = ext_res(res_full_df)
+
+    # Run the model with the standard framework and test that we get the same results
+    res_emrh_org_df = run_model_rh(case, model, optimizer);
+    res_emrh_org = ext_res(res_emrh_org_df)
+    @test all(all(r_f .≈ r_emrh) for (r_f, r_emrh) ∈ zip(res_full, res_emrh_org))
+
+    # Run the model with the POI framework and test that we get the same results
+    optimizer = POI.Optimizer(HiGHS.Optimizer())
+    res_emrh_poi_df = run_model_rh(case, model, optimizer);
+    res_emrh_poi = ext_res(res_emrh_poi_df)
+    @test all(all(r_f .≈ r_emrh) for (r_f, r_emrh) ∈ zip(res_full, res_emrh_poi))
+
+end
