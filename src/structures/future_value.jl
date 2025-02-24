@@ -82,7 +82,7 @@ struct StorageValueCuts <: FutureValue
     id::Any
     time::Int
     weight::Real
-    time_weight::Real
+    time_weight::Union{Real, VariableRef}
     cuts::Vector{StorageValueCut}
 end
 

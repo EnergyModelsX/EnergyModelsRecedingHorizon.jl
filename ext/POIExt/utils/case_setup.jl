@@ -70,7 +70,8 @@ end
 
 """
     EMRH._reset_field(m, x_rh, res_type::ElementReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
-    EMRH._reset_field(m, x_rh, res_type::InitReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::Union{InitReset{EMRH.InitDataPath},TimeWeightReset}, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::TimeWeightReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::OperReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 
 Resets the field identified through `lens` of element `x_rh` with a JuMP parameter variable
@@ -78,7 +79,8 @@ and initialize the variable with the values provided in `res_type`:
 
 1. `res_type::ElementReset` uses the `map_dict` for identifying the correct node without
    creating a new variable,
-2. `res_type::InitReset` creates a single new variables and uses the the value directly,
+2. `res_type::InitReset{EMRH.InitDataPath}` and `res_type::TimeWeightReset` create a single
+   new variables and uses the value directly,
 3. `res_type::OperReset` creates multiple new variables and a new operational profile based
    on the original operational profile and the set of operational periods in the time
    structure `𝒯ᴿᴴ`.
@@ -96,7 +98,7 @@ end
 function EMRH._reset_field(
     m,
     x_rh,
-    res_type::InitReset,
+    res_type::Union{InitReset{EMRH.InitDataPath}, TimeWeightReset},
     𝒰::UpdateCase,
     𝒯ᴿᴴ::TimeStructure,
 )
@@ -150,22 +152,26 @@ end
     _update_parameter!(m, res_type::ElementReset, opers::Vector)
     _update_parameter!(m, res_type::OperReset, opers::Vector)
     _update_parameter!(m, res_type::InitReset{EMRH.InitDataPath}, opers::Vector)
+    _update_parameter!(m, res_type::TimeWeightReset, opers::Vector)
 
 Set the parameter parameter value for a given `res_type`:
 
 1. `res_type::ElementReset` results in no update,
 2. `res_type::InitReset{EMRH.InitDataPath}` updates the value based on the value of the
    [`InitReset`](@ref EnergyModelsRecHorizon.InitReset) type,
-3. `res_type::OperReset` creates a new operational profile based on the original
+3. `res_type::TimeWeightReset` updates the value based on the value of the
+   [`TimeWeightReset`](@ref EnergyModelsRecHorizon.TimeWeightReset) type,
+4. `res_type::OperReset` creates a new operational profile based on the original
    operational profile and the set of operational periods in the time structure `𝒯ᴿᴴ`.
 """
 _update_parameter!(m, res_type::ElementReset, opers::Vector) = nothing
+_update_parameter!(m, res_type::InitReset{EMRH.InitDataPath}, opers::Vector) =
+    MOI.set(m, POI.ParameterValue(), res_type.var, res_type.val)
+_update_parameter!(m, res_type::TimeWeightReset, opers::Vector) =
+    MOI.set(m, POI.ParameterValue(), res_type.var, res_type.val)
 function _update_parameter!(m, res_type::OperReset, opers::Vector)
     val = res_type.val[opers]
     for (i, var) ∈ enumerate(res_type.var)
         MOI.set(m, POI.ParameterValue(), var, val[i])
     end
-end
-function _update_parameter!(m, res_type::InitReset{EMRH.InitDataPath}, opers::Vector)
-    MOI.set(m, POI.ParameterValue(), res_type.var, res_type.val)
 end
