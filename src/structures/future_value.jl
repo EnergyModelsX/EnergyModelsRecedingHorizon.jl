@@ -7,7 +7,7 @@ abstract type  FutureValue <: AbstractElement end
 Base.show(io::IO, v::FutureValue) = print(io, "fut_val_$(v.id)")
 
 """
-    ElementValue{T<:Union{TimeProfile, Real}}
+    struct ElementValue{T<:Union{TimeProfile, Real}}
 
 An `ElementValue` represents an instance of a given
 [`AbstractElement`](@extref EnergyModelsBase.AbstractElement) with an assigned value.
@@ -24,7 +24,7 @@ struct ElementValue{T<:Union{TimeProfile, Real}}
 end
 
 """
-    StorageValueCut
+    struct StorageValueCut
 
 A `StorageValueCut` represents a cutting hyperplanes that puts an upper bound on
 the value of the stored resource at the end of the optimization horizon.
@@ -61,7 +61,7 @@ Returns the cut coefficients associated with the level of the given `Storage` no
 coefficients(svc::StorageValueCut) = [(eleval.element, eleval.value) for eleval ∈ svc.coeffs]
 
 """
-    StorageValueCuts <: FutureValue
+    struct StorageValueCuts <: FutureValue
 
 A collection of multiple `StorageValueCut` that constructs a piecewise linear upper
 one the future value of the stored resource.

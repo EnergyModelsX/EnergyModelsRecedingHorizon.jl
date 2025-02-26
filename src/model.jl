@@ -247,11 +247,11 @@ unspecified subtypes of `FutureValue`.
 function create_future_value(m, v::FutureValue, 𝒯,  modeltype) end
 
 """
-    create_future_value_couple(m, 𝒯, 𝒱::Vector{StorageValueCuts}, modeltype::RecHorOperationalModel)
+    create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::EnergyModel)
 
 Build cut constraints for all cuts in a `StorageValueCuts` element.
 """
-function create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::RecHorOperationalModel)
+function create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::EnergyModel)
 
     @constraint(m, [svc ∈ cuts(v)],
         m[:future_value][v] +
@@ -263,8 +263,9 @@ end
 """
     get_future_value_expression(m, 𝒱::Vector{StorageValueCuts}, 𝒯ᴵⁿᵛ::TS.AbstractStratPers, modeltype::EnergyModel)
 
-The method returns an experssion equal the sum of the future_value of all active cuts.
-Inactive cuts are weighted with 0.
+The method returns an expression equal to the sum of the `future_value` of all active cuts.
+Inactive cuts are weighted with 0 but still included to keep the number of variables
+unchanged.
 """
 function get_future_value_expression(
     m,
