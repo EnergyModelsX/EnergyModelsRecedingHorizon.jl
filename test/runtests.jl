@@ -48,7 +48,7 @@ global_logger(logger_new)
     end
 
     @testset "EMRecedingHorizon - Create new node" begin
-        include("test_newnode.jl")
+        include("test_new_initialization.jl")
     end
 end
 # Reset the loglevel
