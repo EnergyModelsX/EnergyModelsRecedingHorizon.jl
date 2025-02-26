@@ -70,7 +70,7 @@ end
 
 """
     EMRH._reset_field(m, x_rh, res_type::ElementReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
-    EMRH._reset_field(m, x_rh, res_type::Union{InitReset{EMRH.InitDataPath},TimeWeightReset}, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::Union{InitReset,TimeWeightReset}, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::TimeWeightReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::OperReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 
@@ -79,8 +79,8 @@ and initialize the variable with the values provided in `res_type`:
 
 1. `res_type::ElementReset` uses the `map_dict` for identifying the correct node without
    creating a new variable,
-2. `res_type::InitReset{EMRH.InitDataPath}` and `res_type::TimeWeightReset` create a single
-   new variables and uses the value directly,
+2. `res_type::InitReset` and `res_type::TimeWeightReset` create a single new variables and
+   uses the value directly,
 3. `res_type::OperReset` creates multiple new variables and a new operational profile based
    on the original operational profile and the set of operational periods in the time
    structure `𝒯ᴿᴴ`.
@@ -98,7 +98,7 @@ end
 function EMRH._reset_field(
     m,
     x_rh,
-    res_type::Union{InitReset{EMRH.InitDataPath}, TimeWeightReset},
+    res_type::Union{InitReset, TimeWeightReset},
     𝒰::UpdateCase,
     𝒯ᴿᴴ::TimeStructure,
 )

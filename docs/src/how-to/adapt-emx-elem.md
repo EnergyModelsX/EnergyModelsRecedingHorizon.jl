@@ -10,7 +10,7 @@ In this package, this is done by the introduction of an [`AbstractInitData`](@re
 [`AbstractInitData`](@ref) is an abstract type, and the concrete type [`InitData`](@ref) is provided with the minimum expected functionality for such an object.
 
 The most general way of initializing a node is through dispatch on [`EMB.constraints_data`](@extref EnergyModelsBase.constraints_data). # TODO: describe initialization better
-An example of such implementation is provided in the test files for the creation of a new node `SampleInitNode`, see the file *[test_newnode.jl](https://gitlab.sintef.no/idesignres/wp-2/energymodelsrechorizon.jl/-/tree/main/test/test_newnode.jl)*.
+An example of such implementation is provided in the test files for the creation of a new node `IncrementInitNode`, see the file *[node_with_initial_data.jl](https://gitlab.sintef.no/idesignres/wp-2/energymodelsrechorizon.jl/-/blob/main/examples/node_with_initial_data.jl)*.
 
 Some nodes may have a more specialized way of initialization, such as [`Storage`](@extref EnergyModelsBase.Storage) nodes.
 Here, we implement the [`RecedingAccumulating`](@ref) behavior, where the initial level state can be defined through an [`StorageInitData`](@ref) object.
