@@ -97,7 +97,7 @@ Initialize an [`UpdateCase`](@ref) based on the preovided the [`RecHorEnergyMode
 """
 function _create_updatetype(model::RecHorEnergyModel)
     paths_model = _find_update_paths(model)
-    reset_model = AbstractReset[ResetType(field_id, field_id[end], x) for field_id ∈ paths_model]
+    reset_model = AbstractReset[ResetType(field_id, field_id[end], model) for field_id ∈ paths_model]
     return UpdateCase(Substitution(model, reset_model), Dict(), ProductSub[], Vector[])
 end
 
