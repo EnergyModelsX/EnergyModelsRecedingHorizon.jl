@@ -31,7 +31,7 @@ struct ElementPath <: AbstractPath end
 """
     struct TimeWeightPath <: AbstractPath
 
-Internal type for paths pointing towards elapsed the time weight of a future value.
+Internal type for paths pointing towards the time weight of a future value.
 """
 struct TimeWeightPath <: AbstractPath end
 
@@ -82,7 +82,7 @@ utilized for automatically creating the lens to the field path.
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
   [`_find_update_paths`](@ref).
-- **`x`** is the instance of a type for which the which the reset type is created.
+- **`x`** is the instance of a type for which the reset type is created.
 
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
@@ -108,7 +108,7 @@ constructor is utilized for automatically creating the lens to the field path.
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
   [`_find_update_paths`](@ref).
-- **`x`** is the instance of a type for which the which the reset type is created.
+- **`x`** is the instance of a type for which the reset type is created.
 
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
@@ -131,12 +131,12 @@ end
 """
     mutable struct TimeWeightReset <: AbstractReset
 
-[`AbstractReset`](@ref) for resetting the tim weight used in future value calculations.
+[`AbstractReset`](@ref) for resetting the time weight used in future value calculations.
 
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
   [`_find_update_paths`](@ref).
-- **`x`** is the instance of a type for which the which the reset type is created.
+- **`x`** is the instance of a type for which the reset type is created.
 
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
@@ -165,7 +165,7 @@ utilized for automatically creating the lens to the field path.
   [`_find_update_paths`](@ref).
 - **`path::AbstractInitDataPath`** is the [`AbstractPath`](@ref) of the init data. It
   includes additional information that is utilized when resetting an element.
-- **`x`** is the instance of a type for which the which the reset type is created.
+- **`x`** is the instance of a type for which the reset type is created.
 
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.

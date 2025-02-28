@@ -49,7 +49,7 @@ function generate_future_value_case(; init_state=0)
     )
 
     #define the model depending on input
-    price_profile = [10, 20, 50, 100, 50, 40, 20, 70, 10, 5, 90, 42]
+    price_profile = [10, 20, 50, 100, 50, 40, 20, 40, 10, 5, 90, 42]
 
     # Create the individual test nodes, corresponding to a system with an electricity source,
     # electricity demand/sink, and a storage
@@ -108,17 +108,19 @@ function generate_future_value_case(; init_state=0)
         # Line above: ID, time at which the cuts are valid, their weight, and the time weight
             [
                 StorageValueCut(1, Dict(stor => -100), 0),
-                StorageValueCut(2, Dict(stor => -80), 500),
-                StorageValueCut(3, Dict(stor => -60), 1500),
-                StorageValueCut(4, Dict(stor => -40), 2800),
-                StorageValueCut(5, Dict(stor => -20), 4300),
-                StorageValueCut(6, Dict(stor => -10), 5200),
-                StorageValueCut(7, Dict(stor => 0), 6200),
+                StorageValueCut(2, Dict(stor => -80), 700),
+                StorageValueCut(3, Dict(stor => -60), 2100),
+                StorageValueCut(4, Dict(stor => -40), 3920),
+                StorageValueCut(5, Dict(stor => -20), 6020),
+                StorageValueCut(6, Dict(stor => -10), 7280),
+                StorageValueCut(7, Dict(stor => 0), 8680),
             ]
         )
     ]
 
     # Input data structure
+    # 2 structures are returned, the first including the future value (case) and the second
+    # not (caseʷᵒ)
     case = Case(
         T,
         products,
@@ -126,16 +128,23 @@ function generate_future_value_case(; init_state=0)
         [[get_nodes, get_links], [get_future_value]],
         Dict(:horizons => ℋ)
     )
-    return case, model
+    caseʷᵒ = Case(
+        T,
+        products,
+        [nodes, links],
+        [[get_nodes, get_links]],
+        Dict(:horizons => ℋ)
+    )
+    return case, caseʷᵒ, model
 end
 
 
 """
-    process_future_value_results(res_full, res_emrh, case)
+    process_future_value_results(res_full, res_emrh, res_emrhʷᵒ, , case)
 
 Function for processing the results to be represented in the a table afterwards.
 """
-function process_future_value_results(res_full, res_emrh, case)
+function process_future_value_results(res_full, res_emrh, res_emrhʷᵒ, case)
     # Extract individual values from the case structure
     src, snk, stor = get_nodes(case)
 
@@ -144,42 +153,55 @@ function process_future_value_results(res_full, res_emrh, case)
     sell_full = filter(r -> r.x1 == snk, res_full[:cap_use])
     lvl_full = filter(r -> r.x1 == stor, res_full[:stor_level])
 
-    # Extract the data from the EMRH results
+    # Extract the data from the EMRH results with future value
     buy_emrh = filter(r -> r.x1 == src, res_emrh[:cap_use])
     sell_emrh = filter(r -> r.x1 == snk, res_emrh[:cap_use])
     lvl_emrh = filter(r -> r.x1 == stor, res_emrh[:stor_level])
 
+    # Extract the data from the EMRH results without future value
+    buy_emrhʷᵒ = filter(r -> r.x1 == src, res_emrhʷᵒ[:cap_use])
+    sell_emrhʷᵒ = filter(r -> r.x1 == snk, res_emrhʷᵒ[:cap_use])
+    lvl_emrhʷᵒ = filter(r -> r.x1 == stor, res_emrhʷᵒ[:stor_level])
+
     # Combine both into single dataframes
-    buy = innerjoin(buy_full, buy_emrh, on = [:x1, :x2]; makeunique=true)
-    select!(buy, :x2 => (x -> repr.(x)) => :Period, :y => :full, :y_1 => :RH)
-    sell = innerjoin(sell_full, sell_emrh, on = [:x1, :x2]; makeunique=true)
-    select!(sell, :x2 => (x -> repr.(x)) => :Period, :y => :full, :y_1 => :RH)
-    lvl = innerjoin(lvl_full, lvl_emrh, on = [:x1, :x2]; makeunique=true)
-    select!(lvl, :x2 => (x -> repr.(x)) => :Period, :y => :full, :y_1 => :RH)
+    buy = innerjoin(buy_full, buy_emrh, buy_emrhʷᵒ, on = [:x1, :x2]; makeunique=true)
+    select!(buy, :x2 => (x -> repr.(x)) => :Period, :y => :full, :y_1 => :RH, :y_2 => :RH_wo)
+    sell = innerjoin(sell_full, sell_emrh, sell_emrhʷᵒ, on = [:x1, :x2]; makeunique=true)
+    select!(sell, :x2 => (x -> repr.(x)) => :Period, :y => :full, :y_1 => :RH, :y_2 => :RH_wo)
+    lvl = innerjoin(lvl_full, lvl_emrh, lvl_emrhʷᵒ, on = [:x1, :x2]; makeunique=true)
+    select!(lvl, :x2 => (x -> repr.(x)) => :Period, :y => :full, :y_1 => :RH, :y_2 => :RH_wo)
     return buy, sell, lvl
 end
 
-# Generate the case and model data
-case, model = generate_future_value_case(init_state=50)
+# Generate the case with future value (case) and without future value (caseʷᵒ) as
+# well as the model data
+case, caseʷᵒ, model = generate_future_value_case(init_state=40)
 
 # Run the model without the receding horizon framework, but with the future value
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 m = run_model(case, model, optimizer)
 res_full = EMRH.get_results_df(m)
 
-# Run the model with the receding horizon framework
+# Run the model with the receding horizon framework and the future value
 res_emrh = run_model_rh(case, model, optimizer);
 
-# Extract the individual data frames for the analysis
-buy, sell, lvl = process_future_value_results(res_full, res_emrh, case)
+# Run the model with the receding horizon framework and without the future value
+res_emrhʷᵒ = run_model_rh(caseʷᵒ, model, optimizer);
 
-@info "The following tables compare both the full and the receding horizon problem. " *
-    "The problem is solved 6 times in the receding horizon framework."
+# Extract the individual data frames for the analysis
+buy, sell, lvl = process_future_value_results(res_full, res_emrh, res_emrhʷᵒ, case)
+
+@info "The following tables compare both the full (with the future value) and the\n" *
+    "receding horizon problem, both with and without inclusion of the future value.\n" *
+    "The problem is solved 6 times in the receding horizon framework.\n" *
+    "When the future value is not included, we see differences starting from the 6ᵗʰ\n" *
+    "operational period while the receding horizon problem with future value is the\n" *
+    "same as the main problem."
 @info "Buying from the market"
 pretty_table(buy)
 
 @info "Selling to the market"
-pretty_table(buy)
+pretty_table(sell)
 
 @info "Storage level"
 pretty_table(lvl)

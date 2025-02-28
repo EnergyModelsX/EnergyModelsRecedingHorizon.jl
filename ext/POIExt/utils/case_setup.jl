@@ -71,7 +71,6 @@ end
 """
     EMRH._reset_field(m, x_rh, res_type::ElementReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::Union{InitReset,TimeWeightReset}, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
-    EMRH._reset_field(m, x_rh, res_type::TimeWeightReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::OperReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 
 Resets the field identified through `lens` of element `x_rh` with a JuMP parameter variable

@@ -10,6 +10,7 @@ a [`Resource`](@extref EnergyModelsBase.Resource), a [`RecHorEnergyModel`](@ref)
 The individual subfunctions are given as:
 
     _find_update_paths(field::AbstractElement, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::StorageValueCut, current_path::Vector{Any}, all_paths::Vector{Any})
     _find_update_paths(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
     _find_update_paths(field::T, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:Union{Data, EMB.AbstractStorageParameters, ElementValue}}
     _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
