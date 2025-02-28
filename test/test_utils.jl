@@ -64,16 +64,16 @@
     case_rh = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
     model_rh = EMRH.updated(EMRH.get_sub_model(𝒰))
 
-    m_rh1 = run_model(case_rh, model_rh, optimizer)
-    @test termination_status(m_rh1) == MOI.OPTIMAL
+    m_rh = run_model(case_rh, model_rh, optimizer)
+    @test termination_status(m_rh) == MOI.OPTIMAL
 
     m_EMB = run_model(case, model, optimizer)
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
-    results_EMRH = Dict{Symbol,AbstractDataFrame}()
+    res_EMRH = Dict{Symbol,AbstractDataFrame}()
     opers_impl = collect(𝒯)[indices_implementation(hor_test)]
-    EMRH.update_results!(results_EMRH, m_rh1, 𝒰, opers_impl)
-    results_EMB = EMRH.get_results(m_EMB)
+    EMRH.update_results!(res_EMRH, m_rh, 𝒰, opers_impl)
+    res_EMB = EMRH.get_results(m_EMB)
     excl_var = [
         # Strategic indexed and empty
         :opex_var, :opex_fixed, :link_opex_var, :link_opex_fixed, :stor_level_Δ_sp,
@@ -82,9 +82,44 @@
         # Empty variables
         :emissions_node, :emissions_link, :stor_discharge_inst, :link_cap_inst,
     ]
-    @test Set(keys(results_EMB)) == union(keys(results_EMRH), excl_var)
-    results_EMB_df = EMRH.get_results_df(m_EMB)
-    @test Set(keys(results_EMB_df)) == union(keys(results_EMRH), excl_var)
+    # Test that we have the correct keys when we extract the values
+    # - If loop in update_results!(results, m, 𝒰, opers)
+    # - get_results(m::JuMP.Model)
+    # - _get_values_from_obj
+    @test Set(keys(res_EMB)) == union(keys(res_EMRH), excl_var)
+    res_EMB_df = EMRH.get_results_df(m_EMB)
+    @test Set(keys(res_EMB_df)) == union(keys(res_EMRH), excl_var)
+
+    # Extract the empty keys from the EMB dictionary
+    res_EMB_red = Dict(k => val for (k, val) ∈ res_EMB if !isempty(val))
+
+    # Test that the extraction results in the correct results for EnergyModelsBase
+    # - get_results(m::JuMP.Model)
+    @test all(
+        all(value.(m_EMB[k][t.x1, t.x2]) == t.y for t ∈ val)
+    for (k, val) ∈ res_EMB_red if length(val[1]) == 3)
+    @test all(
+        all(value.(m_EMB[k][t.x1, t.x2, t.x3]) == t.y for t ∈ val)
+    for (k, val) ∈ res_EMB_red if length(val[1]) == 4)
+
+    # Test that the extraction results in the correct results for EnergyModelsRecHorizon
+    # - update_results!(results, m, 𝒰, opers)
+    # - get_results(m::JuMP.Model)
+    # - _get_values_from_obj
+    t_dict = Dict(val => k for (k, val) ∈ EMRH.get_sub_periods(𝒰))
+    EMRH.updated(𝒰::EMRH.UpdateCase, x_org::TS.TimePeriod) = t_dict[x_org]
+    @test all(
+        all(
+            value.(m_rh[k][EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2])]) ==
+        r[:y] for r ∈ eachrow(val))
+    for (k, val) ∈ res_EMRH if ncol(val) == 3)
+    @test all(
+        all(
+            value.(m_rh[k][
+                EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2]), EMRH.updated(𝒰, r[:x3])
+            ]) ==
+        r[:y] for r ∈ eachrow(val))
+    for (k, val) ∈ res_EMRH if ncol(val) == 4)
 end
 
 @testset "Identification - Nodes" begin
