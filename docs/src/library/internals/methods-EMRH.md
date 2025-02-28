@@ -42,6 +42,7 @@ EMRH._path_type
 ```@docs
 EMRH._create_updatetype
 EMRH._add_elements!
+EMRH._update_future_value!
 EMRH._update_update_case!
 EMRH._reset_field(x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, opers::Vector{<:TS.TimePeriod})
 ```
@@ -55,7 +56,6 @@ EMRH.Accessors.ConstructionBase.constructorof
 ### [Future value functions](@id lib-int-fut_val)
 
 ```@docs
-EMRH.get_active_cut_time_weights
 EMRH.get_future_value_expression
 EMRH.create_future_value
 EMRH.create_future_value_couple
@@ -67,6 +67,7 @@ The following functions for accessing fields of the types are introduced:
 EMRH.coefficients
 EMRH.cut_rhs
 EMRH.weight
+EMRH.time_weight
 EMRH.cuts_time
 EMRH.cuts
 ```

@@ -60,6 +60,7 @@ EMRH.data_init
 
 ```@docs
 FutureValue
+ElementValue
 StorageValueCuts
 StorageValueCut
 ```

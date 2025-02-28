@@ -23,3 +23,23 @@ These functions are automatically used in the main function [`run_model_rh`](@re
 In addition, a new subtype of [`AbstractInitDataPath`](@ref EMRH.AbstractInitDataPath) associated to the new object must be created.
 [`AbstractInitDataPath`](@ref EMRH.AbstractInitDataPath) refers to a subtype of [`AbstractPath`](@ref EMRH.AbstractPath), which serves to identify the model variables that need updating (see the section on the *[code structure](@ref dev-code)* for more details).
 The standard behavior for this object is implemented in [`InitDataPath`](@ref EMRH.InitDataPath), which simply contains the variable key to be updated.
+
+!!! warning "New initial data with Vectors and POI"
+    If you create a new `AbstractInitData` in which the values that are reset are vectors (or generally speaking, not single values), you must create a new method [`EnergyModelsRecedingHorizon._reset_field`](@ref EMRH._reset_field(m, x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, 𝒯ᴿᴴ::TimeStructure)) for the `res_type` argument for the `ParametricOptInterface` implementation.
+
+    An example for a new type `VectorInitData` (with `VectorInitDataPath` for identifying the path) is given by
+
+    ```julia
+    function EMRH._reset_field(
+        m,
+        x_rh,
+        res_type::InitReset{VectorInitDataPath},
+        𝒰::UpdateCase,
+        𝒯ᴿᴴ::TimeStructure,
+    )
+        val_par = MOI.Parameter.(res_type.val)
+        res_type.var = @variable(m, [eachindex(res_type.val)] ∈ val_par)
+        @reset res_type.lens(x_rh) = res_type.var
+        return x_rh
+    end
+    ```

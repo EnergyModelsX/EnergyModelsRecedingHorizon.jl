@@ -54,7 +54,7 @@ export DurationHorizons, PeriodHorizons
 export durations, indices_optimization, indices_implementation
 
 # Types used for the future value
-export FutureValue, StorageValueCuts, StorageValueCut
+export FutureValue, ElementValue, StorageValueCuts, StorageValueCut
 
 # Auxiliary functions for future values
 export get_future_value, has_cuts

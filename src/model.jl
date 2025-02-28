@@ -31,9 +31,11 @@ function run_model_rh(
 )
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
+    opers = collect(𝒯)
     𝒳ᵛᵉᶜ = get_elements_vec(case)
     𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
+    has_future_value = !isempty(filter(el -> isa(el, Vector{<:FutureValue}), 𝒳ᵛᵉᶜ))
 
     # Create the `UpdateCase` based on the original `Case` structure
     𝒰 = _create_updatetype(model)
@@ -46,18 +48,31 @@ function run_model_rh(
     # Initialize loop variables
     results = Dict{Symbol,AbstractDataFrame}()
     𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
+    if has_future_value
+        # Extract the individual `FutureValue` types
+        𝒮ᵛ = get_sub_ele(𝒰, FutureValue)
+        val_types = unique([typeof(s_v) for s_v ∈ 𝒮ᵛ])
+        𝒮ᵛ⁻ᵛᵉᶜ = [convert(Vector{fv_type}, filter(s_v -> typeof(s_v) == fv_type, 𝒮ᵛ)) for fv_type ∈ val_types]
+    end
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
         @info "Solving for 𝒽: $𝒽"
         # Extract the time structure from the case to identify the used operational periods
         # and the receding horizon time structure
-        𝒯 = get_time_struct(case)
-        𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)))
-        opers_opt = collect(𝒯)[indices_optimization(𝒽)]
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
         ind_impl = indices_implementation(𝒽)
-        opers_impl = collect(𝒯)[ind_impl]
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+        time_elapsed = end_oper_time(last(opers_opt), 𝒯)
+
+        # Update the time weights/values of `FutureValue` types
+        if has_future_value
+            for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
+                _update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
+            end
+        end
 
         # Update the `UpdateCase` with the new values
         _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
@@ -216,11 +231,11 @@ function EMB.objective_operational(
     # Calculate the value for the future value
     future_value = JuMP.Containers.DenseAxisArray[]
     for val_type ∈ val_types
-        ℱˢᵘᵇ = filter(v -> typeof(v) == val_type, 𝒱)
-        push!(future_value, get_future_value_expression(m, ℱˢᵘᵇ, 𝒯ᴵⁿᵛ, modeltype))
+        𝒱ˢᵘᵇ = filter(v -> typeof(v) == val_type, 𝒱)
+        push!(future_value, get_future_value_expression(m, 𝒱ˢᵘᵇ, 𝒯ᴵⁿᵛ, modeltype))
     end
 
-    return @expression(m, [t_inv ∈ 𝒯ᴵⁿᵛ], sum(ℱˢᵘᵇ[t_inv] for ℱˢᵘᵇ ∈ future_value))
+    return @expression(m, [t_inv ∈ 𝒯ᴵⁿᵛ], sum(𝒱ˢᵘᵇ[t_inv] for 𝒱ˢᵘᵇ ∈ future_value))
 end
 
 """
@@ -232,11 +247,11 @@ unspecified subtypes of `FutureValue`.
 function create_future_value(m, v::FutureValue, 𝒯,  modeltype) end
 
 """
-    create_future_value_couple(m, 𝒯, 𝒱::Vector{StorageValueCuts}, modeltype::RecHorOperationalModel)
+    create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::EnergyModel)
 
 Build cut constraints for all cuts in a `StorageValueCuts` element.
 """
-function create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::RecHorOperationalModel)
+function create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::EnergyModel)
 
     @constraint(m, [svc ∈ cuts(v)],
         m[:future_value][v] +
@@ -248,8 +263,9 @@ end
 """
     get_future_value_expression(m, 𝒱::Vector{StorageValueCuts}, 𝒯ᴵⁿᵛ::TS.AbstractStratPers, modeltype::EnergyModel)
 
-The method returns an experssion equal the sum of the future_value of all active cuts.
-Inactive cuts are weightet with 0.
+The method returns an expression equal to the sum of the `future_value` of all active cuts.
+Inactive cuts are weighted with 0 but still included to keep the number of variables
+unchanged.
 """
 function get_future_value_expression(
     m,
@@ -257,12 +273,8 @@ function get_future_value_expression(
     𝒯ᴵⁿᵛ::TS.AbstractStratPers,
     modeltype::EnergyModel,
 )
-
-    # Set the weight of inactive cuts to 0
-    time_weights = get_active_cut_time_weights(𝒱, sum(duration(t) for t ∈ first(𝒯ᴵⁿᵛ)))
     return @expression(m, [t_inv ∈ 𝒯ᴵⁿᵛ],
-        -sum(
-            m[:future_value][v] * v.weight * time_weight
-        for (v, time_weight) ∈ time_weights) / (duration_strat(t_inv))
+        -sum(m[:future_value][v] * weight(v) * time_weight(v) for v ∈ 𝒱) /
+        duration_strat(t_inv)
     )
 end

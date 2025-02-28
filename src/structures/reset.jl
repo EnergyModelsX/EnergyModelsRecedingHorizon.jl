@@ -24,9 +24,16 @@ struct OperPath <: AbstractPath end
 """
     struct ElementPath <: AbstractPath
 
-Internal type for paths pointing towards nodes.
+Internal type for paths pointing towards elements.
 """
 struct ElementPath <: AbstractPath end
+
+"""
+    struct TimeWeightPath <: AbstractPath
+
+Internal type for paths pointing towards the time weight of a future value.
+"""
+struct TimeWeightPath <: AbstractPath end
 
 """
     struct InitDataPath <: AbstractPath
@@ -75,7 +82,7 @@ utilized for automatically creating the lens to the field path.
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
   [`_find_update_paths`](@ref).
-- **`x`** is the instance of a type for which the which the reset type is created.
+- **`x`** is the instance of a type for which the reset type is created.
 
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
@@ -101,7 +108,7 @@ constructor is utilized for automatically creating the lens to the field path.
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
   [`_find_update_paths`](@ref).
-- **`x`** is the instance of a type for which the which the reset type is created.
+- **`x`** is the instance of a type for which the reset type is created.
 
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
@@ -122,6 +129,32 @@ mutable struct OperReset <: AbstractReset
 end
 
 """
+    mutable struct TimeWeightReset <: AbstractReset
+
+[`AbstractReset`](@ref) for resetting the time weight used in future value calculations.
+
+# Inner constructor arguments
+- **`field_path::Vector`** is the path towards the field as identified through the function
+  [`_find_update_paths`](@ref).
+- **`x`** is the instance of a type for which the reset type is created.
+
+# Fields
+- **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
+- **`var`** is the variable when using `ParametricOptInterface`.
+- **`val`** is the initial data value that should be used in the analyses
+"""
+mutable struct TimeWeightReset <: AbstractReset
+    lens::Union{PropertyLens,ComposedFunction}
+    var
+    val
+    function TimeWeightReset(field_path::Vector, x)
+        lens = _create_lens_for_field(field_path)
+        val = lens(x)
+        new(lens, nothing, val)
+    end
+end
+
+"""
     mutable struct InitReset{T} <: AbstractReset where {T<:AbstractInitDataPath}
 
 [`AbstractReset`](@ref) for resetting initial data of an element. The inner constructor is
@@ -132,7 +165,7 @@ utilized for automatically creating the lens to the field path.
   [`_find_update_paths`](@ref).
 - **`path::AbstractInitDataPath`** is the [`AbstractPath`](@ref) of the init data. It
   includes additional information that is utilized when resetting an element.
-- **`x`** is the instance of a type for which the which the reset type is created.
+- **`x`** is the instance of a type for which the reset type is created.
 
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
@@ -156,6 +189,7 @@ end
 """
     ResetType(field_path::Vector, _::OperPath, x)
     ResetType(field_path::Vector, _::ElementPath, x)
+    ResetType(field_path::Vector, _::TimeWeightPath, x)
     ResetType(field_path::Vector, path::AbstractInitDataPath, x)
 
 Constructor for [`AbstractReset`](@ref) types depending on their specified [`AbstractPath`](@ref).
@@ -168,6 +202,7 @@ Constructor for [`AbstractReset`](@ref) types depending on their specified [`Abs
 """
 ResetType(field_path::Vector, _::OperPath, x) = OperReset(field_path, x)
 ResetType(field_path::Vector, _::ElementPath, x) = ElementReset(field_path, x)
+ResetType(field_path::Vector, _::TimeWeightPath, x) = TimeWeightReset(field_path, x)
 ResetType(field_path::Vector, path::AbstractInitDataPath, x) = InitReset(field_path, path, x)
 
 """
@@ -260,6 +295,23 @@ mutable struct LinkSub{T<:Link} <: AbstractSub
 end
 
 """
+    mutable struct FutureValueSub{T<:FutureValue} <: AbstractSub
+
+[`AbstractSub`](@ref) for [`FutureValue`](@ref)s.
+
+# Fields
+- **`new::T`** is the new type after resetting its values
+- **`org::T`** is the original type before resetting its values.
+- **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types for the given
+  [`FutureValue`](@ref).
+"""
+mutable struct FutureValueSub{T<:FutureValue} <: AbstractSub
+    new::T
+    org::T
+    resets::Vector{<:AbstractReset}
+end
+
+"""
     Substitution(x::T, resets::Vector{<:AbstractReset}) where {T}
     Substitution(new::T, org::T, resets::Vector{<:AbstractReset}) where {T<:Resource}
     Substitution(new::T, org::T, resets::Vector{<:AbstractReset}) where {T<:RecHorEnergyModel}
@@ -285,6 +337,7 @@ resets(s::AbstractSub) = s.resets
 """
     _ele_to_sub(::Type{<:EMB.Node})
     _ele_to_sub(::Type{<:Link})
+    _ele_to_sub(::Type{<:FutureValue})
 
 Returns the subtype of [`AbstractSub`](@ref) for a given element.
 
@@ -293,6 +346,7 @@ Returns the subtype of [`AbstractSub`](@ref) for a given element.
 """
 _ele_to_sub(::Type{<:EMB.Node}) = NodeSub
 _ele_to_sub(::Type{<:Link}) = LinkSub
+_ele_to_sub(::Type{<:FutureValue}) = FutureValueSub
 
 has_init(s::AbstractSub) = has_init(s.org)
 has_init(𝒮::Vector{<:AbstractSub}) = any(has_init(s) for s ∈ 𝒮)
@@ -413,6 +467,8 @@ This element vector can be directly utilized for the field elements of a
 [`Case`](@extref EnergyModelsBase.Case).
 """
 EMB.get_links(𝒰::UpdateCase) = Link[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, EMB.Link)]
+
+get_future_value(𝒰::UpdateCase) = FutureValue[s.new for s ∈ get_sub_ele(𝒰, FutureValue)]
 
 """
     updated(𝒰::UpdateCase, x_org::AbstractElement)

@@ -1,15 +1,18 @@
 """
     _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
+    _find_update_paths(x::StorageValueCuts)
 
-Function for returning all paths within an [`AbstractElement`](@extref EnergyModelsBase.AbstractElement),
-a [`Resource`](@extref EnergyModelsBase.Resource), or a [`RecHorEnergyModel`](@ref) that
-**must** be updated in the receding horizon framework  as `Vector{Vector}`.
+Returns all paths within an [`AbstractElement`](@extref EnergyModelsBase.AbstractElement),
+a [`Resource`](@extref EnergyModelsBase.Resource), a [`RecHorEnergyModel`](@ref), or a
+[`StorageValueCuts`](@ref) that **must** be updated in the receding horizon framework as
+`Vector{Vector}`.
 
 The individual subfunctions are given as:
 
     _find_update_paths(field::AbstractElement, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::StorageValueCut, current_path::Vector{Any}, all_paths::Vector{Any})
     _find_update_paths(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_update_paths(field::Union{Data, EMB.AbstractStorageParameters}, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::T, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:Union{Data, EMB.AbstractStorageParameters, ElementValue}}
     _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
     _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
     _find_update_paths(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
@@ -65,6 +68,15 @@ function _find_update_paths(
     end
     return all_paths
 end
+function _find_update_paths(x::StorageValueCuts)
+    all_paths = Any[[:time_weight, TimeWeightPath()]]
+    current_path = []
+    for (i, c) ∈ enumerate(cuts(x))
+        new_path = vcat(current_path, [:cuts, "[$(i)]"])
+        _find_update_paths(c, new_path, all_paths)
+    end
+    return all_paths
+end
 function _find_update_paths(
     field::AbstractElement,
     current_path::Vector{Any},
@@ -72,6 +84,16 @@ function _find_update_paths(
 )
     new_path = vcat(current_path, [ElementPath()])
     push!(all_paths, new_path)
+end
+function _find_update_paths(
+    field::StorageValueCut,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    for (i, c) ∈ enumerate(field.coeffs)
+        new_path = vcat(current_path, [:coeffs, "[$(i)]"])
+        _find_update_paths(c, new_path, all_paths)
+    end
 end
 function _find_update_paths(
     field::Vector{<:Data},
@@ -87,7 +109,7 @@ function _find_update_paths(
     field::T,
     current_path::Vector{Any},
     all_paths::Vector{Any},
-) where {T <: Union{Data,EMB.AbstractStorageParameters}}
+) where {T<:Union{Data, EMB.AbstractStorageParameters, ElementValue}}
     for f ∈ fieldnames(T)
         new_path = vcat(current_path, f)
         _find_update_paths(getfield(field, f), new_path, all_paths)

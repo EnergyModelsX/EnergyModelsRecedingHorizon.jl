@@ -21,6 +21,7 @@ function EMRH.run_model_rh(
     𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
+    has_future_value = !isempty(filter(el -> isa(el, Vector{<:FutureValue}), 𝒳ᵛᵉᶜ))
 
     # Assert that the horizon is functioning with the POI implementation.
     horizon_duration = all(
@@ -48,7 +49,7 @@ function EMRH.run_model_rh(
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure
     𝒯 = get_time_struct(case)
-    𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽₀)))
+    𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
     opers_opt = collect(𝒯)[indices_optimization(𝒽₀)]
     ind_impl = indices_implementation(𝒽₀)
     opers_impl = collect(𝒯)[ind_impl]
@@ -70,6 +71,12 @@ function EMRH.run_model_rh(
     # Initialize loop variables
     results = Dict{Symbol,AbstractDataFrame}()
     𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
+    if has_future_value
+        # Extract the individual `FutureValue` types
+        𝒮ᵛ = get_sub_ele(𝒰, FutureValue)
+        val_types = unique([typeof(s_v) for s_v ∈ 𝒮ᵛ])
+        𝒮ᵛ⁻ᵛᵉᶜ = [convert(Vector{fv_type}, filter(s_v -> typeof(s_v) == fv_type, 𝒮ᵛ)) for fv_type ∈ val_types]
+    end
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
@@ -83,12 +90,21 @@ function EMRH.run_model_rh(
             break
         end
 
-        # Extract the individual operational periods
+        # Extract the time structure from the case to identify the used operational periods
+        # and the receding horizon time structure
         opers_opt = collect(𝒯)[indices_optimization(𝒽)]
         ind_impl = indices_implementation(𝒽)
         opers_impl = collect(𝒯)[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
         opers_not_impl = setdiff(opers_opt, opers_impl)
+        time_elapsed = end_oper_time(last(opers_opt), 𝒯)
+
+        # Update the time weights/values of `FutureValue` types
+        if has_future_value
+            for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
+                _update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
+            end
+        end
 
         # Update and solve model
         isfirst(𝒽) || update_model!(m, 𝒰, opers_opt, 𝒯ᵣₕ)

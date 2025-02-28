@@ -50,7 +50,7 @@ end
 
 """
     reset_field(x_rh, res_type::ElementReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
-    reset_field(x_rh, res_type::InitReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    reset_field(x_rh, res_type::Union{InitReset, TimeWeightReset}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
     reset_field(x_rh, res_type::OperReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
@@ -72,7 +72,7 @@ function _reset_field(
 end
 function _reset_field(
     x_rh,
-    res_type::InitReset,
+    res_type::Union{InitReset, TimeWeightReset},
     𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
@@ -97,7 +97,7 @@ Initialize an [`UpdateCase`](@ref) based on the preovided the [`RecHorEnergyMode
 """
 function _create_updatetype(model::RecHorEnergyModel)
     paths_model = _find_update_paths(model)
-    reset_model = AbstractReset[ResetType(field_id, field_id[end], x) for field_id ∈ paths_model]
+    reset_model = AbstractReset[ResetType(field_id, field_id[end], model) for field_id ∈ paths_model]
     return UpdateCase(Substitution(model, reset_model), Dict(), ProductSub[], Vector[])
 end
 

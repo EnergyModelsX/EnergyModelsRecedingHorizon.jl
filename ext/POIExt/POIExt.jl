@@ -2,9 +2,10 @@ module POIExt
 
 using EnergyModelsBase
 using EnergyModelsRecHorizon
-using .EnergyModelsRecHorizon: UpdateCase, AbstractSub, ElementReset, InitReset, OperReset,
+using .EnergyModelsRecHorizon: UpdateCase, AbstractSub,
+ElementReset, InitReset, TimeWeightReset, OperReset,
 _create_updatetype, _add_elements!, update_results!, update_init_data!, _update_case_types!,
-get_sub_model, get_sub_products, get_sub_elements_vec,
+_update_future_value!, get_sub_model, get_sub_products, get_sub_elements_vec, get_sub_ele,
 updated, original, resets
 
 using JuMP
