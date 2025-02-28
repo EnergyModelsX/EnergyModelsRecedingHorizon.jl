@@ -25,29 +25,31 @@ logger_org = global_logger()
 logger_new = ConsoleLogger(Error)
 global_logger(logger_new)
 
-@testset "RecedingHorizons" begin
-    include("test_general.jl")
-    @testset "EMRecedingHorizon - Examples" begin
+@testset "RecedingHorizon" begin
+    @testset "RecedingHorizon | General" begin
+        include("test_general.jl")
+    end
+    @testset "RecedingHorizon | Examples" begin
         include("test_examples.jl")
     end
 
-    @testset "EMRecedingHorizon - FutureValue" begin
+    @testset "RecedingHorizon | FutureValue" begin
         include("test_future_value.jl")
     end
 
-    @testset "RecedingHorizon - POI implementation" begin
+    @testset "RecedingHorizon | POI implementation" begin
         include("test_poi.jl")
     end
 
-    @testset verbose = true "EMRecedingHorizon - Utility functions" begin
+    @testset verbose = true "RecedingHorizon | Utility functions" begin
         include("test_utils.jl")
     end
 
-    @testset "RecedingHorizon - Horizon types" begin
+    @testset "RecedingHorizon | Horizon types" begin
         include("horizon_types.jl")
     end
 
-    @testset "EMRecedingHorizon - Create new node" begin
+    @testset "RecedingHorizon | Create new node" begin
         include("test_new_initialization.jl")
     end
 end
