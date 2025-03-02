@@ -71,12 +71,3 @@ EMRH.time_weight
 EMRH.cuts_time
 EMRH.cuts
 ```
-
-### [Unused functions](@id lib-int-unused)
-
-```@docs
-EMRH._get_node_index
-EMRH._has_unique_strings
-EMRH._fields_with_operational_profile
-EMRH._has_field_operational_profile
-```
