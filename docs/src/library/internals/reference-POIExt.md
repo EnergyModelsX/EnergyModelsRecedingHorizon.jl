@@ -25,14 +25,6 @@ _update_parameter_values!
 _update_parameter!
 ```
 
-### [Unused functions](@id lib-POIExt-ext-unused)
-
-```@docs
-_set_POI_par_as_operational_profile
-_set_values_operational_profile
-_get_new_POI_values
-```
-
 ## [EnergyModelsRecHorizon](@id lib-int-POIExt-EMRH)
 
 ### [Exported methods](@id lib-int-POIExt-EMRH-exp_met)
