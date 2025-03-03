@@ -621,8 +621,8 @@ end
     svcs = StorageValueCuts(
         "wv0", 0, 1, 1,
         [
-            StorageValueCut(1, Dict(storage_1 => -50, storage_2 => -70), 0),
-            StorageValueCut(2, Dict(storage_1 => -40, storage_2 => -30), 250),
+            StorageValueCut(1, [ElementValue(storage_1, -50), ElementValue(storage_2, -70)], 0),
+            StorageValueCut(2, [ElementValue(storage_1, -40), ElementValue(storage_2, -30)], 250),
         ]
     )
     𝒱 = [svcs]

@@ -7,7 +7,7 @@ before_script:
   - apt-get update -qq && apt-get install -y git
   
   # Add the public General registry.
-  - julia -e 'using Pkg; Pkg.Registry.add(RegistrySpec(url = "https://github.com/JuliaRegistries/General"))'
+  - julia -e 'using Pkg; Pkg.Registry.add("General")'
 
 
 # Below is the template to run the tests in Julia
