@@ -54,6 +54,10 @@ global_logger(logger_new)
     @testset "RecedingHorizon | POI implementation" begin
         include("test_poi.jl")
     end
+
+    @testset "RecedingHorizon | Geography" begin
+        include("test_emg.jl")
+    end
 end
 # Reset the loglevel
 global_logger(logger_org)

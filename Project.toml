@@ -13,14 +13,17 @@ TimeStruct = "f9ed5ce0-9f41-4eaa-96da-f38ab8df101c"
 
 [weakdeps]
 ParametricOptInterface = "0ce4ce61-57bf-432b-a095-efac525d185e"
+EnergyModelsGeography = "3f775d88-a4da-46c4-a2cc-aa9f16db6708"
 
 [extensions]
 POIExt = "ParametricOptInterface"
+EMGExt = "EnergyModelsGeography"
 
 [compat]
 Accessors = "^0.1.39"
 DataFrames = "^1.7.0"
 EnergyModelsBase = "^0.9.0"
+EnergyModelsGeography = "0.11.0"
 JuMP = "^1.5"
 ParametricOptInterface = "^0.9"
 TimeStruct = "^0.9.1"
