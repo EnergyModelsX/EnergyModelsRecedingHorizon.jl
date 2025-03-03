@@ -137,7 +137,7 @@ end
 
     struct TestInitData <: AbstractInitData end
 
-    # Create individual nodes to checked for path creation
+    # Create the individual nodes
     av = GenAvailability("Availability", resources)
     source_initdata = RefSource(
         "source",
@@ -314,7 +314,7 @@ end
         opers_impl = opers[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
-        # Test that the individual reset types functions are working
+        # Test that the individual reset functions are working for all types
         # All functions are located within the file src/structures/reset.jl
         𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
         @test 𝒮ᵛᵉᶜ == 𝒰.elements
@@ -340,7 +340,7 @@ end
         @test isnothing(reset_storage.var)
         @test reset_storage.path == EMRH.InitDataPath(:stor_level)
 
-        # Test that the reset are working
+        # Test that the reset functionality is working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
         # - _update_case_types!
         # - reset_field
@@ -367,6 +367,7 @@ end
 
 @testset "Identification - Links" begin
     # Create the individual resources
+    co2 = ResourceEmit("co2", 1.0)
     el = ResourceCarrier("el", 0.2)
 
     # Create the profile
@@ -374,7 +375,7 @@ end
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
 
-    # Create individual nodes to checked for path creation
+    # Create the individual nodes
     src = RefSource(
         "source",
         FixedProfile(1e12),
@@ -464,7 +465,7 @@ end
         opers_impl = opers[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
-        # Test that the individual reset types functions are working
+        # Test that the individual reset functions are working for all types
         # All functions are located within the file src/structures/reset.jl
         𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
         @test 𝒮ᵛᵉᶜ == 𝒰.elements
@@ -480,7 +481,7 @@ end
         @test reset_link[2].lens(link) == sink
         @test reset_link[2].val == sink
 
-        # Test that the reset are working
+        # Test that the reset functionality is working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
         # - _update_case_types!
         # - reset_field
@@ -523,7 +524,7 @@ end
     )
 
     @testset "Path creation" begin
-        # Test of all potential modelt input from EMRH as called through the function
+        # Test of all potential model input from EMRH as called through the function
         # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
 
         # The individual function flow is included on top
@@ -568,12 +569,12 @@ end
         opers_impl = opers[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
-        # Test that the individual reset types functions are working
+        # Test that the individual reset functions are working for all types
         # All functions are located within the file src/structures/reset.jl
         sᵐ = EMRH.get_sub_model(𝒰)
         @test isa(EMRH.resets(sᵐ)[1], EMRH.OperReset)
 
-        # Test that the reset are working
+        # Test that the reset functionality is working
         # - _update_case_types!
         # - reset_field
         EMRH._update_case_types!(sᵐ, 𝒰, opers)
@@ -596,7 +597,7 @@ end
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
 
-    # Create individual nodes to checked for path creation
+    # Create the individual nodes
     storage_1 = RefStorage{RecedingAccumulating}(
         "storage_1",
         StorCapOpexVar(profile, FixedProfile(40)),
@@ -628,7 +629,7 @@ end
     𝒱 = [svcs]
 
     @testset "Path creation" begin
-        # Test of all potential modelt input from EMRH as called through the function
+        # Test of all potential model input from EMRH as called through the function
         # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
 
         # The individual function flow is included on top
@@ -692,7 +693,7 @@ end
         opers_impl = opers[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
-        # Test that the individual reset types functions are working
+        # Test that the individual reset functions are working for all types
         # All functions are located within the file src/structures/reset.jl
         𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
         @test isa(𝒮ᵛᵉᶜ[2], Vector{EMRH.FutureValueSub})
@@ -715,7 +716,7 @@ end
         @test reset_cuts[5].lens(svcs) == storage_2
         @test reset_cuts[5].val == storage_2
 
-        # Test that the reset are working
+        # Test that the reset functionality is working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
         # - _update_case_types!
         # - reset_field
