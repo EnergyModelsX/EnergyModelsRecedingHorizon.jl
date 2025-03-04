@@ -3,8 +3,9 @@ module EMGExt
 using EnergyModelsBase
 using EnergyModelsGeography
 using EnergyModelsRecHorizon
-using .EnergyModelsRecHorizon: _find_update_paths,
-AbstractSub, AbstractReset, get_sub_ele, UpdateCase
+using .EnergyModelsRecHorizon: RecHorEnergyModel, _find_update_paths,
+AbstractSub, AbstractReset, get_sub_ele, UpdateCase,
+AbstractInitDataPath, InitReset, InitDataPath
 
 using JuMP
 using TimeStruct
@@ -18,7 +19,9 @@ const TS = TimeStruct
 
 include(joinpath("structures", "data.jl"))
 include(joinpath("structures", "reset.jl"))
+include(joinpath("structures", "node.jl"))
 
 include(joinpath("utils", "identification.jl"))
 
+include("constraint_functions.jl")
 end

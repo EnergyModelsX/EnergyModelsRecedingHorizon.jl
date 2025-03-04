@@ -177,12 +177,13 @@ utilized for automatically creating the lens to the field path.
 mutable struct InitReset{T} <: AbstractReset where {T<:AbstractInitDataPath}
     lens::Union{PropertyLens,ComposedFunction}
     path::T
+    idx::Int
     var
     val
-    function InitReset(field_path::Vector, path::T, x) where {T<:AbstractInitDataPath}
+    function InitReset(field_path::Vector, path::T, idx, x) where {T<:AbstractInitDataPath}
         lens = _create_lens_for_field(field_path)
         val = lens(x)
-        new{T}(lens, path, nothing, val)
+        new{T}(lens, path, idx, nothing, val)
     end
 end
 
@@ -203,7 +204,8 @@ Constructor for [`AbstractReset`](@ref) types depending on their specified [`Abs
 ResetType(field_path::Vector, _::OperPath, x) = OperReset(field_path, x)
 ResetType(field_path::Vector, _::ElementPath, x) = ElementReset(field_path, x)
 ResetType(field_path::Vector, _::TimeWeightPath, x) = TimeWeightReset(field_path, x)
-ResetType(field_path::Vector, path::AbstractInitDataPath, x) = InitReset(field_path, path, x)
+ResetType(field_path::Vector, path::AbstractInitDataPath, x) =
+    InitReset(field_path, path, 1, x)
 
 """
     is_init_reset(rt::AbstractReset)

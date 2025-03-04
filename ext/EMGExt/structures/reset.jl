@@ -1,3 +1,9 @@
+
+function EMRH.ResetType(field_path::Vector, path::AbstractInitDataPath, x::Transmission)
+    idx = parse(Int, field_path[2][2:end-1])
+    return InitReset(field_path, path, idx, x)
+end
+
 """
     mutable struct AreaSub{T<:Area} <: AbstractSub
 
@@ -41,3 +47,28 @@ end
 EMRH._ele_to_sub(::Type{<:Transmission}) = TransmissionSub
 
 EMG.get_transmissions(𝒰::UpdateCase) = Transmission[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, Transmission)]
+
+function EMRH.original(𝒰::UpdateCase, tm_new::TransmissionMode)
+    𝒮ˡ = get_sub_ele(𝒰, Transmission)
+    tm_old = nothing
+    for s_l ∈ 𝒮ˡ
+        idx = findfirst(tm -> tm == tm_new, modes(s_l.new))
+        if !isnothing(idx)
+            tm_old = modes(s_l.org)[idx]
+            break
+        end
+    end
+    return tm_old
+end
+function EMRH.updated(𝒰::UpdateCase, tm_org::TransmissionMode)
+    𝒮ˡ = get_sub_ele(𝒰, Transmission)
+    tm_new = nothing
+    for s_l ∈ 𝒮ˡ
+        idx = findfirst(tm -> tm == tm_org, modes(s_l.org))
+        if !isnothing(idx)
+            tm_new = modes(s_l.new)[idx]
+            break
+        end
+    end
+    return tm_new
+end
