@@ -13,29 +13,29 @@
     𝒩 = [
         GenAvailability("Availability", 𝒫),
         RefSource(
-            "electricity source", # id
-            FixedProfile(1e12), # cap
-            OperationalProfile([1, 10, 1, 10, 1]), # opex_var
-            FixedProfile(0), # opex_fixed
-            Dict(power => 1), # output
+            "electricity source",
+            FixedProfile(1e12),
+            OperationalProfile([1, 10, 1, 10, 1]),
+            FixedProfile(0),
+            Dict(power => 1),
         ),
         RefStorage{RecedingAccumulating}(
-            "electricity storage", # id
-            StorCapOpexVar(FixedProfile(100), FixedProfile(0.01)), # rate_cap, opex_var
-            StorCapOpexFixed(FixedProfile(1.5), FixedProfile(0)), # stor_cap, opex_fixed
-            power, # stor_res::T
-            Dict(power => 1), # input::Dict{<:Resource, <:Real}
-            Dict(power => 1), # output::Dict{<:Resource, <:Real}
+            "electricity storage",
+            StorCapOpexVar(FixedProfile(100), FixedProfile(0.01)),
+            StorCapOpexFixed(FixedProfile(1.5), FixedProfile(0)),
+            power,
+            Dict(power => 1),
+            Dict(power => 1),
             Vector([
                 StorageInitData(0),
-                EmptyData() # testing multiple data
+                EmptyData()
             ]),
         ),
         RefSink(
-            "electricity demand", # id
-            OperationalProfile([3, 4, 5, 6, 3]), # cap
-            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e6)), # penalty
-            Dict(power => 1), # input
+            "electricity demand",
+            OperationalProfile([3, 4, 5, 6, 3]),
+            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e6)),
+            Dict(power => 1),
         ),
     ]
 
@@ -64,16 +64,16 @@
     case_rh = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
     model_rh = EMRH.updated(EMRH.get_sub_model(𝒰))
 
-    m_rh1 = run_model(case_rh, model_rh, optimizer)
-    @test termination_status(m_rh1) == MOI.OPTIMAL
+    m_rh = run_model(case_rh, model_rh, optimizer)
+    @test termination_status(m_rh) == MOI.OPTIMAL
 
     m_EMB = run_model(case, model, optimizer)
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
-    results_EMRH = Dict{Symbol,AbstractDataFrame}()
+    res_EMRH = Dict{Symbol,AbstractDataFrame}()
     opers_impl = collect(𝒯)[indices_implementation(hor_test)]
-    EMRH.update_results!(results_EMRH, m_rh1, 𝒰, opers_impl)
-    results_EMB = EMRH.get_results(m_EMB)
+    EMRH.update_results!(res_EMRH, m_rh, 𝒰, opers_impl)
+    res_EMB = EMRH.get_results(m_EMB)
     excl_var = [
         # Strategic indexed and empty
         :opex_var, :opex_fixed, :link_opex_var, :link_opex_fixed, :stor_level_Δ_sp,
@@ -82,114 +82,330 @@
         # Empty variables
         :emissions_node, :emissions_link, :stor_discharge_inst, :link_cap_inst,
     ]
-    @test Set(keys(results_EMB)) == union(keys(results_EMRH), excl_var)
-    results_EMB_df = EMRH.get_results_df(m_EMB)
-    @test Set(keys(results_EMB_df)) == union(keys(results_EMRH), excl_var)
+    # Test that we have the correct keys when we extract the values
+    # - If loop in update_results!(results, m, 𝒰, opers)
+    # - get_results(m::JuMP.Model)
+    # - _get_values_from_obj
+    @test Set(keys(res_EMB)) == union(keys(res_EMRH), excl_var)
+    res_EMB_df = EMRH.get_results_df(m_EMB)
+    @test Set(keys(res_EMB_df)) == union(keys(res_EMRH), excl_var)
+
+    # Extract the empty keys from the EMB dictionary
+    res_EMB_red = Dict(k => val for (k, val) ∈ res_EMB if !isempty(val))
+
+    # Test that the extraction results in the correct results for EnergyModelsBase
+    # - get_results(m::JuMP.Model)
+    @test all(
+        all(value.(m_EMB[k][t.x1, t.x2]) == t.y for t ∈ val)
+    for (k, val) ∈ res_EMB_red if length(val[1]) == 3)
+    @test all(
+        all(value.(m_EMB[k][t.x1, t.x2, t.x3]) == t.y for t ∈ val)
+    for (k, val) ∈ res_EMB_red if length(val[1]) == 4)
+
+    # Test that the extraction results in the correct results for EnergyModelsRecHorizon
+    # - update_results!(results, m, 𝒰, opers)
+    # - get_results(m::JuMP.Model)
+    # - _get_values_from_obj
+    t_dict = Dict(val => k for (k, val) ∈ EMRH.get_sub_periods(𝒰))
+    EMRH.updated(𝒰::EMRH.UpdateCase, x_org::TS.TimePeriod) = t_dict[x_org]
+    @test all(
+        all(
+            value.(m_rh[k][EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2])]) ==
+        r[:y] for r ∈ eachrow(val))
+    for (k, val) ∈ res_EMRH if ncol(val) == 3)
+    @test all(
+        all(
+            value.(m_rh[k][
+                EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2]), EMRH.updated(𝒰, r[:x3])
+            ]) ==
+        r[:y] for r ∈ eachrow(val))
+    for (k, val) ∈ res_EMRH if ncol(val) == 4)
 end
 
-@testset "Identification of data to be changed" begin
+@testset "Identification - Nodes" begin
+    # Create the individual resources
     el = ResourceCarrier("el", 0.2)
     heat = ResourceCarrier("heat", 0.0)
     co2 = ResourceEmit("co2", 1.0)
     resources = [el, heat, co2]
 
-    profile = [1, 2, 3]
-    dim_t = length(profile)
-
-    data = [
-        EmissionsEnergy(OperationalProfile(profile)),
-        EmissionsProcess(Dict(co2 => OperationalProfile(profile))),
-        EmissionsProcess(Dict(co2 => FixedProfile(2))),
-    ]
+    # Create the profiles
+    n_op = 15
+    dur_op = ones(n_op)
+    profile = OperationalProfile(rand(n_op))
+    em_data = [EmissionsProcess(Dict(co2 => profile))]
 
     struct TestInitData <: AbstractInitData end
 
-    #create individual nodes of the system
+    # Create the individual nodes
     av = GenAvailability("Availability", resources)
-    source_fixed = RefSource(
-        "electricity source", #Node id or name
-        FixedProfile(1e12), #Capacity
-        FixedProfile(100), #variable OPEX
-        FixedProfile(0), #Fixed OPEN in EUR/8h
-        Dict(el => 1), #output from the node
-    )
     source_initdata = RefSource(
-        "electricity source", #Node id or name
-        FixedProfile(1e12), #Capacity
-        FixedProfile(100), #variable OPEX
-        FixedProfile(0), #Fixed OPEN in EUR/8h
-        Dict(el => 1), #output from the node
+        "source",
+        FixedProfile(1e12),
+        FixedProfile(100),
+        FixedProfile(0),
+        Dict(el => 1),
         Data[TestInitData()]
     )
     source_oper = RefSource(
-        "electricity source", #Node id or name
-        FixedProfile(1e12), #Capacity
-        OperationalProfile(profile), #variable OPEX
-        FixedProfile(0), #Fixed OPEN in EUR/8h
-        Dict(el => 1), #output from the node
+        "source",
+        FixedProfile(1e12),
+        profile,
+        FixedProfile(0),
+        Dict(el => 1),
+    )
+    source_strat = RefSource(
+        "source",
+        StrategicProfile([1e12]),
+        FixedProfile(100),
+        FixedProfile(0),
+        Dict(el => 1),
     )
     network = RefNetworkNode(
         "el_to_heat",
-        FixedProfile(1e12), #cap - This can be OperationalProfile
-        OperationalProfile(profile), #opex variable
+        FixedProfile(1e12),
+        profile,
         FixedProfile(0),
-        Dict(el => 1), #input
-        Dict(heat => 1), #output
-        data,
+        Dict(el => 1),
+        Dict(heat => 1),
+        [EmptyData(), EmissionsProcess(Dict(co2 => profile))],
     )
     storage = RefStorage{RecedingAccumulating}(
-        "electricity storage",
-        StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
-        StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
-        el, # stor_res::T
-        Dict(el => 1), # input::Dict{<:Resource, <:Real}
-        Dict(el => 1), # output::Dict{<:Resource, <:Real}
-    )
-    storage_data = RefStorage{RecedingAccumulating}(
-        "electricity storage",
-        StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
-        StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
-        el, # stor_res::T
-        Dict(el => 1), # input::Dict{<:Resource, <:Real}
-        Dict(el => 1), # output::Dict{<:Resource, <:Real}
-        [StorageInitData(0.5)],
-    )
-    storage_charge_oper = RefStorage{RecedingAccumulating}(
-        "electricity storage",
-        StorCapOpexVar(OperationalProfile(profile), FixedProfile(100)), # rate_cap, opex_var
-        StorCapOpexFixed(FixedProfile(10), FixedProfile(0)), # stor_cap, opex_fixed
-        el, # stor_res::T
-        Dict(el => 1), # input::Dict{<:Resource, <:Real}
-        Dict(el => 1), # output::Dict{<:Resource, <:Real}
-    )
-    storage_level_oper = RefStorage{RecedingAccumulating}(
-        "electricity storage",
-        StorCapOpexVar(FixedProfile(100), FixedProfile(100)), # rate_cap, opex_var
-        StorCapOpexFixed(OperationalProfile(profile), FixedProfile(0)), # stor_cap, opex_fixed
-        el, # stor_res::T
-        Dict(el => 1), # input::Dict{<:Resource, <:Real}
-        Dict(el => 1), # output::Dict{<:Resource, <:Real}
-    )
-    storage_charge_level_data_oper = RefStorage{RecedingAccumulating}(
-        "electricity storage",
-        StorCapOpexVar(OperationalProfile(profile), FixedProfile(100)), # rate_cap, opex_var
-        StorCapOpexFixed(OperationalProfile(profile), FixedProfile(0)), # stor_cap, opex_fixed
-        el, # stor_res::T
-        Dict(el => 1), # input::Dict{<:Resource, <:Real}
-        Dict(el => 1), # output::Dict{<:Resource, <:Real}
+        "storage",
+        StorCapOpexVar(profile, FixedProfile(100)),
+        StorCapOpexFixed(profile, FixedProfile(0)),
+        el,
+        Dict(el => 1),
+        Dict(el => 1),
         [StorageInitData(0.5)],
     )
     sink = RefSink(
-        "heat demand", #node ID or name
-        OperationalProfile(profile), #demand in MW (time profile)
+        "demand",
+        profile,
         Dict(
             :surplus => FixedProfile(0),
-            :deficit => OperationalProfile(1e6 * ones(dim_t)),
-        ), #surplus and deficit penalty
-        Dict(heat => 1), #energy demand and corresponding ratio
+            :deficit => profile,
+        ),
+        Dict(heat => 1)
     )
+    𝒩 = EMB.Node[av, source_oper, network, storage, sink]
 
-    # Creation of a new link type
+    # Creation of new node type to test that the dictionary with string keys is correctly
+    # considered
+    struct StringDict <: EMB.NetworkNode
+        profile::Dict{String,TimeProfile}
+    end
+
+    string_dict = StringDict(
+        Dict(
+            "a" => OperationalProfile([100, 100, 100]),
+            "b" => FixedProfile(10),
+            "c" => OperationalProfile([100, 100, 100]),
+        ),
+    )
+    Base.show(io::IO, w::StringDict) = "StringDict"
+
+    @testset "Path creation" begin
+        # Test of all potential node input from EMRH as called through the function
+        # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
+
+        # The individual function flow is included on top
+
+        # Test of a node with no lenses
+        # - _find_update_paths(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
+        @test issetequal(EMRH._find_update_paths(av), Any[])
+
+        # Test of a node with no lenses
+        # - _find_update_paths(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        global_logger(logger_org)
+        msg = "EMRH should not be used with strategic profiles"
+        @test_logs (:warn, msg)  EMRH._find_update_paths(source_strat)
+        global_logger(logger_new)
+
+        # Test of a node with with a single operational profile
+        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        @test issetequal(
+            EMRH._find_update_paths(source_oper),
+            [[:opex_var, EMRH.OperPath()]])
+
+        # Test of a node with operational profile and resource dictionary
+        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _dict_key(key::Resource)
+        @test issetequal(
+            EMRH._find_update_paths(network),
+            [
+                [:opex_var, EMRH.OperPath()],
+                [:data, "[2]", :emissions, co2, EMRH.OperPath()]
+            ],
+        )
+
+        # Test of a storage node with both variations and initial data
+        # - _find_update_paths(field::T, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:Union{Data, EMB.AbstractStorageParameters, ElementValue}}
+        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::InitData, current_path::Vector{Any}, all_paths::Vector{Any})
+        @test issetequal(
+            EMRH._find_update_paths(storage),
+            [
+                [:charge, :capacity, EMRH.OperPath()],
+                [:level, :capacity, EMRH.OperPath()],
+                [:data, "[1]", :init_val_dict, "[:stor_level]", EMRH.InitDataPath(:stor_level)],
+            ],
+        )
+
+        # Test of a node with operational profile and symbol dictionary
+        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _dict_key(key::Symbol)
+        @test issetequal(
+            EMRH._find_update_paths(sink),
+            [[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]],
+        )
+
+        # Test of the new node with string dictionary
+        # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _dict_key(key::String)
+        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        @test issetequal(
+            EMRH._find_update_paths(string_dict),
+            Any[
+                [:profile, "[\"a\"]", EMRH.OperPath()],
+                [:profile, "[\"c\"]", EMRH.OperPath()]
+            ],
+        )
+
+        # Test that init data throws error, when the respective function is not included
+        # - _find_update_paths(field::AbstractInitData, current_path::Vector{Any}, all_paths::Vector{Any})
+        @test_throws ErrorException EMRH._find_update_paths(source_initdata)
+    end
+
+    @testset "Lens creation" begin
+        # Create the lenses
+        lens_dict = EMRH._create_lens_dict(𝒩)
+
+        # Test that the lenses are created for all nodes
+        # - _create_lens_dict(𝒳::Vector{<:AbstractElement}
+        # - _create_lens_dict(x::Union{AbstractElement, RecHorEnergyModel})
+        # - _create_lens_for_field(field_id::Vector{<:Any})
+        @test all(haskey(lens_dict, n) for n ∈ 𝒩)
+        @test isempty(lens_dict[av])
+
+        # Test that the individual lenses are correctly created and working
+        @test all(
+            all(
+                lens(n) == profile
+            for (field, lens) ∈ lens_dict[n] if isa(typeof(field[end]), EMRH.OperPath))
+        for n ∈ 𝒩)
+        @test all(
+            all(
+                lens(n) == 0.5
+            for (field, lens) ∈ lens_dict[n] if isa(typeof(field[end]), EMRH.InitDataPath))
+        for n ∈ 𝒩)
+    end
+
+    @testset "Reset functionality" begin
+        # Create an operational modeltype and the time structure
+        modeltype = RecHorOperationalModel(
+            Dict(co2 => FixedProfile(100)),
+            Dict(co2 => FixedProfile(60)),
+            co2,
+        )
+
+        # Create the update type
+        𝒰 = EMRH._create_updatetype(modeltype)
+        EMRH._add_elements!(𝒰, 𝒩)
+
+        # Create all time related parameters
+        𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+        opers = collect(𝒯)
+        ℋ = PeriodHorizons(dur_op, 4, 2)
+        𝒽 = first(ℋ)
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+
+        # Test that the individual reset functions are working for all types
+        # All functions are located within the file src/structures/reset.jl
+        𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
+        @test 𝒮ᵛᵉᶜ == 𝒰.elements
+        @test isa(𝒮ᵛᵉᶜ[1], Vector{EMRH.NodeSub})
+        @test EMRH.get_sub_ele(𝒰, EMB.Node) == 𝒰.elements[1]
+        @test EMRH.get_sub_ele(𝒮ᵛᵉᶜ, EMB.Node) == 𝒰.elements[1]
+        @test isempty(EMRH.resets(𝒮ᵛᵉᶜ[1][1]))
+
+        # Test the source resets (OperReset)
+        reset_src = EMRH.resets(𝒮ᵛᵉᶜ[1][2])[1]
+        @test isa(reset_src, EMRH.OperReset)
+        @test !EMRH.is_init_reset(reset_src)
+        @test reset_src.lens(source_oper) == opex_var(source_oper)
+        @test reset_src.val == opex_var(source_oper)
+        @test isnothing(reset_src.var)
+
+        # Test the storages resets (InitReset)
+        reset_storage = EMRH.resets(𝒮ᵛᵉᶜ[1][4])[3]
+        @test isa(reset_storage, EMRH.InitReset{EMRH.InitDataPath})
+        @test EMRH.is_init_reset(reset_storage)
+        @test reset_storage.lens(storage) == EMRH.data_init(storage).init_val_dict[:stor_level]
+        @test reset_storage.val == EMRH.data_init(storage).init_val_dict[:stor_level]
+        @test isnothing(reset_storage.var)
+        @test reset_storage.path == EMRH.InitDataPath(:stor_level)
+
+        # Test that the reset functionality is working
+        # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+        # - _update_case_types!
+        # - reset_field
+        reset_storage.val = 5
+        EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+
+        # Extract the resetted nodes and test the functionality
+        𝒩ʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[1]]
+        @test all(EMRH.updated(𝒮ᵛᵉᶜ[1], n) == n_new for (n, n_new) ∈ zip(𝒩, 𝒩ʳ))
+        @test all(EMRH.updated(𝒰, n) == n_new for (n, n_new) ∈ zip(𝒩, 𝒩ʳ))
+        @test all(EMRH.original(𝒮ᵛᵉᶜ[1], n_new) == n for (n, n_new) ∈ zip(𝒩, 𝒩ʳ))
+        @test all(EMRH.original(𝒰, n_new) == n for (n, n_new) ∈ zip(𝒩, 𝒩ʳ))
+        @test get_elements_vec(𝒰) == Vector[𝒩ʳ]
+        @test get_nodes(𝒰) == 𝒩ʳ
+        @test 𝒩ʳ ≠ 𝒩
+
+        # Test the individual resets
+        @test all(opex_var(𝒩ʳ[k]).vals == opex_var(𝒩[k])[opers_opt] for k ∈ [2,3])
+        @test EMRH.data_init(𝒩ʳ[4]).init_val_dict[:stor_level] == 5.0
+        @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[opers_opt]
+    end
+end
+
+
+@testset "Identification - Links" begin
+    # Create the individual resources
+    co2 = ResourceEmit("co2", 1.0)
+    el = ResourceCarrier("el", 0.2)
+
+    # Create the profile
+    n_op = 15
+    dur_op = ones(n_op)
+    profile = OperationalProfile(rand(n_op))
+
+    # Create the individual nodes
+    src = RefSource(
+        "source",
+        FixedProfile(1e12),
+        profile,
+        FixedProfile(0),
+        Dict(el => 1),
+    )
+    sink = RefSink(
+        "demand",
+        profile,
+        Dict(:surplus => FixedProfile(0), :deficit => profile),
+        Dict(el => 1)
+    )
+    𝒩 = [src, sink]
+
+    # Creation of a new link type with an OperationalProfile
     struct ProfDirect <: Link
         id::Any
         from::EMB.Node
@@ -200,104 +416,242 @@ end
 
     link = ProfDirect(
         "prof_link",
-        source_fixed,
+        src,
         sink,
         Linear(),
-        OperationalProfile(profile),
+        profile,
     )
+    ℒ = Link[link]
 
-    # Creation of a modeltype with OperationalProfile
-    model = RecHorOperationalModel(
-        Dict(co2 => OperationalProfile([100, 100, 100])),
-        Dict(co2 => FixedProfile(60)),
-        co2,
-    )
+    @testset "Path creation" begin
+        # Test of all potential link input from EMRH as called through the function
+        # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
 
-    # Creation of new Node type
-    struct StringDict <: EMB.NetworkNode
-        profile::Dict{String,TimeProfile}
-    end
-    string_dict = StringDict(
-        Dict(
-            "a" => OperationalProfile([100, 100, 100]),
-            "b" => FixedProfile(10),
-            "c" => OperationalProfile([100, 100, 100]),
-        ),
-    )
-    Base.show(io::IO, w::StringDict) = "StringDict"
+        # The individual function flow is included on top
 
-    # Creation of a StorageValueCuts type
-    svcs = StorageValueCuts(
-        "wv0",
-        0,
-        1,
-        1,
-        [
-            StorageValueCut(1, Dict(storage => -50, storage_data => -70), 0),
-            StorageValueCut(2, Dict(storage => -40, storage_data => -30), 250),
-        ]
-    )
-
-    @testset "Identification - paths" begin
-        # Test of all potential node input from EMRH
-        @test issetequal(EMRH._find_update_paths(av), Any[])
-        @test issetequal(EMRH._find_update_paths(source_fixed), Any[])
-        @test issetequal(
-            EMRH._find_update_paths(source_oper),
-            [[:opex_var, EMRH.OperPath()]])
-        @test issetequal(
-            EMRH._find_update_paths(network),
-            [
-                [:opex_var, EMRH.OperPath()],
-                [:data, "[2]", :emissions, co2, EMRH.OperPath()]
-            ],
-        )
-        @test issetequal(EMRH._find_update_paths(storage), Any[])
-        @test issetequal(
-            EMRH._find_update_paths(storage_data),
-            [[:data, "[1]", :init_val_dict, "[:stor_level]", EMRH.InitDataPath(:stor_level)]],
-        )
-        @test issetequal(
-            EMRH._find_update_paths(storage_charge_oper),
-            [[:charge, :capacity, EMRH.OperPath()]],
-        )
-        @test issetequal(
-            EMRH._find_update_paths(storage_level_oper),
-            [[:level, :capacity, EMRH.OperPath()]],
-        )
-        @test issetequal(
-            EMRH._find_update_paths(storage_charge_level_data_oper),
-            [
-                [:charge, :capacity, EMRH.OperPath()],
-                [:level, :capacity, EMRH.OperPath()],
-                [:data, "[1]", :init_val_dict, "[:stor_level]", EMRH.InitDataPath(:stor_level)],
-            ],
-        )
-        @test issetequal(
-            EMRH._find_update_paths(sink),
-            [[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]],
-        )
-
-        # Test of link and model
+        # Test of a link with operational profile
+        # - _find_update_paths(field::AbstractElement, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         @test issetequal(
             EMRH._find_update_paths(link),
             [[:from, EMRH.ElementPath()], [:to, EMRH.ElementPath()], [:profile, EMRH.OperPath()]],
         )
+    end
+
+    @testset "Lens creation" begin
+        # Create the lenses
+        lens_dict = EMRH._create_lens_dict(ℒ)
+
+        # Test that the lenses are created for all nodes
+        # - _create_lens_dict(𝒳::Vector{<:AbstractElement}
+        # - _create_lens_dict(x::Union{AbstractElement, RecHorEnergyModel})
+        # - _create_lens_for_field(field_id::Vector{<:Any})
+        @test all(haskey(lens_dict, l) for l ∈ ℒ)
+
+        # Test that the individual lenses are correctly created and working
+        l = link
+        @test lens_dict[l][[:from, EMRH.ElementPath()]](l) == src
+        @test lens_dict[l][[:to, EMRH.ElementPath()]](l) == sink
+        @test lens_dict[l][[:profile, EMRH.OperPath()]](l) == profile
+    end
+
+    @testset "Reset functionality" begin
+        # Create an operational modeltype and the time structure
+        modeltype = RecHorOperationalModel(
+            Dict(co2 => FixedProfile(100)),
+            Dict(co2 => FixedProfile(60)),
+            co2,
+        )
+
+        # Create the update type
+        𝒰 = EMRH._create_updatetype(modeltype)
+        EMRH._add_elements!(𝒰, 𝒩)
+        EMRH._add_elements!(𝒰, ℒ)
+
+        # Create all time related parameters
+        𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+        opers = collect(𝒯)
+        ℋ = PeriodHorizons(dur_op, 4, 2)
+        𝒽 = first(ℋ)
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+
+        # Test that the individual reset functions are working for all types
+        # All functions are located within the file src/structures/reset.jl
+        𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
+        @test 𝒮ᵛᵉᶜ == 𝒰.elements
+        @test isa(𝒮ᵛᵉᶜ[2], Vector{EMRH.LinkSub})
+        @test EMRH.get_sub_ele(𝒰, EMB.Link) == 𝒰.elements[2]
+        @test EMRH.get_sub_ele(𝒮ᵛᵉᶜ, EMB.Link) == 𝒰.elements[2]
+
+        # Test the resets (ElementReset)
+        reset_link = EMRH.resets(𝒮ᵛᵉᶜ[2][1])
+        @test all(isa(reset_link[k], EMRH.ElementReset) for k ∈ [1,2])
+        @test reset_link[1].lens(link) == src
+        @test reset_link[1].val == src
+        @test reset_link[2].lens(link) == sink
+        @test reset_link[2].val == sink
+
+        # Test that the reset functionality is working
+        # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+        # - _update_case_types!
+        # - reset_field
+        EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+
+        # Extract the resetted nodes and links
+        𝒩ʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[1]]
+        ℒʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[2]]
+        @test get_elements_vec(𝒰) == Vector[𝒩ʳ, ℒʳ]
+        @test get_links(𝒰) == ℒʳ
+        @test 𝒩ʳ ≠ 𝒩
+        @test ℒʳ ≠ ℒ
+
+        # Test that the nodes are reset
+        @test opex_var(𝒩ʳ[1]).vals == opex_var(𝒩[1])[opers_opt]
+        @test capacity(𝒩ʳ[2]).vals == capacity(𝒩[2])[opers_opt]
+
+        # Test the individual resets of the link
+        @test ℒʳ[1].from == 𝒩ʳ[1]
+        @test ℒʳ[1].to == 𝒩ʳ[2]
+        @test ℒʳ[1].profile.vals == ℒ[1].profile[opers_opt]
+    end
+end
+
+@testset "Identification - modeltype" begin
+    # Create the individual resources
+    el = ResourceCarrier("el", 0.2)
+    co2 = ResourceEmit("co2", 1.0)
+
+    # Create the profile
+    n_op = 15
+    dur_op = ones(n_op)
+    profile = OperationalProfile(rand(n_op))
+
+    # Create an operational modeltype
+    modeltype = RecHorOperationalModel(
+        Dict(co2 => profile),
+        Dict(co2 => FixedProfile(60)),
+        co2,
+    )
+
+    @testset "Path creation" begin
+        # Test of all potential model input from EMRH as called through the function
+        # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
+
+        # The individual function flow is included on top
+
+        # Test of a link with operational profile
+        # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _dict_key(key::Resource)
+        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         @test issetequal(
-            EMRH._find_update_paths(model),
+            EMRH._find_update_paths(modeltype),
             [[:emission_limit, co2, EMRH.OperPath()]],
         )
+    end
 
-        # Test of the new node
-        @test issetequal(
-            EMRH._find_update_paths(string_dict),
-            Any[
-                [:profile, "[\"a\"]", EMRH.OperPath()],
-                [:profile, "[\"c\"]", EMRH.OperPath()]
-            ],
-        )
+    @testset "Lens creation" begin
+        # Create the lenses
+        lens_dict = EMRH._create_lens_dict(modeltype)
 
-        # Test of StorageValueCuts type
+        # Test that the lenses are created for all nodes
+        # - _create_lens_dict(𝒳::Vector{<:AbstractElement}
+        # - _create_lens_dict(x::Union{AbstractElement, RecHorEnergyModel})
+        # - _create_lens_for_field(field_id::Vector{<:Any})
+        @test !isempty(lens_dict)
+
+        # Test that the individual lenses are correctly created and working
+        @test lens_dict[[:emission_limit, co2, EMRH.OperPath()]](modeltype).vals ==
+        profile.vals
+    end
+
+    @testset "Reset functionality" begin
+        # Create the update type
+        𝒰 = EMRH._create_updatetype(modeltype)
+
+        # Create all time related parameters
+        𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+        opers = collect(𝒯)
+        ℋ = PeriodHorizons(dur_op, 4, 2)
+        𝒽 = first(ℋ)
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+
+        # Test that the individual reset functions are working for all types
+        # All functions are located within the file src/structures/reset.jl
+        sᵐ = EMRH.get_sub_model(𝒰)
+        @test isa(EMRH.resets(sᵐ)[1], EMRH.OperReset)
+
+        # Test that the reset functionality is working
+        # - _update_case_types!
+        # - reset_field
+        EMRH._update_case_types!(sᵐ, 𝒰, opers)
+        modeltypeᵣₕ = sᵐ.new
+        @test modeltypeᵣₕ == EMRH.updated(sᵐ)
+        @test modeltypeᵣₕ ≠ modeltype
+        @test modeltype == sᵐ.org
+        @test modeltype == EMRH.original(sᵐ)
+        @test emission_limit(modeltypeᵣₕ, co2).vals == emission_limit(modeltype, co2)[opers]
+    end
+end
+
+@testset "Identification - FutureValue" begin
+    # Create the individual resources
+    el = ResourceCarrier("el", 0.2)
+    co2 = ResourceEmit("co2", 1.0)
+
+    # Create the profile
+    n_op = 15
+    dur_op = ones(n_op)
+    profile = OperationalProfile(rand(n_op))
+
+    # Create the individual nodes
+    storage_1 = RefStorage{RecedingAccumulating}(
+        "storage_1",
+        StorCapOpexVar(profile, FixedProfile(40)),
+        StorCapOpexFixed(FixedProfile(100), FixedProfile(0)),
+        el,
+        Dict(el => 1),
+        Dict(el => 1),
+        [StorageInitData(0.5)],
+    )
+    storage_2 = RefStorage{RecedingAccumulating}(
+        "storage_2",
+        StorCapOpexVar(profile, FixedProfile(100)),
+        StorCapOpexFixed(FixedProfile(1000), FixedProfile(0)),
+        el,
+        Dict(el => 1),
+        Dict(el => 1),
+        [StorageInitData(0.5)],
+    )
+    𝒩 = [storage_1, storage_2]
+
+    # Create a StorageValueCuts type
+    svcs = StorageValueCuts(
+        "wv0", 0, 1, 1,
+        [
+            StorageValueCut(1, [ElementValue(storage_1, -50), ElementValue(storage_2, -70)], 0),
+            StorageValueCut(2, [ElementValue(storage_1, -40), ElementValue(storage_2, -30)], 250),
+        ]
+    )
+    𝒱 = [svcs]
+
+    @testset "Path creation" begin
+        # Test of all potential model input from EMRH as called through the function
+        # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
+
+        # The individual function flow is included on top
+
+        # Test of a link with operational profile
+        # - _find_update_paths(x::StorageValueCuts)
+        # - _find_update_paths(field::StorageValueCut, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::AbstractElement, current_path::Vector{Any}, all_paths::Vector{Any})
         @test issetequal(
             EMRH._find_update_paths(svcs),
             Any[
@@ -308,165 +662,96 @@ end
                 [:cuts, "[2]", :coeffs, "[2]", :element, EMRH.ElementPath()],
             ],
         )
-
-        # Test that init data throws error, when wrongly used
-        @test_throws ErrorException EMRH._find_update_paths(source_initdata)
     end
 
-    @testset "Case creation - lenses and resets" begin
-        𝒩 = EMB.Node[av, source_fixed, source_oper, network, storage_charge_level_data_oper]
-        ℒ = Link[link]
+    @testset "Lens creation" begin
+        𝒱 = FutureValue[svcs]
 
         # Create the lenses
-        lens_dict = Dict{Symbol,Dict}()
-        lens_dict[:nodes] = EMRH._create_lens_dict(𝒩)
-        lens_dict[:links] = EMRH._create_lens_dict(ℒ)
-        lens_dict[:model] = EMRH._create_lens_dict(model)
+        lens_dict = EMRH._create_lens_dict(𝒱)
 
-        # Test that the lenses are created for all nodes and links
-        @test all(haskey(lens_dict[:nodes], n) for n ∈ 𝒩)
-        @test all(haskey(lens_dict[:links], l) for l ∈ ℒ)
-        @test !isempty(lens_dict[:model])
-    end
-end
+        # Test that the lenses are created for all nodes
+        # - _create_lens_dict(𝒳::Vector{<:AbstractElement}
+        # - _create_lens_dict(x::Union{AbstractElement, RecHorEnergyModel})
+        # - _create_lens_for_field(field_id::Vector{<:Any})
+        @test all(haskey(lens_dict, v) for v ∈ 𝒱)
 
-@testset "Lenses and direct reset" begin
-    cap_prof = [20, 300]
-    price_prof = [1, 2]
-    power = ResourceCarrier("power", 0.0)
-    co2 = ResourceEmit("co2", 1.0)
-
-    @testset "Source" begin
-        data_source = Data[
-            EmissionsProcess(Dict(co2 => OperationalProfile(price_prof))),
-        ]
-        source = RefSource(
-            "source",
-            OperationalProfile(cap_prof),
-            FixedProfile(100),
-            FixedProfile(0),
-            Dict(power => 1),
-            data_source,
-        )
-
-        #checks for source
-        paths_oper_source = EMRH._find_update_paths(source)
+        # Test that the individual lenses are correctly created and working
         @test all(
-            paths_oper_source .==
-                Any[
-                    [:cap, EMRH.OperPath()],
-                    [:data, "[1]", :emissions, co2, EMRH.OperPath()]
-                ]
-        )
-
-        lens_source_cap = EMRH._create_lens_for_field(paths_oper_source[1])
-        lens_source_data = EMRH._create_lens_for_field(paths_oper_source[2])
-        @test all(cap_prof .== lens_source_cap(source).vals)
-        @test all(price_prof .== lens_source_data(source).vals)
-
-        cap_prof2 = [60, 32]
-        price_prof2 = [90, 80]
-        @reset lens_source_cap(source) = OperationalProfile(cap_prof2)
-        @reset lens_source_data(source) = OperationalProfile(price_prof2)
-        @test all(cap_prof2 .== lens_source_cap(source).vals)
-        @test all(price_prof2 .== lens_source_data(source).vals)
+            lens(svcs) ∈ [storage_1, storage_2]
+        for (field, lens) ∈ lens_dict[svcs] if isa(typeof(field[end]), EMRH.ElementPath))
+        @test lens_dict[svcs][[:time_weight, EMRH.TimeWeightPath()]](svcs) == 1
     end
 
-    @testset "Sink" begin
-        sink = RefSink(
-            "sink",
-            OperationalProfile(cap_prof),
-            Dict(:surplus => FixedProfile(0), :deficit => OperationalProfile(price_prof)),
-            Dict(power => 1),
+    @testset "Reset functionality" begin
+        # Create an operational modeltype and the time structure
+        modeltype = RecHorOperationalModel(
+            Dict(co2 => FixedProfile(100)),
+            Dict(co2 => FixedProfile(60)),
+            co2,
         )
 
-        #checks for sink
-        paths_oper_sink = EMRH._find_update_paths(sink)
-        @test all(
-            paths_oper_sink .==
-                Any[[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]
-            ]
-        )
+        # Create the update type
+        𝒰 = EMRH._create_updatetype(modeltype)
+        EMRH._add_elements!(𝒰, 𝒩)
+        EMRH._add_elements!(𝒰, 𝒱)
 
-        lens_sink_cap = EMRH._create_lens_for_field(paths_oper_sink[1])
-        lens_sink_data = EMRH._create_lens_for_field(paths_oper_sink[2])
-        @test all(cap_prof .== lens_sink_cap(sink).vals)
-        @test all(price_prof .== lens_sink_data(sink).vals)
+        # Create all time related parameters
+        𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+        opers = collect(𝒯)
+        ℋ = PeriodHorizons(dur_op, 4, 2)
+        𝒽 = first(ℋ)
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
-        cap_prof2 = [60, 32]
-        price_prof2 = [90, 80]
-        @reset lens_sink_cap(sink) = OperationalProfile(cap_prof2)
-        @reset lens_sink_data(sink) = OperationalProfile(price_prof2)
-        @test all(cap_prof2 .== lens_sink_cap(sink).vals)
-        @test all(price_prof2 .== lens_sink_data(sink).vals)
-    end
+        # Test that the individual reset functions are working for all types
+        # All functions are located within the file src/structures/reset.jl
+        𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
+        @test isa(𝒮ᵛᵉᶜ[2], Vector{EMRH.FutureValueSub})
+        @test EMRH.get_sub_ele(𝒰, EMRH.FutureValue) == 𝒰.elements[2]
+        @test EMRH.get_sub_ele(𝒮ᵛᵉᶜ, EMRH.FutureValue) == 𝒰.elements[2]
 
-    @testset "Storage" begin
-        init_state = 5.0
-        data_storage = Vector([
-            StorageInitData(init_state),
-            EmptyData(),
-            EmissionsProcess(Dict(co2 => OperationalProfile(price_prof))),
-        ])
-        storage = RefStorage{RecedingAccumulating}(
-            "a storage",
-            StorCapOpexVar(OperationalProfile(cap_prof), FixedProfile(100)),
-            StorCapOpexFixed(FixedProfile(10), FixedProfile(0)),
-            power,
-            Dict(power => 1),
-            Dict(power => 1),
-            data_storage,
-        )
-        paths_oper_storage = EMRH._find_update_paths(storage)
-        @test all(
-            paths_oper_storage .==
-            Any[
-                [:charge, :capacity, EMRH.OperPath()],
-                [:data, "[1]", :init_val_dict, "[:stor_level]", EMRH.InitDataPath(:stor_level)],
-                [:data, "[3]", :emissions, co2, EMRH.OperPath()],
-            ],
-        )
+        # Test the resets (ElementReset)
+        reset_cuts = EMRH.resets(𝒮ᵛᵉᶜ[2][1])
+        @test isa(reset_cuts[1], EMRH.TimeWeightReset)
+        @test all(isa(reset_cuts[k], EMRH.ElementReset) for k ∈ [2,3,4,5])
+        @test reset_cuts[1].lens(svcs) == 1
+        @test isnothing(reset_cuts[1].var)
+        @test reset_cuts[1].val == 1
+        @test reset_cuts[2].lens(svcs) == storage_1
+        @test reset_cuts[2].val == storage_1
+        @test reset_cuts[3].lens(svcs) == storage_2
+        @test reset_cuts[3].val == storage_2
+        @test reset_cuts[4].lens(svcs) == storage_1
+        @test reset_cuts[4].val == storage_1
+        @test reset_cuts[5].lens(svcs) == storage_2
+        @test reset_cuts[5].val == storage_2
 
-        #test getting values
-        lens_storage_cap = EMRH._create_lens_for_field(paths_oper_storage[1])
-        lens_storage_data = EMRH._create_lens_for_field(paths_oper_storage[3])
-        @test all(cap_prof .== lens_storage_cap(storage).vals)
-        @test all(price_prof .== lens_storage_data(storage).vals)
+        # Test that the reset functionality is working
+        # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+        # - _update_case_types!
+        # - reset_field
+        EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
 
-        #test resetting values
-        cap_prof2 = [60, 32]
-        price_prof2 = [90, 80]
-        @reset lens_storage_cap(storage) = OperationalProfile(cap_prof2)
-        @reset lens_storage_data(storage) = OperationalProfile(price_prof2)
-        @test all(cap_prof2 .== lens_storage_cap(storage).vals)
-        @test all(price_prof2 .== lens_storage_data(storage).vals)
-    end
+        # Extract the resetted nodes and links
+        𝒩ʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[1]]
+        𝒱ʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[2]]
+        @test get_elements_vec(𝒰) == Vector[𝒩ʳ, 𝒱ʳ]
+        @test get_future_value(𝒰) == 𝒱ʳ
+        @test 𝒩ʳ ≠ 𝒩
+        @test 𝒱ʳ ≠ 𝒱
 
-    @testset "NewType with Dict{String,TimeProfile}" begin
-        string_dict = StringDict(
-            Dict(
-                "a" => OperationalProfile([100, 100]),
-                "b" => FixedProfile(10),
-                "c" => OperationalProfile([20, 40]),
-            ),
-        )
+        # Test that the nodes are reset
+        @test capacity(charge(𝒩ʳ[1])).vals == capacity(charge(𝒩[1]))[opers_opt]
+        @test capacity(charge(𝒩ʳ[2])).vals == capacity(charge(𝒩[2]))[opers_opt]
 
-        paths_node = EMRH._find_update_paths(string_dict)
-
-        #test getting values
-        path_a = filter(path -> path[2] == "[\"a\"]", paths_node)
-        path_c = filter(path -> path[2] == "[\"c\"]", paths_node)
-        lens_a = EMRH._create_lens_for_field(path_a[1])
-        lens_c = EMRH._create_lens_for_field(path_c[1])
-        @test all([100, 100] .== lens_a(string_dict).vals)
-        @test all([20, 40] .== lens_c(string_dict).vals)
-
-        #test resetting values
-        cap_prof2 = [60, 32]
-        price_prof2 = [90, 80]
-        @reset lens_a(string_dict) = OperationalProfile(cap_prof2)
-        @reset lens_c(string_dict) = OperationalProfile(price_prof2)
-        @test all(cap_prof2 .== lens_a(string_dict).vals)
-        @test all(price_prof2 .== lens_c(string_dict).vals)
+        # Test the individual resets of the link
+        @test 𝒱ʳ[1].cuts[1].coeffs[1].element == 𝒩ʳ[1]
+        @test 𝒱ʳ[1].cuts[1].coeffs[2].element == 𝒩ʳ[2]
+        @test 𝒱ʳ[1].cuts[2].coeffs[1].element == 𝒩ʳ[1]
+        @test 𝒱ʳ[1].cuts[2].coeffs[2].element == 𝒩ʳ[2]
     end
 end

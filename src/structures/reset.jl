@@ -448,7 +448,7 @@ function EMB.get_elements_vec(𝒰::UpdateCase)
 end
 
 """
-    get_products(𝒰::UpdateCase)
+    get_nodes(𝒰::UpdateCase)
 
 Method for the equivalent `EnergyModelsBase` function to extract the **new** `Node`s of
 the individual [`NodeSub`](@ref) types of UpdateCase `𝒰`.
@@ -458,7 +458,7 @@ This element vector can be directly utilized for the field elements of a
 """
 EMB.get_nodes(𝒰::UpdateCase) = EMB.Node[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, EMB.Node)]
 """
-    get_products(𝒰::UpdateCase)
+    get_links(𝒰::UpdateCase)
 
 Method for the equivalent `EnergyModelsBase` function to extract the **new** `Link`s of
 the individual [`LinkSub`](@ref) types of UpdateCase `𝒰`.

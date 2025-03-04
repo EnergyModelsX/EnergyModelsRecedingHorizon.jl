@@ -128,9 +128,13 @@ end
         time_weights = [EMRH.resets(s)[1].val for s ∈ 𝒮ᵛ]
         @test all(iszero(tw) for (i, tw) ∈ enumerate(time_weights) if i ∉ [1])
         @test time_weights[1] == 1
+        EMRH._update_future_value!(𝒮ᵛ, 80)
+        time_weights = [EMRH.resets(s)[1].val for s ∈ 𝒮ᵛ]
+        @test all(iszero(tw) for (i, tw) ∈ enumerate(time_weights) if i ∈ [1, 2, 3, 4])
+        @test time_weights[5] ≈ 1.0
         EMRH._update_future_value!(𝒮ᵛ, 3)
         time_weights = [EMRH.resets(s)[1].val for s ∈ 𝒮ᵛ]
-        @test all(iszero(tw) for (i, tw) ∈ enumerate(time_weights) if i ∉ [1,2,3])
+        @test all(iszero(tw) for (i, tw) ∈ enumerate(time_weights) if i ∉ [1, 2, 3])
         @test time_weights[1] ≈ 0.7
         @test time_weights[2] ≈ 0.3
         @test time_weights[3] ≈ time_weights[2]
