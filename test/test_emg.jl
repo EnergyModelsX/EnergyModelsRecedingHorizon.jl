@@ -23,6 +23,16 @@ const EMGExt = Base.get_extension(EMRH, :EMGExt)
     a_2 = LimitedExchangeArea(1, "LEArea", 1, 1, av, Dict(H2_hp => prof_1, el => prof_2))
     𝒜 = [a_1, a_2]
 
+    @testset "Access functions" begin
+        # Test for identifying initialization data
+        # - has_init(a::Area)
+        @test !has_init(a_1)
+        # Test for extracting initialization data
+        # - data_init(a::Area)
+        @test isnothing(EMRH.data_init(a_1))
+    end
+
+
     @testset "Path creation" begin
         # Test of all potential node input from EMRH as called through the function
         # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
@@ -147,7 +157,7 @@ end
     dur_op = ones(n_op)
     prof_1 = OperationalProfile(rand(n_op))
     prof_2 = OperationalProfile(rand(n_op))
-
+    init_lp = InitData(Dict(:linepack_stor_level => 1.0))
 
     # Initialize the individual modes of the corridors
     static = RefStatic(
@@ -179,6 +189,19 @@ end
         prof_2,
         FixedProfile(2.5),
     )
+    pipe_linepack = PipeLinepackSimple(
+        "pipe_linepack",
+        H2_hp,
+        H2_lp,
+        el,
+        FixedProfile(0.05),
+        FixedProfile(50),
+        FixedProfile(0.01),
+        FixedProfile(0.1),
+        FixedProfile(1.0),
+        0.1,
+        [init_lp]
+    )
 
     # Create the Transmission corridors
     av = GeoAvailability(1, resources)
@@ -187,8 +210,24 @@ end
     a_2 = LimitedExchangeArea(1, "LEArea", 1, 1, av, Dict(H2_hp => prof_1, el => prof_2))
     𝒜 = [a_1, a_2]
     l_stat_dyn = Transmission(a_1, a_2, [static, dynamic])
-    l_pipe = Transmission(a_1, a_2, [pipe])
+    l_pipe = Transmission(a_1, a_2, [pipe, pipe_linepack])
     ℒᵗʳᵃⁿˢ = [l_stat_dyn, l_pipe]
+
+    @testset "Access functions" begin
+        # Test for identifying initialization data
+        # - has_init(l::Transmission)
+        # - data_init(tm::TransmissionMode)
+        @test !has_init(pipe)
+        @test has_init(pipe_linepack)
+        @test !has_init(l_stat_dyn)
+        @test has_init(l_pipe)
+
+        # Test for extracting initialization data
+        # - data_init(l::Transmission)
+        # - data_init(tm::TransmissionMode)
+        @test EMRH.data_init(l_stat_dyn) == [nothing, nothing]
+        @test EMRH.data_init(l_pipe) == [nothing, init_lp]
+    end
 
     @testset "Path creation" begin
         # Test of all potential node input from EMRH as called through the function
@@ -223,6 +262,10 @@ end
                 [:to, EMRH.ElementPath()],
                 [:modes, "[1]", :consumption_rate, EMRH.OperPath()],
                 [:modes, "[1]", :opex_var, EMRH.OperPath()],
+                [
+                    :modes, "[2]", :data, "[1]", :init_val_dict,
+                    "[:linepack_stor_level]", EMRH.InitDataPath(:linepack_stor_level)
+                ]
             ],
         )
     end
@@ -249,6 +292,10 @@ end
         @test lens_dict[l][[:to, EMRH.ElementPath()]](l) == a_2
         @test lens_dict[l][[:modes, "[1]", :consumption_rate, EMRH.OperPath()]](l) == prof_1
         @test lens_dict[l][[:modes, "[1]", :opex_var, EMRH.OperPath()]](l) == prof_2
+        @test lens_dict[l][[
+            :modes, "[2]", :data, "[1]", :init_val_dict,
+            "[:linepack_stor_level]", EMRH.InitDataPath(:linepack_stor_level)]
+        ](l) == 1.0
     end
 
     @testset "Reset functionality" begin
@@ -277,11 +324,14 @@ end
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
         # Test that the individual reset types functions are working
-        # All functions are located within the file src/structures/reset.jl
+        # All functions are located within the file src/structures/reset.jl and
+        # ext/EMGExt/structures/reset.jl
         𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
+        𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
         @test isa(𝒮ᵛᵉᶜ[3], Vector{EMGExt.TransmissionSub})
         @test EMRH.get_sub_ele(𝒰, Transmission) == 𝒰.elements[3]
         @test EMRH.get_sub_ele(𝒮ᵛᵉᶜ, Transmission) == 𝒰.elements[3]
+        @test 𝒮ᵛᵉᶜᵢₙ == [EMRH.NodeSub[], EMGExt.AreaSub[], [𝒮ᵛᵉᶜ[3][2]]]
 
         # Test the resets (ElementReset)
         reset_trans = EMRH.resets(𝒮ᵛᵉᶜ[3][1])
@@ -291,6 +341,11 @@ end
         @test reset_trans[1].val == a_1
         @test reset_trans[2].lens(l) == a_2
         @test reset_trans[2].val == a_2
+
+        # Test the resets (InitReset)
+        reset_trans = EMRH.resets(𝒮ᵛᵉᶜ[3][2])
+        l = l_pipe
+        @test isa(reset_trans[5], EMRH.InitReset)
 
         # Test that the reset are working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)

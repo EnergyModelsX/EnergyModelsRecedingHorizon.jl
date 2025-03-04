@@ -16,6 +16,7 @@ const EMG = EnergyModelsGeography
 const EMRH = EnergyModelsRecHorizon
 const TS = TimeStruct
 
+include(joinpath("structures", "data.jl"))
 include(joinpath("structures", "reset.jl"))
 
 include(joinpath("utils", "identification.jl"))
