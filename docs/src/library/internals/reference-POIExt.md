@@ -41,3 +41,9 @@ EMRH.run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer::
 EMRH._update_case_types!(m, 𝒮::Vector{<:EMRH.AbstractSub}, 𝒰::EMRH.UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 EMRH._reset_field(m, x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 ```
+
+## [EnergyModelsBase](@id lib-int-POIExt-EMB)
+
+```@docs
+EMB.constraints_capacity_installed
+```

@@ -28,7 +28,6 @@ include(joinpath("utils", "identification.jl"))
 include(joinpath("utils", "other.jl"))
 include(joinpath("utils", "results.jl"))
 
-include("constraint_functions.jl")
 include("model.jl")
 
 export RecHorOperationalModel
