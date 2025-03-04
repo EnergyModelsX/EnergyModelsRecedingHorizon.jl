@@ -38,6 +38,7 @@ global_logger(logger_new)
     @testset "RecedingHorizon | FutureValue" begin
         include("test_future_value.jl")
     end
+
     @testset verbose = true "RecedingHorizon | Utility functions" begin
         include("test_utils.jl")
     end
