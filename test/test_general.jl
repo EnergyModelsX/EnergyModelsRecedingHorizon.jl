@@ -83,6 +83,15 @@
             var ∈ keys(object_dictionary(m_EMB)) if
             !isempty(m_EMB[var]) && !isa(m_EMB[var], VariableRef)
         )
+
+        save_dir = joinpath(pwd(), "test_model")
+        EMRH.save_results(m_EMB; directory = save_dir)
+        @test all(
+            isfile(joinpath(save_dir, "$var.csv")) for
+            var ∈ keys(object_dictionary(m_EMB)) if
+            !isempty(m_EMB[var]) && !isa(m_EMB[var], VariableRef)
+        )
+        rm(save_dir; recursive=true)
     end
     # - save_results(results::Dict{Symbol, AbstractDataFrame}; directory=joinpath(pwd(),"csv_files"))
     @testset "Save EMRH results as csv" begin
@@ -92,5 +101,14 @@
             isfile(joinpath(save_dir, "$var.csv")) for
             var ∈ keys(results_EMRH) if !isempty(results_EMRH[var])
         )
+
+        save_dir = joinpath(pwd(), "test_emhr")
+        EMRH.save_results(results_EMRH; directory = save_dir)
+        @test all(
+            isfile(joinpath(save_dir, "$var.csv")) for
+            var ∈ keys(results_EMRH) if !isempty(results_EMRH[var])
+        )
+        rm(save_dir; recursive=true)
+
     end
 end

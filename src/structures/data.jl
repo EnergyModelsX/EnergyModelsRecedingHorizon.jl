@@ -42,16 +42,19 @@ Checks whether the argument `data` has initialization settings.
 is_init_data(data) = (typeof(data) <: AbstractInitData)
 
 """
-has_init(n::Node)
+    has_init(n::Node)
+    has_init(l::Link)
 
-Checks whether the Node `n` has initialization data.
+Checks whether the node `n` or link `l` has initialization data.
 """
 has_init(n::EMB.Node) = any(is_init_data(data) for data ∈ node_data(n))
 has_init(l::Link) = any(is_init_data(data) for data ∈ link_data(l))
 
 """
     data_init(n::EMB.Node)
+    data_init(l::Link)
 
-Returns initialization data for Node `n`
+Returns initialization data for node `n` or link `l`.
 """
 data_init(n::EMB.Node) = filter(is_init_data, node_data(n))[1]
+data_init(l::Link) = filter(is_init_data, link_data(l))[1]

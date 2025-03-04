@@ -154,6 +154,13 @@ end
         FixedProfile(0),
         Dict(el => 1),
     )
+    source_strat = RefSource(
+        "source",
+        StrategicProfile([1e12]),
+        FixedProfile(100),
+        FixedProfile(0),
+        Dict(el => 1),
+    )
     network = RefNetworkNode(
         "el_to_heat",
         FixedProfile(1e12),
@@ -207,6 +214,13 @@ end
         # Test of a node with no lenses
         # - _find_update_paths(field::Any, current_path::Vector{Any}, all_paths::Vector{Any})
         @test issetequal(EMRH._find_update_paths(av), Any[])
+
+        # Test of a node with no lenses
+        # - _find_update_paths(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        global_logger(logger_org)
+        msg = "EMRH should not be used with strategic profiles"
+        @test_logs (:warn, msg)  EMRH._find_update_paths(source_strat)
+        global_logger(logger_new)
 
         # Test of a node with with a single operational profile
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
