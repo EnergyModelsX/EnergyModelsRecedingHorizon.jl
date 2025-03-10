@@ -97,6 +97,7 @@ end
     end
 
     # Test that the iterators are working
+    # dur::Vector{Int64}
     dur = [1, 1, 1, 1, 4, 2, 2, 3, 1, 1, 1, 1, 1, 4, 1, 3]
     dur_horizons = DurationHorizons(dur, 8, 4)
     @testset "DurationHorizons - standard iterators" begin
@@ -113,7 +114,7 @@ end
         @test single_horizons[2].idx_optim == [5, 6, 7]
         @test single_horizons[2].idx_impl == [5]
 
-        # Test of the seventh period
+        # Test of the sixth period
         @test single_horizons[6].id == 6
         @test single_horizons[6].dur == [4, 1, 3]
         @test single_horizons[6].idx_optim == [14, 15, 16]
@@ -128,4 +129,45 @@ end
             k ∈ range(1, length(dur_horizons) - 1)
         ) == length(dur_horizons) - 1
     end
+
+    # dur::Vector{Float64}
+    dur_fl = [1, 2, 3, 1.5, 1.7, 3, 2, 1, 2.3, 2.7]
+    @test_throws ArgumentError DurationHorizons(dur_fl, 8, 3)
+    dur_hor_float = DurationHorizons(8760, dur_fl, 8, 3)
+    @testset "DurationHorizons - standard iterators (float)" begin
+        single_horizons = collect(dur_hor_float)
+        # Test of the first period
+        @test first(dur_hor_float).id == 1
+        @test first(dur_hor_float).dur ≈ [1.0, 2.0, 3.0, 1.5, 1.7]
+        @test first(dur_hor_float).idx_optim == [1, 2, 3, 4, 5]
+        @test first(dur_hor_float).idx_impl == [1, 2]
+
+        # Test of the third period
+        @test single_horizons[3].id == 3
+        @test single_horizons[3].dur == [1.5, 1.7, 3.0, 2.0]
+        @test single_horizons[3].idx_optim == [4, 5, 6, 7]
+        @test single_horizons[3].idx_impl == [4, 5]
+
+        # Test of the fourth period
+        @test single_horizons[4].id == 4
+        @test single_horizons[4].dur == [3.0, 2.0, 1.0, 2.3]
+        @test single_horizons[4].idx_optim == [6, 7, 8, 9]
+        @test single_horizons[4].idx_impl == [6]
+
+        # Test of the last period
+        @test single_horizons[end].id == 6
+        @test single_horizons[end].dur ≈ [2.3, 2.7]
+        @test single_horizons[end].idx_optim == [9, 10]
+        @test single_horizons[end].idx_impl == [9, 10]
+    end
+    @testset "DurationHorizons - withprev" begin
+        single_horizons = collect(withprev(dur_horizons))
+        # Test of the previous periods
+        @test isnothing(single_horizons[1][1])
+        @test sum(
+            single_horizons[k+1][1] == single_horizons[k][2] for
+            k ∈ range(1, length(dur_horizons) - 1)
+        ) == length(dur_horizons) - 1
+    end
+
 end

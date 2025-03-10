@@ -5,7 +5,7 @@ end
 take_horizon(xs, dur) = TakeHorizon(xs, dur)
 
 Base.IteratorSize(::Type{<:TakeHorizon}) = Base.SizeUnknown()
-Base.eltype(::Type{TakeHorizon{I}}) where {I} = Base.eltype(I)
+Base.eltype(::Type{TakeHorizon{I}}) where {I} = Int64
 Base.IteratorEltype(::Type{TakeHorizon{I}}) where {I} = Base.IteratorEltype(I)
 
 function Base.iterate(it::TakeHorizon, state = (it.duration,))
