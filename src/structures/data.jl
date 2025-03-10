@@ -23,6 +23,8 @@ struct InitData{T} <: AbstractInitData
     init_val_dict::Dict{Symbol,T}
 end
 
+abstract type TransInitData{T} <: AbstractInitData end
+
 """
 Provides initialization for storages. An `StorageInitData` should be defined
 for each `Storage{RecedingAccumulating}` instance.

@@ -1,8 +1,26 @@
 
-function EMRH.ResetType(field_path::Vector, path::AbstractInitDataPath, x::Transmission)
-    idx = parse(Int, field_path[2][2:end-1])
-    return InitReset(field_path, path, idx, x)
+
+"""
+    struct InitDataPath <: AbstractPath
+
+Internal type for paths pointing towards [`InitData`](@ref) in the case of `TransmissionMode`s.
+
+# Fields
+- **`idx::Int`** is the index of the mode within the `Transmission` corridor.
+- **`key::Symbol`** is the key in the [`InitData`](@ref) (and correspondingly in the JuMP
+  model).
+"""
+struct TransInitDataPath <: AbstractInitDataPath
+    idx::Int
+    key::Symbol
 end
+
+"""
+    model_key(idp::TransInitDataPath)
+
+Returns the model key (field `key`) of TransInitDataPath `idp`.
+"""
+EMRH.model_key(idp::TransInitDataPath) = idp.key
 
 """
     mutable struct AreaSub{T<:Area} <: AbstractSub

@@ -37,7 +37,7 @@ export run_model_rh
 
 # Types used for case setup
 export RecedingAccumulating
-export AbstractInitData, InitData, StorageInitData
+export AbstractInitData, InitData, StorageInitData, TransInitData
 export AbstractPath, AbstractInitDataPath
 
 # Auxiliary functions for nodes and node field checks

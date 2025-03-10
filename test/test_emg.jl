@@ -152,7 +152,7 @@ end
     dur_op = ones(n_op)
     prof_1 = OperationalProfile(rand(n_op))
     prof_2 = OperationalProfile(rand(n_op))
-    init_lp = InitData(Dict(:linepack_stor_level => 1.0))
+    init_lp = TransInitData(Dict(:linepack_stor_level => 1.0))
 
     # Initialize the individual modes of the corridors
     static = RefStatic(
@@ -250,6 +250,7 @@ end
         # - _find_update_paths(field::T, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:TransmissionMode}
         # - _find_update_paths(field::Vector{<:T}, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:TransmissionMode}
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::TransInitData, current_path::Vector{Any}, all_paths::Vector{Any})
         @test issetequal(
             EMRH._find_update_paths(l_pipe),
             [
@@ -259,7 +260,7 @@ end
                 [:modes, "[1]", :opex_var, EMRH.OperPath()],
                 [
                     :modes, "[2]", :data, "[1]", :init_val_dict,
-                    "[:linepack_stor_level]", EMRH.InitDataPath(:linepack_stor_level)
+                    "[:linepack_stor_level]", EMGExt.TransInitDataPath(2, :linepack_stor_level)
                 ]
             ],
         )
@@ -289,7 +290,7 @@ end
         @test lens_dict[l][[:modes, "[1]", :opex_var, EMRH.OperPath()]](l) == prof_2
         @test lens_dict[l][[
             :modes, "[2]", :data, "[1]", :init_val_dict,
-            "[:linepack_stor_level]", EMRH.InitDataPath(:linepack_stor_level)]
+            "[:linepack_stor_level]", EMGExt.TransInitDataPath(2, :linepack_stor_level)]
         ](l) == 1.0
     end
 
@@ -429,7 +430,7 @@ end
             Direct(24, nodes[4], nodes[5], Linear())
         ]
 
-        init_lp = InitData(Dict(:linepack_stor_level => 1.0))
+        init_lp = TransInitData(Dict(:linepack_stor_level => 1.0))
         modes = [
             PipeSimple(
                 "pipe",

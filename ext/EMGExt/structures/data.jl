@@ -1,3 +1,19 @@
+
+"""
+    TransInitData{T} <: AbstractInitData
+
+Initialization data type for `TransmissionMode`. It follows the same structure as the standard
+[`InitData`](@ref). It is required as the indexing is different for `TransmissionMode`s
+compared to `Node`s, `Link`s, or `Area`s.
+
+# Fields
+- **`val`**: initial state for node.
+"""
+struct TransInitData{T} <: EMRH.TransInitData{T}
+    init_val_dict::Dict{Symbol,T}
+end
+EMRH.TransInitData(args...) = TransInitData(args...)
+
 """
     EMRH.has_init(a::Area)
     EMRH.has_init(l::Transmission)
