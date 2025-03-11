@@ -416,8 +416,8 @@ end
 
     nodes = [
         GeoAvailability(1, resources), h2_src, el_src,
-        GeoAvailability(2, resources), sink]
-
+        GeoAvailability(2, resources), sink
+    ]
     links = [
         Direct(31, nodes[2], nodes[1], Linear())
         Direct(31, nodes[3], nodes[1], Linear())
@@ -453,8 +453,10 @@ end
     modes = [pipe, pipe_lp]
 
     # Creation of the two areas and potential transmission lines
-    areas = [RefArea(1, "Oslo", 10.751, 59.921, nodes[1]),
-            RefArea(2, "Trondheim", 10.398, 63.4366, nodes[4])]
+    areas = [
+        RefArea(1, "Oslo", 10.751, 59.921, nodes[1]),
+        RefArea(2, "Trondheim", 10.398, 63.4366, nodes[4])
+    ]
 
     transmissions = [Transmission(areas[1], areas[2], modes)]
 
