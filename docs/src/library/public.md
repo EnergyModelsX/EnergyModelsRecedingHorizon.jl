@@ -49,9 +49,9 @@ StorageInitData
 ### [Functions](@id lib-pub-init-fcn)
 
 ```@docs
-has_init
+has_init(n::EMB.Node)
 is_init_data
-EMRH.data_init
+data_init(n::EMB.Node)
 ```
 
 ## [Future value](@id lib-pub-fut_val)

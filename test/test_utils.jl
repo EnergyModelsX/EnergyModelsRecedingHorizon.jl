@@ -349,8 +349,8 @@ end
         reset_storage = EMRH.resets(𝒮ᵛᵉᶜ[1][4])[3]
         @test isa(reset_storage, EMRH.InitReset{EMRH.InitDataPath})
         @test EMRH.is_init_reset(reset_storage)
-        @test reset_storage.lens(storage) == EMRH.data_init(storage).init_val_dict[:stor_level]
-        @test reset_storage.val == EMRH.data_init(storage).init_val_dict[:stor_level]
+        @test reset_storage.lens(storage) == data_init(storage).init_val_dict[:stor_level]
+        @test reset_storage.val == data_init(storage).init_val_dict[:stor_level]
         @test isnothing(reset_storage.var)
         @test reset_storage.path == EMRH.InitDataPath(:stor_level)
 
@@ -373,7 +373,7 @@ end
 
         # Test the individual resets
         @test all(opex_var(𝒩ʳ[k]).vals == opex_var(𝒩[k])[opers_opt] for k ∈ [2,3])
-        @test EMRH.data_init(𝒩ʳ[4]).init_val_dict[:stor_level] == 5.0
+        @test data_init(𝒩ʳ[4]).init_val_dict[:stor_level] == 5.0
         @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[opers_opt]
     end
 end

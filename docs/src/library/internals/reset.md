@@ -23,7 +23,7 @@ EMRH.InitDataPath
 The following function is included for extracting the values from paths:
 
 ```@docs
-EMRH.model_key
+EMRH.model_key(idp::EMRH.InitDataPath)
 ```
 
 !!! note "Resetting new values"

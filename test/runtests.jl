@@ -1,5 +1,6 @@
 using EnergyModelsRecHorizon
 using EnergyModelsBase
+using EnergyModelsGeography
 using HiGHS
 using JuMP
 using Test
@@ -12,11 +13,13 @@ using Logging
 # Declare shortcuts to the different packages
 const EMRH = EnergyModelsRecHorizon
 const EMB = EnergyModelsBase
+const EMG = EnergyModelsGeography
 const TS = TimeStruct
 const POI = ParametricOptInterface
 
 # Declare shortcut to the extension for simplified testing
 const POIExt = Base.get_extension(EMRH, :POIExt)
+const EMGExt = Base.get_extension(EMRH, :EMGExt)
 
 # Set a tolerance which can be used in the following
 const TEST_ATOL = 1e-6
@@ -53,6 +56,10 @@ global_logger(logger_new)
 
     @testset "RecedingHorizon | POI implementation" begin
         include("test_poi.jl")
+    end
+
+    @testset "RecedingHorizon | Geography" begin
+        include("test_emg.jl")
     end
 end
 # Reset the loglevel

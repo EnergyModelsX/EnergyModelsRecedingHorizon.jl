@@ -34,7 +34,7 @@ function generate_future_value_case(; init_state=0)
     products = [CO2, Power]
 
     # Variables for the individual entries of the time structure
-    # The operational period is
+    # The 12 operational periods of the full problem have a varying length
     dur_op = [1, 2, 1, 4, 1, 3, 1, 3, 1, 2, 1, 4]
     operational_periods = SimpleTimes(dur_op)
 
@@ -48,7 +48,7 @@ function generate_future_value_case(; init_state=0)
         CO2,
     )
 
-    #define the model depending on input
+    # Define the price profile of the model of the market
     price_profile = [10, 20, 50, 100, 50, 40, 20, 40, 10, 5, 90, 42]
 
     # Create the individual test nodes, corresponding to a system with an electricity source,
@@ -140,7 +140,7 @@ end
 
 
 """
-    process_future_value_results(res_full, res_emrh, res_emrhʷᵒ, , case)
+    process_future_value_results(res_full, res_emrh, res_emrhʷᵒ, case)
 
 Function for processing the results to be represented in the a table afterwards.
 """

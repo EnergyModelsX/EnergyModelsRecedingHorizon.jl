@@ -134,7 +134,7 @@ results_new_node = run_model_rh(case, model, optimizer)
 # Process results
 main_res = select(results_new_node[:state], :x2 => (x -> repr.(x)) => :Period, :y => :state)
 node_inc = get_nodes(case)[1]
-init_data = EMRH.data_init(node_inc)
+init_data = data_init(node_inc)
 
 # Print model results
 println("\n\nNode with increment = $(node_inc.increment)")

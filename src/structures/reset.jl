@@ -203,7 +203,8 @@ Constructor for [`AbstractReset`](@ref) types depending on their specified [`Abs
 ResetType(field_path::Vector, _::OperPath, x) = OperReset(field_path, x)
 ResetType(field_path::Vector, _::ElementPath, x) = ElementReset(field_path, x)
 ResetType(field_path::Vector, _::TimeWeightPath, x) = TimeWeightReset(field_path, x)
-ResetType(field_path::Vector, path::AbstractInitDataPath, x) = InitReset(field_path, path, x)
+ResetType(field_path::Vector, path::AbstractInitDataPath, x) =
+    InitReset(field_path, path, x)
 
 """
     is_init_reset(rt::AbstractReset)
