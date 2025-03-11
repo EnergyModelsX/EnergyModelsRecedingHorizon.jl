@@ -381,129 +381,107 @@ end
 end
 
 @testset "Full model run" begin
-
     # Introduction of profiles
     demand_profile = [20, 10, 5, 25, 20, 10, 5, 25]
+    pipe_profile = [10, 10, 10, 10, 0, 10, 10, 10]
 
-    """
-        simple_geo_pipe()
+    # Create the individual resources
+    H2_hp = ResourceCarrier("H2_hp", 0.0)
+    H2_lp = ResourceCarrier("H2_lp", 0.0)
+    el = ResourceCarrier("Power", 0.0)
+    co2 = ResourceEmit("co2", 1.0)
+    resources = [H2_hp, H2_lp, el, co2]
 
-    Simple test case for testing unidirectional transport with pipeline modes.
-    """
-    function simple_geo_pipe()
-        # Create the individual resources
-        H2_hp = ResourceCarrier("H2_hp", 0.0)
-        H2_lp = ResourceCarrier("H2_lp", 0.0)
-        el = ResourceCarrier("Power", 0.0)
-        co2 = ResourceEmit("co2", 1.0)
-        resources = [H2_hp, H2_lp, el, co2]
+    # Creation of the source and sink module as well as the arrays used for nodes and links
+    h2_src = RefSource(
+        "h2_src",
+        FixedProfile(30),
+        OperationalProfile([25, 20, 40, 80, 20, 30, 10, 90]),
+        FixedProfile(0),
+        Dict(H2_hp => 1),
+    )
+    el_src = RefSource(
+        "el_src",
+        FixedProfile(3),
+        FixedProfile(0),
+        FixedProfile(0),
+        Dict(el => 1),
+    )
+    sink = RefSink(
+        "snk",
+        OperationalProfile(demand_profile),
+        Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(100)),
+        Dict(H2_lp => 1),
+    )
 
-        # Creation of the source and sink module as well as the arrays used for nodes and links
-        h2_source = RefSource(
-            "h2_src",
-            FixedProfile(30),
-            OperationalProfile([25, 20, 40, 80, 20, 30, 10, 90]),
-            FixedProfile(0),
-            Dict(H2_hp => 1),
-        )
-        el_source = RefSource(
-            "el_src",
-            FixedProfile(3),
-            FixedProfile(0),
-            FixedProfile(0),
-            Dict(el => 1),
-        )
-        sink = RefSink(
-            "snk",
-            OperationalProfile(demand_profile),
-            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(100)),
-            Dict(H2_lp => 1),
-        )
+    nodes = [
+        GeoAvailability(1, resources), h2_src, el_src,
+        GeoAvailability(2, resources), sink]
 
-        nodes = [
-            GeoAvailability(1, resources), h2_source, el_source,
-            GeoAvailability(2, resources), sink]
+    links = [
+        Direct(31, nodes[2], nodes[1], Linear())
+        Direct(31, nodes[3], nodes[1], Linear())
+        Direct(24, nodes[4], nodes[5], Linear())
+    ]
 
-        links = [
-            Direct(31, nodes[2], nodes[1], Linear())
-            Direct(31, nodes[3], nodes[1], Linear())
-            Direct(24, nodes[4], nodes[5], Linear())
-        ]
+    init_lp = TransInitData(Dict(:linepack_stor_level => 1.0))
 
-        init_lp = TransInitData(Dict(:linepack_stor_level => 1.0))
-        modes = [
-            PipeSimple(
-                "pipe",
-                H2_hp,
-                H2_lp,
-                el,
-                FixedProfile(0.01),
-                FixedProfile(10),
-                FixedProfile(0.0),
-                FixedProfile(0),
-                FixedProfile(0),
-            ),
-            PipeLinepackSimple(
-                "pipe_linepack",
-                H2_hp,
-                H2_lp,
-                el,
-                FixedProfile(0.02),
-                FixedProfile(50),
-                FixedProfile(0.0),
-                FixedProfile(0.0),
-                FixedProfile(0.0),
-                0.2,
-                [init_lp],
-            )
-        ]
+    pipe = PipeSimple(
+        "pipe",
+        H2_hp,
+        H2_lp,
+        el,
+        FixedProfile(0.01),
+        OperationalProfile(pipe_profile),
+        FixedProfile(0.0),
+        FixedProfile(0),
+        FixedProfile(0),
+    )
+    pipe_lp = PipeLinepackSimple(
+        "pipe_linepack",
+        H2_hp,
+        H2_lp,
+        el,
+        FixedProfile(0.02),
+        FixedProfile(50),
+        FixedProfile(0.0),
+        FixedProfile(0.0),
+        FixedProfile(0.0),
+        0.2,
+        [init_lp],
+    )
+    modes = [pipe, pipe_lp]
 
-        # Creation of the two areas and potential transmission lines
-        areas = [RefArea(1, "Oslo", 10.751, 59.921, nodes[1]),
-                RefArea(2, "Trondheim", 10.398, 63.4366, nodes[4])]
+    # Creation of the two areas and potential transmission lines
+    areas = [RefArea(1, "Oslo", 10.751, 59.921, nodes[1]),
+            RefArea(2, "Trondheim", 10.398, 63.4366, nodes[4])]
 
-        transmissions = [Transmission(areas[1], areas[2], modes)]
+    transmissions = [Transmission(areas[1], areas[2], modes)]
 
-        # Creation of the time structure and the used global data
-        T = TwoLevel(1, 1, SimpleTimes(8, 1);)
-        ℋ = PeriodHorizons([duration(t) for t ∈ T], 4, 2)
-        modeltype = RecHorOperationalModel(
-                                    Dict(co2 => FixedProfile(100)),
-                                    Dict(co2 => FixedProfile(0)),
-                                    co2,
-        )
+    # Creation of the time structure and the used global data
+    T = TwoLevel(1, 1, SimpleTimes(8, 1);)
+    ops = collect(T)
+    ℋ = PeriodHorizons([duration(t) for t ∈ T], 4, 2)
+    modeltype = RecHorOperationalModel(
+                                Dict(co2 => FixedProfile(100)),
+                                Dict(co2 => FixedProfile(0)),
+                                co2,
+    )
 
-        # Input data structure
-        case = Case(
-            T,
-            resources,
-            [nodes, links, areas, transmissions],
-            [[get_nodes, get_links], [get_areas, get_transmissions]],
-            Dict(:horizons => ℋ)
-        )
-        return case, modeltype
-    end
+    # Input data structure
+    case = Case(
+        T,
+        resources,
+        [nodes, links, areas, transmissions],
+        [[get_nodes, get_links], [get_areas, get_transmissions]],
+        Dict(:horizons => ℋ)
+    )
 
     # Create the model and run it
-    case, modeltype = simple_geo_pipe()
-    optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+    optimizer = POI.Optimizer(HiGHS.Optimizer())
     results = run_model_rh(case, modeltype, optimizer)
 
-    # Extract data
-    𝒩 = get_nodes(case)
-    ℒ = get_links(case)
-    𝒜 = get_areas(case)
-    ℒᵗʳᵃⁿˢ = get_transmissions(case)
-    ℳ = modes(ℒᵗʳᵃⁿˢ)
-    el_src = 𝒩[2]
-    h2_src = 𝒩[3]
-    sink = 𝒩[5]
-    pipe = ℳ[1]
-    pipe_lp = ℳ[2]
-    co2 = get_products(case)[2]
-    ops = collect(get_time_struct(case))
-
-    # Test that all results were saved (* 2 as we have to TransmissionModes)
+    # Test that all results were saved (* 2 as we have two TransmissionModes)
     @test length(results[:trans_in][!, :y]) == length(ops) * 2
 
     # Test that the first period in the first horizon is correctly used
@@ -537,7 +515,7 @@ end
     # Test that the mode capacities are equal to the values
     @test all(
         filter(r -> r.x1 == pipe && r.x2 == ops[k], results[:trans_cap])[1, :y] ==
-        10 for k ∈ 1:8
+        pipe_profile[k] for k ∈ 1:8
     )
 
     @test all(

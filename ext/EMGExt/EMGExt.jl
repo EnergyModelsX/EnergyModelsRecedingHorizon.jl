@@ -9,13 +9,9 @@ AbstractInitDataPath, InitReset, InitDataPath
 
 using JuMP
 using TimeStruct
-using Accessors
-using DataFrames
 
-const EMB = EnergyModelsBase
 const EMG = EnergyModelsGeography
 const EMRH = EnergyModelsRecHorizon
-const TS = TimeStruct
 
 include(joinpath("structures", "data.jl"))
 include(joinpath("structures", "reset.jl"))

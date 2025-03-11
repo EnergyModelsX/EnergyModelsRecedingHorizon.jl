@@ -18,6 +18,7 @@ EnergyModelsGeography = "3f775d88-a4da-46c4-a2cc-aa9f16db6708"
 [extensions]
 POIExt = "ParametricOptInterface"
 EMGExt = "EnergyModelsGeography"
+EMGPOIExt = ["EnergyModelsGeography", "ParametricOptInterface"]
 
 [compat]
 Accessors = "^0.1.39"
