@@ -3,7 +3,7 @@
 
 The calculation of the transmission balance differs for
 [`PipeLinepackSimple`](@extref EnergyModelsGeography.PipeLinepackSimple) in the receding
-horizon implementation as we do not utilize cyclic constraints. Instead, it extract the
+horizon implementation as we do not utilize cyclic constraints. Instead, it extracts the
 value from the [`TransInitData`](@ref).
 """
 function EMG.constraints_trans_balance(

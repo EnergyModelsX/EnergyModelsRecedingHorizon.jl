@@ -26,7 +26,7 @@ EMGExt.TransInitData
 EMGExt.TransInitDataPath
 ```
 
-The following functions are included for extracting the values from a `TransmissionMode` and init data type:
+The following functions are included for extracting the values from a `TransmissionMode` and initial data type:
 
 ```@docs
 data_init(a::Area)
@@ -61,7 +61,7 @@ EMG.constraints_trans_balance
 EMG.constraints_capacity_installed
 ```
 
-`constraints_capacity_installed` only receives a new method if `ParametricOptInterace` is loaded.
+`constraints_capacity_installed` only receives a new method if `ParametricOptInterface` is loaded.
 
 ### [Functions for accessing fields](@id lib-int-EMGExt-EMG-fun_field)
 

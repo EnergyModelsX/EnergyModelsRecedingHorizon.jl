@@ -303,7 +303,7 @@ end
 # Fields
 - **`new::T`** is the new type after resetting its values
 - **`org::T`** is the original type before resetting its values.
-- **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref)(@ref) types for the given
+- **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types for the given
   [`FutureValue`](@ref).
 """
 mutable struct FutureValueSub{T<:FutureValue} <: AbstractSub

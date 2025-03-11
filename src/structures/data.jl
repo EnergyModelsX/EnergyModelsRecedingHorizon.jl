@@ -34,7 +34,7 @@ abstract type TransInitData{T} <: AbstractInitData end
     StorageInitData(val::Real)
 
 Constructor for providing initialization for [`Storage`](@extref EnergyModelsBase.Storage)
-nods. A `StorageInitData` must be provided for each `Storage` node.
+nodes. A `StorageInitData` must be provided for each `Storage` node.
 
 # Arguments
 - **`val::Real`**: initial value for storage level.

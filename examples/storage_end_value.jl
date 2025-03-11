@@ -34,7 +34,7 @@ function generate_future_value_case(; init_state=0)
     products = [CO2, Power]
 
     # Variables for the individual entries of the time structure
-    # The 12 operational periods of the full problem ahve a varying length
+    # The 12 operational periods of the full problem have a varying length
     dur_op = [1, 2, 1, 4, 1, 3, 1, 3, 1, 2, 1, 4]
     operational_periods = SimpleTimes(dur_op)
 

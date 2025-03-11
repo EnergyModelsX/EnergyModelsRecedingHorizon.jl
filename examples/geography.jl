@@ -22,7 +22,7 @@ const EMRH = EnergyModelsRecHorizon
     generate_geo_case(; init_state=0)
 
 Generate the data for an example consisting of the transmission of hydrogen from a source
-region to a sink region. The chosen transmission mode allows for linepacking, and hence,
+region to a sink region. The chosen transmission mode allows for line packing, and hence,
 requires initial data.
 """
 function generate_geo_case(; init_state=0)
@@ -88,7 +88,7 @@ function generate_geo_case(; init_state=0)
         Direct("reg2_av-reg1_demand", nodes[4], nodes[5], Linear())
     ]
 
-    # Creqate the single transmission mode, a pipeline with linepacking potential
+    # Create the single transmission mode, a pipeline with line packing potential
     pipe_lp = PipeLinepackSimple(
         "pipe_linepack",
         H2_hp,
@@ -137,7 +137,7 @@ function process_geo_results(res, case)
     cap_use_h2_src = filter(r -> r.x1 == h2_src, res[:cap_use])
     cap_use_snk = filter(r -> r.x1 == snk, res[:cap_use])
 
-    # Extract the values for the linepacking
+    # Extract the values for the line packing
     stor_lp = filter(r -> r.x1 == pipe_lp, res[:linepack_stor_level])
 
     # Combine both into single dataframes
@@ -159,6 +159,6 @@ res_mod = process_geo_results(res, case)
 @info "The following table shows the source usage (source), the supply to the sink (sink) \n" *
     "and the energy stored in the pipeline (line_pack_level) at the end of the period.\n" *
     "The problem is solved 4 times in the receding horizon framework.\n" *
-    "From these values, we can see how linepacking is utilized in the periods 4, 6, and 8\n" *
+    "From these values, we can see how line packing is utilized in the periods 4, 6, and 8\n" *
     "due to higher prices while the level is increased in periods 2, 5, and 7 due to lower prices."
 println(pretty_table(permutedims(res_mod, :Period)))

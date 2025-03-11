@@ -9,7 +9,7 @@ The following points should be accounted for when setting up a problem in [`Ener
 - The horizon object must be compatible with the case's [`TimeStructure`](@extref TimeStruct.TimeStructure).
 - The model object must be of a subtype of [`RecHorEnergyModel`](@ref EMRH.RecHorEnergyModel) for dispatching purposes.
 - The elements in the problem case must have [`AbstractInitData`](@ref EMRH.AbstractInitData) objects in their data fields where applicable.
-  This is a necessity for all `Storage` nodes that utilize the new behavior [`RecedingAccumulating`](@ref) which should be utilized irrespectively of the individial storage node.
+  This is a necessity for all `Storage` nodes that utilize the new behavior [`RecedingAccumulating`](@ref) which should be utilized irrespectively of the individual storage node.
   This initial data must be used to define the first operational period (see the *[initialization section](@ref dev-init)* for more details).
 
 ## [ParametricOptInterface extension](@id how_to-use_emrh-POIext)
