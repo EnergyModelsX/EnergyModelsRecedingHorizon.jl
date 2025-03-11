@@ -41,7 +41,7 @@ export AbstractInitData, InitData, StorageInitData, TransInitData
 export AbstractPath, AbstractInitDataPath
 
 # Auxiliary functions for nodes and node field checks
-export has_init, is_init_data
+export has_init, is_init_data, data_init
 
 # Types utilized in the instantiation of a model
 export DurationHorizons, PeriodHorizons

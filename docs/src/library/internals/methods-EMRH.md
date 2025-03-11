@@ -31,7 +31,7 @@ EMRH._create_lens_dict
 ### [Identification functions](@id lib-int-ident)
 
 ```@docs
-EMRH._find_update_paths
+EMRH._find_update_paths(x::T) where {T <: Union{AbstractElement, Resource, EMRH.RecHorEnergyModel}}
 EMRH._dict_key
 EMRH._create_lens_for_field
 EMRH._path_type

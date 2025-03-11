@@ -25,7 +25,7 @@
         @test !has_init(a_1)
         # Test for extracting initialization data
         # - data_init(a::Area)
-        @test isnothing(EMRH.data_init(a_1))
+        @test isnothing(data_init(a_1))
     end
 
 
@@ -220,8 +220,8 @@ end
         # Test for extracting initialization data
         # - data_init(l::Transmission)
         # - data_init(tm::TransmissionMode)
-        @test EMRH.data_init(l_stat_dyn) == [nothing, nothing]
-        @test EMRH.data_init(l_pipe) == [nothing, init_lp]
+        @test data_init(l_stat_dyn) == [nothing, nothing]
+        @test data_init(l_pipe) == [nothing, init_lp]
     end
 
     @testset "Path creation" begin

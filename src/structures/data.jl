@@ -1,6 +1,5 @@
-
 """
-    RecedingAccumulating <: Accumulating
+    struct RecedingAccumulating <: Accumulating
 
 `StorageBehavior` which accumulates all inflow witin a strategic period.
 `RecedingAccumulating` allows for initializing level values for the storages.
@@ -8,16 +7,22 @@
 struct RecedingAccumulating <: EMB.Accumulating end
 
 """
+    abstract type AbstractInitData <: EMB.Data
+
 Abstract type for initialization data.
 """
 abstract type AbstractInitData <: EMB.Data end
 
 """
-Reference initialization data type. An `AbstractInitData` object should be defined for each
-initializable node instance.
+    struct InitData{T} <: AbstractInitData
+
+Initialization data type for the inclusion of initial data before the first horizon.
+The standard initialization data is using a single value for a given variable. Multiple
+variables can be initialized simultaneously.
 
 # Fields
-- **`val`**: initial state for node.
+- **`init_val_dict::Dict{Symbol,T}`** is a dictionary with the variable symbol as key and the
+  value in the beginning of the analysis as value.
 """
 struct InitData{T} <: AbstractInitData
     init_val_dict::Dict{Symbol,T}
@@ -26,10 +31,12 @@ end
 abstract type TransInitData{T} <: AbstractInitData end
 
 """
-Provides initialization for storages. An `StorageInitData` should be defined
-for each `Storage{RecedingAccumulating}` instance.
+    StorageInitData(val::Real)
 
-# Fields
+Constructor for providing initialization for [`Storage`](@extref EnergyModelsBase.Storage)
+nods. A `StorageInitData` must be provided for each `Storage` node.
+
+# Arguments
 - **`val::Real`**: initial value for storage level.
 """
 function StorageInitData(val::Real)

@@ -3,11 +3,15 @@
     TransInitData{T} <: AbstractInitData
 
 Initialization data type for `TransmissionMode`. It follows the same structure as the standard
-[`InitData`](@ref). It is required as the indexing is different for `TransmissionMode`s
-compared to `Node`s, `Link`s, or `Area`s.
+[`InitData`](@ref), that is it is using a single value for a given variable. Multiple
+variables can be initialized simultaneously.
+
+It is required as the indexing is different  for `TransmissionMode`s compared to `Node`s,
+`Link`s, or `Area`s.
 
 # Fields
-- **`val`**: initial state for node.
+- **`init_val_dict::Dict{Symbol,T}`** is a dictionary with the variable symbol as key and the
+  value in the beginning of the analysis as value.
 """
 struct TransInitData{T} <: EMRH.TransInitData{T}
     init_val_dict::Dict{Symbol,T}

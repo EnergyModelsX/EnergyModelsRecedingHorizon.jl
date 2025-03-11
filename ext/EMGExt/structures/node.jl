@@ -1,8 +1,10 @@
 """
     EMRH.update_init_data!(m, ri::AbstractReset, l::Transmission, idp::TransInitDataPath, opers_implᵣₕ)
 
-Updats the values of Transmission `l` for the AbstractReset `ri` with the value specified
-by the `key` of the `idp`. It uses the mode indexed through the field `idx` of idp.
+Updates the initial values of Transmission  corridor `l` for the AbstractReset `ri` with the
+value specified by the `key` of the TransInitDataPath `idp`.
+
+The mode for the variable is identified through the field `idx` of TransInitDataPath.
 """
 function EMRH.update_init_data!(
     m,

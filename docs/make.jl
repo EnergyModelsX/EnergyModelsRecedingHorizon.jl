@@ -8,11 +8,19 @@ using DocumenterCitations
 
 using TimeStruct
 using EnergyModelsBase
+using EnergyModelsGeography
 using EnergyModelsRecHorizon
 using ParametricOptInterface
+
 const TS = TimeStruct
 const EMB = EnergyModelsBase
+const EMG = EnergyModelsGeography
 const EMRH = EnergyModelsRecHorizon
+const POI = ParametricOptInterface
+
+const EMGExt = Base.get_extension(EMRH, :EMGExt)
+const POIExt = Base.get_extension(EMRH, :POIExt)
+
 
 # Copy the NEWS.md file
 cp(joinpath(@__DIR__, "..", "NEWS.md"), joinpath(@__DIR__, "src", "manual", "NEWS.md"); force = true)
@@ -20,7 +28,7 @@ cp(joinpath(@__DIR__, "..", "NEWS.md"), joinpath(@__DIR__, "src", "manual", "NEW
 links = InterLinks(
     "TimeStruct" => "https://sintefore.github.io/TimeStruct.jl/stable/",
     "EnergyModelsBase" => "https://energymodelsx.github.io/EnergyModelsBase.jl/stable/",
-    # "ParametricOptInterface" => "https://jump.dev/ParametricOptInterface.jl/stable/",
+    "EnergyModelsGeography" => "https://energymodelsx.github.io/EnergyModelsGeography.jl/stable/",
 )
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "references.bib"))
@@ -46,7 +54,13 @@ makedocs(
         EMRH,
         isdefined(Base, :get_extension) ?
         Base.get_extension(EMRH, :POIExt) :
-        EMRH.POIExt
+        EMRH.POIExt,
+        isdefined(Base, :get_extension) ?
+        Base.get_extension(EMRH, :EMGExt) :
+        EMRH.EMGExt,
+        isdefined(Base, :get_extension) ?
+        Base.get_extension(EMRH, :EMGPOIExt) :
+        EMRH.EMGPOIExt,
     ],
     pages = [
         "Home" => "index.md",
@@ -73,8 +87,9 @@ makedocs(
                 # "library/internals/methods-fields.md",
                 "library/internals/methods-EMRH.md",
                 "library/internals/methods-EMB.md",
-                "library/internals/reference-POIExt.md",
                 "library/internals/reset.md",
+                "library/internals/reference-EMGExt.md",
+                "library/internals/reference-POIExt.md",
             ],
         ],
         "References" => "references.md",

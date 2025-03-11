@@ -3,7 +3,7 @@
 ## [Index](@id lib-int-POIExt-idx)
 
 ```@index
-Pages = ["reference_POIExt.md"]
+Pages = ["reference-POIExt.md"]
 ```
 
 ```@meta
@@ -22,7 +22,7 @@ update_model!
 
 ```@docs
 _update_parameter_values!
-_update_parameter!
+_update_parameter!(m, res_type::EMRH.ElementReset, opers::Vector)
 ```
 
 ## [EnergyModelsRecHorizon](@id lib-int-POIExt-EMRH)

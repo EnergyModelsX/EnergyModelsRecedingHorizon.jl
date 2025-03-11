@@ -195,7 +195,7 @@ main_res = innerjoin(
 )
 select!(main_res, :x2 => (x -> repr.(x)) => :Period, :y => :state_1, :y_1 => :state_2)
 node_inc = get_nodes(case)[1]
-init_data = EMRH.data_init(node_inc)
+init_data = data_init(node_inc)
 
 # Print model results
 println(
