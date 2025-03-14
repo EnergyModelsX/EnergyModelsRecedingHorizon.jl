@@ -23,7 +23,7 @@ Abstract supertype for the individual composite types that can be used for passi
 required parameters for a receding horizon optimization.
 """
 abstract type AbstractHorizons{T<:Real} end
-Base.show(io::IO, w::AbstractHorizons) = print(io, "horizons_$(w.len)_$(w.optim)_$(w.impl)")
+Base.show(io::IO, w::AbstractHorizons) = print(io, "ℋ_$(w.len)_$(w.optim)_$(w.impl)")
 
 """
     PeriodHorizons{T} <: AbstractHorizons{T}
@@ -248,6 +248,7 @@ struct SingleHorizon{T}
 end
 TS.isfirst(sh::SingleHorizon) = sh.id == 1
 Base.length(sh::SingleHorizon) = length(sh.dur)
+Base.show(io::IO, sh::SingleHorizon) = print(io, "𝒽_$(sh.id)")
 
 """
     durations(single_hor::SingleHorizon)
