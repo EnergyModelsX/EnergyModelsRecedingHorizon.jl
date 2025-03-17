@@ -31,7 +31,7 @@ Base.show(io::IO, w::AbstractHorizons) = print(io, "horizons_$(w.len)_$(w.optim)
 Type used for specifiying the optimization and implementation horizon of a receding horizon
 model as multiples of the number of periods.
 
-Iterating a `PeriodHorizons` results in `SingleHorizon` which include all information
+Iterating a `PeriodHorizons` results in `SingleHorizon` which includes all information
 required for a single run.
 
 # Fields
@@ -92,7 +92,7 @@ end
 """
     PeriodHorizons(dur::Vector{T}, optim::Int64, impl::Int64) where {T<:Real}
 
-Constructor for a `PeriodHorizons{T}` in which the field `len` is calcaulted from the sum
+Constructor for a `PeriodHorizons{T}` in which the field `len` is calculated from the sum
 of the vector `dur{T}`.
 """
 function PeriodHorizons(dur::Vector{T}, optim::Int64, impl::Int64) where {T<:Real}
@@ -113,7 +113,7 @@ Type used for specifiying the optimization and implementation horizon of a reced
 model as the duration of the horizons. This implies that the number of operational periods
 in the different iterations can vary.
 
-Iterating a `DurationHorizons` results in `SingleHorizon` which include all information
+Iterating a `DurationHorizons` results in `SingleHorizon` which includes all information
 required for a single run.
 
 # Fields
@@ -174,7 +174,7 @@ end
 """
     DurationHorizons(dur::Vector{T}, optim::Int64, impl::Int64) where {T<:Real}
 
-Constructor for a `DurationHorizons{T}` in which the field `len` is calcaulted from the sum
+Constructor for a `DurationHorizons{T}` in which the field `len` is calculated from the sum
 of the vector `dur{T}`.
 """
 function DurationHorizons(dur::Vector{T}, optim::Int64, impl::Int64) where {T<:Real}
@@ -252,7 +252,7 @@ Base.length(sh::SingleHorizon) = length(sh.dur)
 """
     durations(single_hor::SingleHorizon)
 
-Extracts the fiels `dur` from the `SingleHorizon` single_hor corresponding to a vector of
+Extracts the fiels `dur` from the `SingleHorizon` `single_hor` corresponding to a vector of
 the durations of the individual time periods.
 """
 durations(single_hor::SingleHorizon) = single_hor.dur
@@ -260,7 +260,7 @@ durations(single_hor::SingleHorizon) = single_hor.dur
 """
     indices_optimization(single_hor::SingleHorizon)
 
-Extracts the fiels `idx_optim` from the `SingleHorizon` single_hor corresponding to a vector
+Extracts the fiels `idx_optim` from the `SingleHorizon` `single_hor` corresponding to a vector
 of the indices of the **_optimization_** horizon.
 """
 indices_optimization(single_hor::SingleHorizon) = single_hor.idx_optim
@@ -268,7 +268,7 @@ indices_optimization(single_hor::SingleHorizon) = single_hor.idx_optim
 """
     indices_implementation(single_hor::SingleHorizon)
 
-Extracts the fiels `idx_impl` from the `SingleHorizon` single_hor corresponding to a vector
+Extracts the fiels `idx_impl` from the `SingleHorizon` `single_hor` corresponding to a vector
 of the indices of the **_implementation_** horizon.
 """
 indices_implementation(single_hor::SingleHorizon) = single_hor.idx_impl

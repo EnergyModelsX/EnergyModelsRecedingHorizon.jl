@@ -8,11 +8,13 @@ In this page, we will focus on the specific requirements for the introduction of
 An element that presents dynamic states (*e.g.*, storage levels, ...) must have these states explicitly initialized.
 In this package, this is done by the introduction of an [`AbstractInitData`](@ref) object.
 [`AbstractInitData`](@ref) is an abstract type, and the concrete type [`InitData`](@ref) is provided with the minimum expected functionality for such an object.
+The [`AbstractInitData`](@ref) must be used in the model equations to calculate the initial states of the corresponding element.
 
-The most general way of initializing a node is through dispatch on [`EMB.constraints_data`](@extref EnergyModelsBase.constraints_data). # TODO: describe initialization better
+It is possible to initialize a node through dispatch on [`EMB.constraints_data`](@extref EnergyModelsBase.constraints_data).
 An example of such implementation is provided in the test files for the creation of a new node `IncrementInitNode`, see the file *[node_with_initial_data.jl](https://gitlab.sintef.no/idesignres/wp-2/energymodelsrechorizon.jl/-/blob/main/examples/node_with_initial_data.jl)*.
+However, care must be taken when defining the initial state as such, so as to not overspecify the system of equations.
 
-Some nodes may have a more specialized way of initialization, such as [`Storage`](@extref EnergyModelsBase.Storage) nodes.
+Some nodes have a more specialized way of initialization, such as [`Storage`](@extref EnergyModelsBase.Storage) nodes.
 Here, we implement the [`RecedingAccumulating`](@ref) behavior, where the initial level state can be defined through an [`StorageInitData`](@ref) object.
 Initialization here is defined by dispatching on [`previous_level`](@ref EMRH.EnergyModelsBase.previous_level), which is already used in the core [`Storage`](@extref EnergyModelsBase.Storage) functionality (see the *[EnergyModelsBase documentation](@extref EnergyModelsBase.previous_level))*.
 

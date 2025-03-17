@@ -13,7 +13,7 @@ end
 """
     update_init_data!(m, ri::AbstractReset, x::AbstractElement, idp::InitDataPath, opers_implᵣₕ)
 
-Updats the values of AbstractElement `x` for the AbstractReset `ri` with the value specified
+Updates the values of AbstractElement `x` for the AbstractReset `ri` with the value specified
 by the `key` of the `idp`.
 """
 function update_init_data!(

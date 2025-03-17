@@ -58,7 +58,7 @@ EMRH.is_init_reset
 
 ## [Substitution types](@id lib-int-reset-sub)
 
-`Substitution` types correspond to types that store information of the individual original type, the udated type, and all required resets:
+`Substitution` types correspond to types that store information of the individual original instance, the updated instance, and all required resets of an object:
 
 ```@docs
 EMRH.AbstractSub

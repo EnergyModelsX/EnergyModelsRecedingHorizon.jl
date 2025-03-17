@@ -12,6 +12,9 @@ The following points should be accounted for when setting up a problem in [`Ener
   This is a necessity for all `Storage` nodes that utilize the new behavior [`RecedingAccumulating`](@ref) which should be utilized irrespectively of the individual storage node.
   This initial data must be used to define the first operational period (see the *[initialization section](@ref dev-init)* for more details).
 
+Contrary to other [`EnergyModelsX`](https://github.com/EnergyModelsX) packages, the current package does not solve a single optimization problem, but it solves a sequence of optimization problems.
+Therefore, the function [`run_model_rh`](@ref run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)) returns the overall results in a [`DataFrame`](https://dataframes.juliadata.org/stable/) format, containing only results related to the implementation horizons of the model.
+
 ## [ParametricOptInterface extension](@id how_to-use_emrh-POIext)
 
 If one wants to use the [`ParametricOptInterface`](https://jump.dev/ParametricOptInterface.jl/stable/) extension, the following adjustments must be made.

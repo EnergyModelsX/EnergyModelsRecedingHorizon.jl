@@ -1,11 +1,11 @@
 """
     struct TransInitDataPath <: AbstractInitDataPath
 
-Internal type for paths pointing towards [`InitData`](@ref) in the case of `TransmissionMode`s.
+Internal type for paths pointing towards [`TransInitData`](@ref).
 
 # Fields
-- **`idx::Int`** is the index of the mode within the `Transmission` corridor.
-- **`key::Symbol`** is the key in the [`InitData`](@ref) (and correspondingly in the JuMP
+- **`idx::Int`** is the index of the mode within the associated `Transmission` corridor.
+- **`key::Symbol`** is the key in the [`TransInitData`](@ref) (and correspondingly in the JuMP
   model).
 """
 struct TransInitDataPath <: AbstractInitDataPath
@@ -26,8 +26,8 @@ EMRH.model_key(idp::TransInitDataPath) = idp.key
 [`AbstractSub`](@ref) for [`Area`](@extref EnergyModelsGeography.Area)s.
 
 # Fields
-- **`new::T`** is the new type after resetting its values
-- **`org::T`** is the original type before resetting its values.
+- **`new::T`** is the new instance after resetting its values.
+- **`org::T`** is the original instance before resetting its values.
 - **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types
   for the given [`Area`](@extref EnergyModelsGeography.Area).
 """
@@ -58,8 +58,8 @@ EMG.get_areas(𝒰::UpdateCase) = Area[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, A
 corridor.
 
 # Fields
-- **`new::T`** is the new type after resetting its values
-- **`org::T`** is the original type before resetting its values.
+- **`new::T`** is the new instance after resetting its values.
+- **`org::T`** is the original instance before resetting its values.
 - **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types
   for the given [`Transmission`](@extref EnergyModelsGeography.Transmission) corridor.
 """

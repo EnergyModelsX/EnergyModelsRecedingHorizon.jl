@@ -38,7 +38,6 @@ Depth = 1
 Pages = [
     "dev-notes/code-structure.md",
     "dev-notes/initialization.md",
-    "dev-notes/cost-to-go.md",
 ]
 Depth = 1
 ```
