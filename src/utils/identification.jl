@@ -41,17 +41,17 @@ sink = RefSink(
 
 EMRH._find_update_paths(sink)
 # returns a 3-element Vector{Any}:
-#  Any[:penalty, "[:deficit]", EnergyModelsRecHorizon.OperPath()]
-#  Any[:penalty, "[:surplus]", EnergyModelsRecHorizon.OperPath()]
-#  Any[:data, "[1]", :emissions, co2, EnergyModelsRecHorizon.OperPath()]
+ Any[:penalty, "[:deficit]", EnergyModelsRecHorizon.OperPath()]
+ Any[:penalty, "[:surplus]", EnergyModelsRecHorizon.OperPath()]
+ Any[:data, "[1]", :emissions, co2, EnergyModelsRecHorizon.OperPath()]
 
 # The function can also be used for checking other `types`:
 all_paths = []
 current_path = Any[:a_path]
 a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])),
     :b2 => OperationalProfile([1]), :b3 => [1]))
-EMRH._find_update_paths(a_dict, current_path, all_paths)
 
+EMRH._find_update_paths(a_dict, current_path, all_paths)
 # all_paths is now a 2-element Vector{Any}:
  Any[:a_path, "[:a]", "[:b2]", EnergyModelsRecHorizon.OperPath()]
  Any[:a_path, "[:a]", "[:b1]", "[:c]", EnergyModelsRecHorizon.OperPath()]
@@ -174,8 +174,7 @@ end
     _dict_key(key::String)
     _dict_key(key::Resource)
 
-Function for translating a dictionary key type to an input which can be translated into a
-custom lens.
+Function for translating a dictionary key type to an input which can be parsed into a lens.
 """
 _dict_key(key::Symbol) = ["[:" * String(key) * "]"]
 _dict_key(key::String) = ["[\"" * key * "\"]"]
@@ -188,7 +187,8 @@ _dict_key(key::Resource) = key
 
 Returns a dictionary with the field id as keys and lenses pointing to fields that are
 updated in the individual type instances as values. The individual field ids are created
-through calling the function [`_find_update_paths`](@ref).
+through calling the function [`_find_update_paths`](@ref), and the lenses are created with
+[`_create_lens_for_field`](@ref).
 
 Lenses are created for
 
@@ -231,27 +231,13 @@ source2 = RefSource(
 # Create a dictionary containing lenses to the OperationalProfile
 d_all = EMRH._create_lens_dict([source1, source2])
 # Returns Dict{RefSource, Dict{Vector{Any}}} with 2 entries:
-#  n_source1 => Dict{Vector{Any}, Any}([:data, "[1]", :emissions, co2, OperPath()]=>_.data[1].emissions[co2], [:cap, OperPath()]=>_.cap)
-#  n_source2 => Dict{Vector{Any}, PropertyLens{:opex_var}}([:opex_var, OperPath()]=>_.opex_var)
+ n_source1 => Dict{Vector{Any}, Any}([:data, "[1]", :emissions, co2, OperPath()]=>_.data[1].emissions[co2], [:cap, OperPath()]=>_.cap)
+ n_source2 => Dict{Vector{Any}, PropertyLens{:opex_var}}([:opex_var, OperPath()]=>_.opex_var)
 
 d_s1 = EMRH._create_lens_dict(source1)
 # Returns Dict{Vector{Any}, Any} with 2 entries:
-#  [:data, "[1]", :emissions, co2, OperPath()] => _.data[1].emissions[co2]
-#  [:cap, OperPath()]                          => _.cap
-
-# Keys to the dictionaries are the paths containing OperationalProfile
-paths_oper_s1 = EMRH._find_update_paths(source1)
-# Returns 2-element Vector{Any}:
-# Any[:cap, EnergyModelsRecHorizon.OperPath()]
-# Any[:data, "[1]", :emissions, co2, EnergyModelsRecHorizon.OperPath()]
-
-# Example usage
-lens_s1_cap = d_all[source1][paths_oper_s1[1]]
-lens_s1_em = d_all[source1][paths_oper_s1[2]]
-lens_s1_cap_v2 = d_s1[paths_oper_s1[1]]
-@assert all(lens_s1_cap(source1) == capacity(source1))
-@assert all(lens_s1_em(source1) == process_emissions(node_data(source1)[1], co2))
-@assert all(lens_s1_cap_v2(source1) == capacity(source1))
+ [:data, "[1]", :emissions, co2, OperPath()] => _.data[1].emissions[co2]
+ [:cap, OperPath()]                          => _.cap
 ```
 """
 function _create_lens_dict(𝒳::Vector{<:AbstractElement})
@@ -326,7 +312,7 @@ end
 Translate the individual value to the required format for creating the lense string.
 
 In the case of a resource, it creates a global variable calles `res` which can be evaluated
-in the parse
+in the parse.
 """
 _path_type(val::Symbol) = "." * String(val)
 _path_type(val::String) = val

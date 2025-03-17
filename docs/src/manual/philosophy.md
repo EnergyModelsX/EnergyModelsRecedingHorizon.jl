@@ -29,8 +29,35 @@ Two horizon types are provided with `EnergyModelsRecHorizon`, as subtypes of [`A
 
 - [`DurationHorizons`](@ref): the original time structure is partitioned according to the duration of the operational periods.
   This means that each implementation and optimization horizons may have varying length across the optimization subproblems.
+  Because the model processes an integer number of operational periods at any given iteration, the duration of each implementation and optimization horizon may be slightly bigger than pre-defined.
+
+## [Functionalities for receding horizon optimization](@id man-phil-func)
+
+To solve optimization problems in a receding horizon framework, additional functionalities must be present in the problem.
+These functionalities are implemented and are compatible with elements introduced in [`EnergyModelsBase`](https://energymodelsx.github.io/EnergyModelsBase.jl) and [`EnergyModelsGeography`](https://github.com/EnergyModelsX/EnergyModelsGeography.jl).
+
+### [Initialization of elements](@id man-phil-func-init)
+
+As the optimization horizon moves forward in the receding horizon iterations, the initial states of the model must be updated.
+This is especially relevant for dynamic elements such as [`Storage`](@extref EnergyModelsBase.Storage) nodes, where the state at a given time depends on previous operation.
+The basic functionality is implemented through [`InitData`](@ref) objects.
+With it, one can define the value of the related model variables at the start of the current optimization horizon.
+These functionalities can be extended through additional subtypes of [`AbstractInitData`](@ref).
+
+For more implementation details, see the developer notes section on *[initialization](@ref dev-init)*.
+
+### [Future value descriptions](@id man-phil-func-fv)
+
+In some cases, it is necessary to use future value descriptions for dynamic states in receding horizon optimization.
+This is done to obtain solutions for the smaller problems that are compatible with the full-horizon behavior.
+The package provides a future value description based on the concept of storage end value [Aaslid2021](@cite), which introduces penalties related to the value of the outgoing state at the end of each individual optimization problem.
+
+For a detailed description of this feature, refer to the section on *[future value](@ref man-fv)*.
 
 ## [When should you use the package?](@id man-phil-when)
 
 The package is intended for use in complex optimization problems in which it is not feasible to model a complete operational horizon in a single optimization run.
 In these problems, the solution of smaller problems sequentially in time may allow tractability of the problem.
+
+The package is implemented with focus on calculating supply-demand balances for systems in an operational time scale and does not support investment analysis.
+In addition, the calculation of operational costs for full periods is not yet implemented, although these can be calculated with the existing information.

@@ -1,9 +1,15 @@
 
-"""Abstract type for receding horizon models"""
+"""
+    abstract type RecHorEnergyModel <: EnergyModel end
+
+Abstract type for receding horizon models.
+"""
 abstract type RecHorEnergyModel <: EnergyModel end
 
 """
-Operational Energy Model without investments, receding horizon implementation.
+    struct RecHorOperationalModel <: RecHorEnergyModel
+
+Operational energy model without investments, receding horizon implementation.
 
 # Fields
 - **`emission_limit::Dict{<:ResourceEmit, <:TimeProfile}`** is a dictionary with \

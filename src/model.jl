@@ -105,7 +105,7 @@ end
 """
     EMB.variables_capacity(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒯, modeltype::EnergyModel)
 
-Declaration of functions to add capacity variables for FutureValue elements.
+Declaration of functions to add capacity variables for [`FutureValue`](@ref) elements.
 
 !!! note "FutureValue"
     No variables are added.
@@ -115,7 +115,7 @@ function EMB.variables_capacity(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, �
 """
     EMB.variables_flow(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒯, modeltype::EnergyModel)
 
-Declaration of functions to add flow variables for FutureValue elements.
+Declaration of functions to add flow variables for [`FutureValue`](@ref) elements.
 
 !!! note "FutureValue"
     No variables are added
@@ -123,12 +123,12 @@ Declaration of functions to add flow variables for FutureValue elements.
 function EMB.variables_flow(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒯, modeltype::EnergyModel) end
 
 """
-    EMB.variables_opex(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒫, 𝒯, modeltype::EnergyModel)
+    EMB.variables_opex(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒯, modeltype::EnergyModel)
 
-Declaration of functions to add opex variables for FutureValue elements.
+Declaration of functions to add OPEX variables for [`FutureValue`](@ref) elements.
 
-- `future_value[𝒱]` variables for all `FutureValue` in the model reflecting the value of
-  at the end of the optimization period.
+- `future_value[𝒱]` variables for all [`FutureValue`](@ref) in the model reflecting the value
+  of the storages at the end of the optimization period.
 """
 function EMB.variables_opex(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒯, modeltype::EnergyModel)
     @variable(m, future_value[𝒱])
@@ -137,7 +137,7 @@ end
 """
     EMB.variables_capex(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒯, modeltype::EnergyModel)
 
-Declaration of functions to add capex variables for FutureValue elements.
+Declaration of functions to add CAPEX variables for [`FutureValue`](@ref) elements.
 
 !!! note "FutureValue"
     No variables are added
@@ -153,9 +153,9 @@ vector type.
 function EMB.variables_element(m, 𝒱::Vector{<:FutureValue}, 𝒯, modeltype::EnergyModel) end
 
 """
-    EMB.variables_emission(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒯, modeltype::EnergyModel)
+    EMB.variables_emission(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒫, 𝒯, modeltype::EnergyModel)
 
-Declaration of functions to add emission variables for FutureValue elements.
+Declaration of functions to add emission variables for [`FutureValue`](@ref) elements.
 
 !!! note "FutureValue"
     No variables are added
@@ -168,7 +168,7 @@ function EMB.variables_emission(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, �
 Loop through all entries of the elements vector and call a subfunction for creating the
 internal constraints of the entries of the elements vector.
 
-- `FutureValue` - the subfunction is [`create_future_value`](@ref).
+- [`FutureValue`](@ref) - the subfunction is [`create_future_value`](@ref).
 
 """
 function EMB.constraints_elements(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ, 𝒫, 𝒯, modeltype::EnergyModel)
@@ -178,13 +178,13 @@ function EMB.constraints_elements(m, 𝒱::Vector{<:FutureValue}, 𝒳ᵛᵉᶜ,
 end
 
 """
-    constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, modeltype::EnergyModel)
+    EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, modeltype::EnergyModel)
 
-Creates the couple constraints for FutureValue elements. The current implementation only
-implements couplings for the sub-type `StorageValueCuts` by calling the function
+Creates the couple constraints for [`FutureValue`](@ref) elements. The current implementation
+only creates couplings for the sub-type `StorageValueCuts` by calling the function
 [`create_future_value_couple`](@ref).
 """
-function EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue},  𝒫, 𝒯, modeltype::EnergyModel)
+function EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, modeltype::EnergyModel)
     for v ∈ 𝒱
         create_future_value_couple(m, v, 𝒯, modeltype)
     end
@@ -197,7 +197,7 @@ Create JuMP expressions indexed over the operational periods `𝒯` for differen
 The expressions correspond to the total emissions of a given type.
 
 By default, emissions expressions are included for:
-- `𝒳 = 𝒱::Vector{<:FutureValue}`. In the case of a vector of FutureValue, the method returns
+- `𝒳 = 𝒱::Vector{<:FutureValue}`. In the case of a vector of [`FutureValue`](@ref), the method
   returns a value of 0 for all operational periods and emission resources.
 
 """
@@ -215,7 +215,7 @@ into account.
 
 By default, objective expressions are included for:
 - `𝒳 = 𝒱::Vector{<:FutureValue}`. In the case of a vector of [`FutureValue`](@ref), the
-  method returns the sum of the future_value types as extracted through the function
+  method returns the sum of the future value types as extracted through the function
   [`get_future_value_expression`](@ref).
 
 """
@@ -241,10 +241,10 @@ end
 """
     create_future_value(m, v::FutureValue, 𝒯, modeltype)
 
-Set all constraints for an [`FutureValue`](@ref). Can serve as fallback option for all
-unspecified subtypes of `FutureValue`.
+Set all constraints for an [`FutureValue`](@ref). Fallback option for all unspecified
+subtypes of `FutureValue`.
 """
-function create_future_value(m, v::FutureValue, 𝒯,  modeltype) end
+function create_future_value(m, v::FutureValue, 𝒯, modeltype) end
 
 """
     create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::EnergyModel)
@@ -263,7 +263,7 @@ end
 """
     get_future_value_expression(m, 𝒱::Vector{StorageValueCuts}, 𝒯ᴵⁿᵛ::TS.AbstractStratPers, modeltype::EnergyModel)
 
-The method returns an expression equal to the sum of the `future_value` of all active cuts.
+Returns an expression equal to the weighted sum of the `future_value` of all active cuts.
 Inactive cuts are weighted with 0 but still included to keep the number of variables
 unchanged.
 """

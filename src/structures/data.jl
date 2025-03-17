@@ -51,7 +51,7 @@ Checks whether the argument `data` has initialization settings.
 is_init_data(data) = (typeof(data) <: AbstractInitData)
 
 """
-    has_init(n::Node)
+    has_init(n::EMB.Node)
     has_init(l::Link)
 
 Checks whether the node `n` or link `l` has initialization data.

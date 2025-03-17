@@ -36,7 +36,7 @@ Internal type for paths pointing towards the time weight of a future value.
 struct TimeWeightPath <: AbstractPath end
 
 """
-    struct InitDataPath <: AbstractPath
+    struct InitDataPath <: AbstractInitDataPath
 
 Internal type for paths pointing towards [`InitData`](@ref).
 
@@ -58,18 +58,18 @@ model_key(idp::InitDataPath) = idp.key
 """
     abstract type AbstractReset
 
-Supertype for for types resetting values in fields in the individual
+Supertype for types resetting values in fields in the individual
 [`AbstractElement`](@extref EnergyModelsBase.AbstractElement)s. The individual subtype is
 related to the chosen [`AbstractPath`](@ref) as outlined above.
 
 !!! note "New subtypes"
-    We currently reset types for elements (*e.g.*, nodes, links, areas, or transmission),
+    We currently have reset types for elements (*e.g.*, nodes, links, areas, or transmission),
     operational profiles, and initial data. The individual types are automatically deduced
     through the constructor [`ResetType`](@ref).
 
     If you require resetting different fields than the provided, you must include a new
     [`AbstractPath`](@ref) subtype, a new mutable composite type as subtype of `AbstractReset`,
-    and a new method for the the constructor [`ResetType`](@ref) are required.
+    and a new method for the the constructor [`ResetType`](@ref).
 """
 abstract type AbstractReset end
 
@@ -86,7 +86,7 @@ utilized for automatically creating the lens to the field path.
 
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
-- **`val::AbstractElement`** is the element in the field of the original type. It is used
+- **`val::AbstractElement`** is the element in the field of the original instance. It is used
   for identifying the linked `AbstractElement` after it is reset.
 """
 mutable struct ElementReset <: AbstractReset
@@ -233,8 +233,8 @@ abstract type AbstractSub end
 [`AbstractSub`](@ref) for [`RecHorEnergyModel`](@ref).
 
 # Fields
-- **`new::T`** is the new type after resetting its values
-- **`org::T`** is the original type before resetting its values.
+- **`new::T`** is the new instance after resetting its values.
+- **`org::T`** is the original instance before resetting its values.
 - **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types for the given
   [`RecHorEnergyModel`](@ref).
 """
@@ -250,8 +250,8 @@ end
 [`AbstractSub`](@ref) for [`Resource`](@extref EnergyModelsBase.Resource)s.
 
 # Fields
-- **`new::T`** is the new type after resetting its values
-- **`org::T`** is the original type before resetting its values.
+- **`new::T`** is the new instance after resetting its values.
+- **`org::T`** is the original instance before resetting its values.
 - **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types for the given
   [`Resource`](@extref EnergyModelsBase.Resource).
 """
@@ -267,8 +267,8 @@ end
 [`AbstractSub`](@ref) for [`Node`](@extref EnergyModelsBase.Node)s.
 
 # Fields
-- **`new::T`** is the new type after resetting its values
-- **`org::T`** is the original type before resetting its values.
+- **`new::T`** is the new instance after resetting its values.
+- **`org::T`** is the original instance before resetting its values.
 - **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types for the given
   [`Node`](@extref EnergyModelsBase.Node).
 """
@@ -284,8 +284,8 @@ end
 [`AbstractSub`](@ref) for [`Link`](@extref EnergyModelsBase.Link)s.
 
 # Fields
-- **`new::T`** is the new type after resetting its values
-- **`org::T`** is the original type before resetting its values.
+- **`new::T`** is the new instance after resetting its values.
+- **`org::T`** is the original instance before resetting its values.
 - **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types for the given
   [`Link`](@extref EnergyModelsBase.Link).
 """
@@ -301,8 +301,8 @@ end
 [`AbstractSub`](@ref) for [`FutureValue`](@ref)s.
 
 # Fields
-- **`new::T`** is the new type after resetting its values
-- **`org::T`** is the original type before resetting its values.
+- **`new::T`** is the new instance after resetting its values.
+- **`org::T`** is the original instance before resetting its values.
 - **`resets::Vector{<:AbstractReset}`** are [`AbstractReset`](@ref) types for the given
   [`FutureValue`](@ref).
 """
@@ -362,7 +362,7 @@ in a receding horizon model.
 
 This type follows in general the same structure as the [`Case`](@extref EnergyModelsBase.Case)
 type introduced in `EnergyModelsBase` in which the individual vectors of `Resource`s or
-`AbstractElement`s are replaced with the corresponding vectors of [`AbstractSub`].
+`AbstractElement`s are replaced with the corresponding vectors of [`AbstractSub`](@ref).
 
 # Fields
 - **`model::ModelSub`** is the substitution type for the [`RecHorEnergyModel`](@ref).
@@ -420,10 +420,10 @@ get_sub_ele(𝒮ᵛᵉᶜ::Vector{Vector}, x::Type{<:AbstractElement}) =
 get_sub_ele(𝒰::UpdateCase, x::Type{<:AbstractElement}) = get_sub_ele(get_sub_elements_vec(𝒰), x)
 
 """
-    get_products(𝒰::UpdateCase)
+    EMB.get_products(𝒰::UpdateCase)
 
-Method for the equivalent `EnergyModelsBase` function to extract the **new** `Resource`s of
-the individual [`ProductSub`](@ref) types.
+Method for the `EnergyModelsBase` function to extract the **new** `Resource`s of the
+individual [`ProductSub`](@ref) types.
 
 This element vector can be directly utilized for the field elements of a
 [`Case`](@extref EnergyModelsBase.Case).
@@ -431,10 +431,10 @@ This element vector can be directly utilized for the field elements of a
 EMB.get_products(𝒰::UpdateCase) = Resource[𝒮.new for 𝒮 ∈ get_sub_products(𝒰)]
 
 """
-    get_elements_vec(𝒰::UpdateCase)
+    EMB.get_elements_vec(𝒰::UpdateCase)
 
-Method for the equivalent `EnergyModelsBase` function to extract the **new** vector of
-element vectors `𝒳ᵛᵉᶜ` of UpdateCase `𝒰`.
+Method for the `EnergyModelsBase` function to extract the **new** vector of element vectors
+`𝒳ᵛᵉᶜ` of UpdateCase `𝒰`.
 
 This element vector can be directly utilized for the field elements of a
 [`Case`](@extref EnergyModelsBase.Case).
@@ -449,20 +449,20 @@ function EMB.get_elements_vec(𝒰::UpdateCase)
 end
 
 """
-    get_nodes(𝒰::UpdateCase)
+    EMB.get_nodes(𝒰::UpdateCase)
 
-Method for the equivalent `EnergyModelsBase` function to extract the **new** `Node`s of
-the individual [`NodeSub`](@ref) types of UpdateCase `𝒰`.
+Method for the `EnergyModelsBase` function to extract the **new** `Node`s of the individual
+[`NodeSub`](@ref) types of UpdateCase `𝒰`.
 
 This element vector can be directly utilized for the field elements of a
 [`Case`](@extref EnergyModelsBase.Case).
 """
 EMB.get_nodes(𝒰::UpdateCase) = EMB.Node[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, EMB.Node)]
 """
-    get_links(𝒰::UpdateCase)
+    EMB.get_links(𝒰::UpdateCase)
 
-Method for the equivalent `EnergyModelsBase` function to extract the **new** `Link`s of
-the individual [`LinkSub`](@ref) types of UpdateCase `𝒰`.
+Method for the `EnergyModelsBase` function to extract the **new** `Link`s of the individual
+[`LinkSub`](@ref) types of UpdateCase `𝒰`.
 
 This element vector can be directly utilized for the field elements of a
 [`Case`](@extref EnergyModelsBase.Case).
@@ -477,7 +477,7 @@ get_future_value(𝒰::UpdateCase) = FutureValue[s.new for s ∈ get_sub_ele(�
     updated(𝒮::Vector{<:AbstractSub}, x_org::AbstractElement)
     updated(s::AbstractSub)
 
-Returns the updated (resetted) type of the original type `x_org` for a given `UpdateCase`.
+Returns the updated (resetted) instance of the original instance `x_org` for a given [`UpdateCase`](@ref).
 It is used for mapping and replacing instances of the type in fields.
 
 If the input is an `AbstractSub`, it returns the value of the field `new`.
@@ -497,7 +497,7 @@ updated(s::AbstractSub) = s.new
     original(𝒮::Vector{<:AbstractSub}, x_new::AbstractElement)
     original(s::AbstractSub)
 
-Returns the original type of the new (resetted) type `x_new` for a given `UpdateCase`.
+Returns the original instance of the new (resetted) instance `x_new` for a given [`UpdateCase`](@ref).
 It is used for results extraction.
 
 If the input is an `AbstractSub`, it returns the value of the field `org`.

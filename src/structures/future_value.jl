@@ -26,12 +26,12 @@ end
 """
     struct StorageValueCut
 
-A `StorageValueCut` represents a cutting hyperplanes that puts an upper bound on
+A `StorageValueCut` represents a cutting hyperplane that puts an upper bound on
 the value of the stored resource at the end of the optimization horizon.
 
 ## Fields
 - **`id::Any`** is the name/identifier of the `StorageValueCut`.
-- **`Vector{<:ElementValue}`** are the cut coefficients associated with the level of the
+- **`coeffs::Vector{<:ElementValue}`** are the cut coefficients associated with the level of the
   given `Storage` nodes. They can also be provided as `Dict{<:Storage{<:Accumulating}, <:Real}`.
 - **`rhs::Real`** is the cut right hand side constant.
 """
@@ -111,7 +111,7 @@ cuts_time(svcs::StorageValueCuts) = svcs.time
 """
     cuts(svcs::StorageValueCuts)
 
-Returns the different cuts of StorageValueCuts `svcs`
+Returns the different cuts of StorageValueCuts `svcs`.
 """
 cuts(svcs::StorageValueCuts) = svcs.cuts
 
@@ -133,7 +133,7 @@ has_cuts(v::StorageValueCuts) = true
 
 Returns the vector of FutureValue of the Case `case` or the vector of elements vectors `𝒳ᵛᵉᶜ`.
 
-If the input is an `UpdateCase`, it returns the **new** `FutureValues`s of the individual
+If the input is an [`UpdateCase`](@ref), it returns the **new** `FutureValues`s of the individual
 [`FutureValueSub`](@ref) types of UpdateCase `𝒰`.
 """
 get_future_value(𝒳ᵛᵉᶜ::Vector{Vector}) = filter(el -> isa(el, Vector{<:FutureValue}), 𝒳ᵛᵉᶜ)[1]

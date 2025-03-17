@@ -1,9 +1,8 @@
 """
     get_results(m::JuMP.Model)
 
-Function returning the values of the optimized model `m`. Some types are, however, not
-supported, and the function prints a warning message for those types and does not extract
-its value.
+Function returning the values of the optimized model `m`. Prints a warning message for
+currently unsupported types without extracting their value.
 """
 function get_results(m::JuMP.Model)
     res = Dict{Symbol,Vector}()
@@ -37,9 +36,9 @@ end
 """
     update_results!(results, m, 𝒰, opers)
 
-Update results dictionary `results` given the optimization results `m`. `m` was optimized using the
-problem definition in `case_rh`, which is a slice of the original problem defined by `case`
-at the time period `𝒽`. The containers in `results` are indexed by the elements in `case`.
+Updates `results` given the optimization results `m` for the times `opers`.
+The results are indexed by the elements in the provided `case` (here accessed using the
+[`UpdateCase`](@ref) `𝒰`).
 """
 function update_results!(results, m, 𝒰, opers)
     results_rh = get_results(m)
@@ -75,9 +74,8 @@ end
 """
     get_results_df(m::JuMP.Model)
 
-Function returning the values of the optimized model `m` as a `DataFrame`. Some types are,
-however, not supported, and the function prints a warning message for those types and does
-not extract its value.
+Function returning the values of the optimized model `m` as a `DataFrame`. Prints a warning
+message for currently unsupported types without extracting their value.
 """
 function get_results_df(m::JuMP.Model)
     res = get_results(m)
@@ -89,8 +87,8 @@ end
     save_results(model::Model; directory=joinpath(pwd(),"csv_files"))
     save_results(results::Dict{Symbol, AbstractDataFrame}; directory=joinpath(pwd(),"csv_files"))
 
-Saves the model results of all variables as CSV files. The model results are saved in a new
-directory.
+Saves the model results of all variables as CSV files. The model results are saved in the
+specified directory.
 If no directory is specified, it will create, if necessary, a new directory "csv_files" in
 the current working directory and save the files in said directory.
 """

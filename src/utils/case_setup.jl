@@ -49,17 +49,17 @@ function _update_case_types!(
 end
 
 """
-    reset_field(x_rh, res_type::ElementReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
-    reset_field(x_rh, res_type::Union{InitReset, TimeWeightReset}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
-    reset_field(x_rh, res_type::OperReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _reset_field(x_rh, res_type::ElementReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _reset_field(x_rh, res_type::Union{InitReset, TimeWeightReset}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _reset_field(x_rh, res_type::OperReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
 of the new value is depending on the specified `res_type`:
 
 1. `res_type::ElementReset` uses `𝒰` for identifying the new element,
-2. `res_type::InitReset` uses the value in `res_type` directly,
+2. `res_type::Union{InitReset, TimeWeightReset}` uses the value in `res_type` directly,
 3. `res_type::OperReset` creates a new operational profile based on the original
-   operational profile and the set of operational periods `opers`.
+   operational profile in `res_type` and the set of operational periods `opers`.
 """
 function _reset_field(
     x_rh,
@@ -92,8 +92,7 @@ end
 """
     _create_updatetype(model::RecHorEnergyModel)
 
-Initialize an [`UpdateCase`](@ref) based on the preovided the [`RecHorEnergyModel`](@ref)
-`model`.
+Initialize an [`UpdateCase`](@ref) based on the provided [`RecHorEnergyModel`](@ref) `model`.
 """
 function _create_updatetype(model::RecHorEnergyModel)
     paths_model = _find_update_paths(model)
@@ -105,8 +104,8 @@ end
     _add_elements!(𝒰::UpdateCase, 𝒫::Vector{T}) where {T<:Resource}
     _add_elements!(𝒰::UpdateCase, 𝒳::Vector{T}) where {T<:AbstractElement}
 
-Add the vector of `Resource`s or `AbstractElement` substitution types to the UpdateCase 𝒰
-for a given `Vector{<:Resource}` or `Vector{<:AbstractElement}`.
+Add the vector of `Resource`s or `AbstractElement` substitution types to the [`UpdateCase`](@ref)
+`𝒰` for a given `Vector{<:Resource}` or `Vector{<:AbstractElement}`.
 """
 function _add_elements!(𝒰::UpdateCase, 𝒫::Vector{T}) where {T<:Resource}
     for p ∈ 𝒫
