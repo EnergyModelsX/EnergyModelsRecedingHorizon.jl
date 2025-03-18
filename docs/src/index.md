@@ -1,4 +1,4 @@
-# EnergyModelsRecHorizon
+# EnergyModelsRecedingHorizon
 
 This Julia package provides a framework for receding horizon optimization of an energy system model.
 This package is developed as an extension to the multi carrier energy model [`EnergyModelsBase`](https://energymodelsx.github.io/EnergyModelsBase.jl/).
@@ -6,7 +6,7 @@ This package is developed as an extension to the multi carrier energy model [`En
 !!! info
     This documentation is under development.
 
-`EnergyModelsRecHorizon` follows the same philosophy with respect to extendibility as `EnergyModelsBase`.
+`EnergyModelsRecedingHorizon` follows the same philosophy with respect to extendibility as `EnergyModelsBase`.
 This means that users are able to implement new technologies as new nodes without changes to the core package structure.
 
 ## Manual outline

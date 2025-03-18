@@ -1,8 +1,8 @@
 # [Use the package](@id how_to-use_emrh)
 
-The main function of the [`EnergyModelsRecHorizon`](@ref) package is [`run_model_rh`](@ref run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)).
+The main function of the [`EnergyModelsRecedingHorizon`](@ref) package is [`run_model_rh`](@ref run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)).
 Similarly to [`EnergyModelsBase`](https://energymodelsx.github.io/EnergyModelsBase.jl/), a problem is defined by its case and model objects.
-The following points should be accounted for when setting up a problem in [`EnergyModelsRecHorizon`](@ref):
+The following points should be accounted for when setting up a problem in [`EnergyModelsRecedingHorizon`](@ref):
 
 - The provided case object should be an [`EMB.Case`](@extref EnergyModelsBase.Case) with problem horizons included in the case object through the `misc` dictionary using the `:horizons` key.
 - The case must have its [`OperationalProfile`](@extref TimeStruct.OperationalProfile)s covering the full problem horizon, otherwise the last value in the time profile will be repeated.
@@ -27,6 +27,6 @@ The basic version includes as well extensions that are loaded if you utilize [`E
 The first extensions provides support for utilizing both [`Area`](@extref EnergyModelsGeography area_mode-areas)s and [`Transmission` corridors](@extref EnergyModelsGeography area_mode-trans_corr), including  [`TransmissionMode`](@extref EnergyModelsGeography area_mode-trans_mode)s.
 The second extension provides a minor update to a function of `EnergyModelsGeography` when `ParametricOptInterface` is utilized.
 
-In general, you do not have to take any specific precautions when using `EnergyModelsGeography` and `EnergyModelsRecHorizon`.
+In general, you do not have to take any specific precautions when using `EnergyModelsGeography` and `EnergyModelsRecedingHorizon`.
 However, if you use the transmission mode [`PipeLinepackSimple`](@extref EnergyModelsGeography.PipeLinepackSimple), you must provide initialization data through the type [`TransInitData`](@ref EMGExt.TransInitData).
 Similarly, if you have individual dynamic states in developed transmission modes, you must utilize the same initialization data as well.

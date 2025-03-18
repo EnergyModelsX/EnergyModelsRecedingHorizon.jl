@@ -13,9 +13,9 @@ using DataFrames
 using PrettyTables
 using TimeStruct
 using EnergyModelsBase
-using EnergyModelsRecHorizon
+using EnergyModelsRecedingHorizon
 
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 
 """
     generate_future_value_case(; init_state=0)

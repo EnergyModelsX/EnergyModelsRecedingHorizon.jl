@@ -41,9 +41,9 @@ sink = RefSink(
 
 EMRH._find_update_paths(sink)
 # returns a 3-element Vector{Any}:
- Any[:penalty, "[:deficit]", EnergyModelsRecHorizon.OperPath()]
- Any[:penalty, "[:surplus]", EnergyModelsRecHorizon.OperPath()]
- Any[:data, "[1]", :emissions, co2, EnergyModelsRecHorizon.OperPath()]
+ Any[:penalty, "[:deficit]", EnergyModelsRecedingHorizon.OperPath()]
+ Any[:penalty, "[:surplus]", EnergyModelsRecedingHorizon.OperPath()]
+ Any[:data, "[1]", :emissions, co2, EnergyModelsRecedingHorizon.OperPath()]
 
 # The function can also be used for checking other `types`:
 all_paths = []
@@ -53,8 +53,8 @@ a_dict = Dict(:a => Dict(:b1 => Dict(:c => OperationalProfile([1])),
 
 EMRH._find_update_paths(a_dict, current_path, all_paths)
 # all_paths is now a 2-element Vector{Any}:
- Any[:a_path, "[:a]", "[:b2]", EnergyModelsRecHorizon.OperPath()]
- Any[:a_path, "[:a]", "[:b1]", "[:c]", EnergyModelsRecHorizon.OperPath()]
+ Any[:a_path, "[:a]", "[:b2]", EnergyModelsRecedingHorizon.OperPath()]
+ Any[:a_path, "[:a]", "[:b1]", "[:c]", EnergyModelsRecedingHorizon.OperPath()]
 ```
 """
 function _find_update_paths(
@@ -200,9 +200,9 @@ Lenses are created for
 
 ```julia
 using EnergyModelsBase
-using EnergyModelsRecHorizon
+using EnergyModelsRecedingHorizon
 using TimeStruct
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 
 # Generate objects
 cap_prof = OperationalProfile([20, 300])
@@ -258,9 +258,9 @@ Example:
 ```julia
 using Accessors: @reset
 using EnergyModelsBase
-using EnergyModelsRecHorizon
+using EnergyModelsRecedingHorizon
 using TimeStruct
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 
 cap_prof = OperationalProfile([20, 300])
 em_prof = OperationalProfile([1,2])

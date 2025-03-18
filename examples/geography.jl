@@ -14,9 +14,9 @@ using PrettyTables
 using TimeStruct
 using EnergyModelsBase
 using EnergyModelsGeography
-using EnergyModelsRecHorizon
+using EnergyModelsRecedingHorizon
 
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 
 """
     generate_geo_case(; init_state=0)

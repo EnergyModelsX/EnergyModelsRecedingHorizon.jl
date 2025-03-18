@@ -102,7 +102,7 @@
         all(value.(m_EMB[k][t.x1, t.x2, t.x3]) == t.y for t ∈ val)
     for (k, val) ∈ res_EMB_red if length(val[1]) == 4)
 
-    # Test that the extraction results in the correct results for EnergyModelsRecHorizon
+    # Test that the extraction results in the correct results for EnergyModelsRecedingHorizon
     # - update_results!(results, m, 𝒰, opers)
     # - get_results(m::JuMP.Model)
     # - _get_values_from_obj

@@ -1,4 +1,4 @@
-using EnergyModelsRecHorizon
+using EnergyModelsRecedingHorizon
 using EnergyModelsBase
 using EnergyModelsGeography
 using HiGHS
@@ -11,7 +11,7 @@ using DataFrames
 using Logging
 
 # Declare shortcuts to the different packages
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 const EMB = EnergyModelsBase
 const EMG = EnergyModelsGeography
 const TS = TimeStruct

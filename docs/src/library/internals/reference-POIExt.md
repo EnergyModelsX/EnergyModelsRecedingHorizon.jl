@@ -25,7 +25,7 @@ _update_parameter_values!
 _update_parameter!(m, res_type::EMRH.ElementReset, opers::Vector)
 ```
 
-## [EnergyModelsRecHorizon](@id lib-int-POIExt-EMRH)
+## [EnergyModelsRecedingHorizon](@id lib-int-POIExt-EMRH)
 
 ### [Exported methods](@id lib-int-POIExt-EMRH-exp_met)
 

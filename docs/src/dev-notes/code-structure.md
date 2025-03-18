@@ -1,6 +1,6 @@
 # [Code structure](@id dev-code)
 
-[`EnergyModelsRecHorizon`](@ref EMRH.EnergyModelsRecHorizon) is based on setting up optimization subproblems given implementation and optimization horizons.
+[`EnergyModelsRecedingHorizon`](@ref EMRH.EnergyModelsRecedingHorizon) is based on setting up optimization subproblems given implementation and optimization horizons.
 The horizons for the optimization subproblems are expressed through [AbstractHorizons](@ref EMRH.AbstractHorizons) objects, see the *[dedicated section on horizons](@ref man-phil-hortyp)*.
 These will ultimately define how many optimization subproblems will be solved and how large they will be.
 

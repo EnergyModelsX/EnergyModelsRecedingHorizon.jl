@@ -11,12 +11,12 @@ using HiGHS
 using JuMP
 using EnergyModelsBase
 using TimeStruct
-using EnergyModelsRecHorizon
+using EnergyModelsRecedingHorizon
 using PrettyTables
 using DataFrames
 
 const EMB = EnergyModelsBase
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 
 ############################################################################################
 # ### GENERAL ENERGYMODELSBASE.NODE DEFINITIONS
@@ -52,7 +52,7 @@ end
 EMB.constraints_couple(m, 𝒫, 𝒯, modeltype::EMRH.RecHorEnergyModel) = nothing
 
 ############################################################################################
-# ### SPECIFIC DEFINITIONS FOR ENERGYMODELSRECHORIZON
+# ### SPECIFIC DEFINITIONS FOR ENERGYMODELSRECEDINGHORIZON
 ############################################################################################
 # The recursive equations describing the node dynamic state must be defined for all except
 # the first operational period. The initialization data is used to define the first

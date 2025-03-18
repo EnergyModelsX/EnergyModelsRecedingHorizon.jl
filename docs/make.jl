@@ -9,13 +9,13 @@ using DocumenterCitations
 using TimeStruct
 using EnergyModelsBase
 using EnergyModelsGeography
-using EnergyModelsRecHorizon
+using EnergyModelsRecedingHorizon
 using ParametricOptInterface
 
 const TS = TimeStruct
 const EMB = EnergyModelsBase
 const EMG = EnergyModelsGeography
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 const POI = ParametricOptInterface
 
 const EMGExt = Base.get_extension(EMRH, :EMGExt)
@@ -34,15 +34,15 @@ links = InterLinks(
 bib = CitationBibliography(joinpath(@__DIR__, "src", "references.bib"))
 
 DocMeta.setdocmeta!(
-    EnergyModelsRecHorizon,
+    EnergyModelsRecedingHorizon,
     :DocTestSetup,
-    :(using EnergyModelsRecHorizon);
+    :(using EnergyModelsRecedingHorizon);
     recursive = true,
 )
 
 makedocs(
-    sitename = "EnergyModelsRecHorizon",
-    repo = "https://gitlab.sintef.no/idesignres/wp-2/energymodelsrechorizon.jl/{commit}{path}#{line}",
+    sitename = "EnergyModelsRecedingHorizon",
+    repo = "https://gitlab.sintef.no/idesignres/wp-2/EnergyModelsRecHorizon.jl/-/blob/{commit}/{path}#{line}",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
         canonical = "idesignres.pages.sintef.no/wp-2/EnergyModelsRecHorizon.jl",

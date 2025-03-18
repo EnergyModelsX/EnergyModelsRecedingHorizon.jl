@@ -14,7 +14,7 @@ Note that the individual operational periods do not need to have the same length
 ![Illustration of receding horizon](./../figures/receding-horizon.svg)
 
 This package is an extension of the core EnergyModelsBase structure,
-and therefore it follows the same principles of flexibility, extendability, and transparency 
+and therefore it follows the same principles of flexibility, extendability, and transparency
 (see the *[EnergyModelsBase page](https://energymodelsx.github.io/EnergyModelsBase.jl/stable/manual/philosophy/#man-phil-gen)* on its philosophy).
 
 ## [Types of horizons](@id man-phil-hortyp)
@@ -22,7 +22,7 @@ and therefore it follows the same principles of flexibility, extendability, and 
 This package is based on setting up optimization subproblems given implementation and optimization horizons, as described above.
 How these horizons are defined and updated will dictate the behavior of the receding horizon solver.
 The behavior of these horizons is considered as an abstract type [`AbstractHorizons`](@ref EMRH.AbstractHorizons), allowing for common treatment of these approaches.
-Two horizon types are provided with `EnergyModelsRecHorizon`, as subtypes of [`AbstractHorizons`](@ref EMRH.AbstractHorizons):
+Two horizon types are provided with `EnergyModelsRecedingHorizon`, as subtypes of [`AbstractHorizons`](@ref EMRH.AbstractHorizons):
 
 - [`PeriodHorizons`](@ref): the original time structure is partitioned according to the number of operational periods.
   This means that each implementation and optimization horizons are of the same length across the optimization subproblems.
