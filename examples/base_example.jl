@@ -11,18 +11,18 @@ using HiGHS
 using JuMP
 using EnergyModelsBase
 using TimeStruct
-using EnergyModelsRecHorizon
+using EnergyModelsRecedingHorizon
 using DataFrames
 using PrettyTables
 
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 
 """
     create_case_base_ex(; init_state = 0)
 
 Returns the pair `case, model` for the simple example based on EMB nodes.
 
-This example illustrates the use of EnergyModelsRecHorizon for the reference nodes
+This example illustrates the use of EnergyModelsRecedingHorizon for the reference nodes
 provided in EnergyModelsBase.
 """
 function create_case_base_ex(; init_state = 0)
@@ -113,8 +113,7 @@ case, model = create_case_base_ex(init_state = x0)
 
 ## RUN MODELS
 
-# - ENERGYMODELSBASE MODEL RUN
-
+# - EnergyModelsBase
 # Create and solve JuMP model
 m = create_model(case, model)
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
@@ -124,19 +123,17 @@ optimize!(m)
 # Convert EMB output to DataFrame
 results_full = EMRH.get_results_df(m)
 
-# - ENERGYMODELSRECHORIZON MODEL RUN
-
+# - EnergyModelsRecedingHorizon
 # Call EMRH solver
 results_EMRH = run_model_rh(case, model, optimizer)
 
 ## COMPARE RESULTS
-
 """
-    process_future_value_results(res_full, res_emrh, res_emrhʷᵒ, case)
+    process_base_results(res_full, res_emrh, res_emrhʷᵒ, case)
 
 Function for processing the results to be represented in the a table afterwards.
 """
-function process_future_value_results(res_emb, res_emrh)
+function process_base_results(res_emb, res_emrh)
 
     # Get nodes and resources - used as indexes
     av, source, stor, sink = get_nodes(case)
@@ -163,7 +160,7 @@ function process_future_value_results(res_emb, res_emrh)
     return solution, out, stor
 end
 
-solution, out, stor = process_future_value_results(results_full, results_EMRH)
+solution, out, stor = process_base_results(results_full, results_EMRH)
 
 @info "Source usage:"
 pretty_table(solution)

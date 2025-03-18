@@ -14,7 +14,7 @@ Pages = ["reference-EMGExt.md"]
 EMRH.update_init_data!(m, ri::EMRH.AbstractReset, l::Transmission, idp::EMGExt.TransInitDataPath, opers_implᵣₕ)
 ```
 
-## [EnergyModelsRecHorizon](@id lib-int-EMGExt-EMRH)
+## [EnergyModelsRecedingHorizon](@id lib-int-EMGExt-EMRH)
 
 ### [Types](@id lib-int-EMGExt-EMRH-typ)
 

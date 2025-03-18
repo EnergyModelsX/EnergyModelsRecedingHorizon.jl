@@ -1,8 +1,8 @@
 module POIExt
 
 using EnergyModelsBase
-using EnergyModelsRecHorizon
-using .EnergyModelsRecHorizon: RecHorEnergyModel, UpdateCase, AbstractSub,
+using EnergyModelsRecedingHorizon
+using .EnergyModelsRecedingHorizon: RecHorEnergyModel, UpdateCase, AbstractSub,
 ElementReset, InitReset, TimeWeightReset, OperReset,
 _create_updatetype, _add_elements!, update_results!, update_init_data!, _update_case_types!,
 _update_future_value!, get_sub_model, get_sub_products, get_sub_elements_vec, get_sub_ele,
@@ -15,7 +15,7 @@ using Accessors
 using DataFrames
 
 const EMB = EnergyModelsBase
-const EMRH = EnergyModelsRecHorizon
+const EMRH = EnergyModelsRecedingHorizon
 const TS = TimeStruct
 const POI = ParametricOptInterface
 

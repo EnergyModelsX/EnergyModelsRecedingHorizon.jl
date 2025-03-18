@@ -10,7 +10,7 @@ Pages = ["types-EMRH.md"]
 ## [Types](@id lib-int-types-typ)
 
 ```@docs
-EMRH.EnergyModelsRecHorizon
+EMRH.EnergyModelsRecedingHorizon
 ```
 
 ### [Model](@id lib-int-types-typ-mod)

@@ -1,9 +1,9 @@
 """
-Main module for `EnergyModelsRecHorizon`, a package that extends
+Main module for `EnergyModelsRecedingHorizon`, a package that extends
 [`EnergyModelsX`](https://github.com/EnergyModelsX) with the implementation of a receding
 horizon framework for stress testing the invested energy system in an operational framework.
 """
-module EnergyModelsRecHorizon
+module EnergyModelsRecedingHorizon
 
 using EnergyModelsBase
 using JuMP
@@ -55,4 +55,4 @@ export FutureValue, ElementValue, StorageValueCuts, StorageValueCut
 # Auxiliary functions for future values
 export get_future_value, has_cuts
 
-end # module EnergyModelsRecHorizon
+end # module EnergyModelsRecedingHorizon

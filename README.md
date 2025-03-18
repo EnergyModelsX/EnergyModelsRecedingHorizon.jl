@@ -1,4 +1,4 @@
-# EnergyModelsRecHorizon.jl
+# EnergyModelsRecedingHorizon.jl
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://idesignres.pages.sintef.no/wp-2/EnergyModelsRecHorizon.jl)
 [![Build Status](https://gitlab.sintef.no/idesignres/wp-2/EnergyModelsRecHorizon.jl/badges/main/pipeline.svg)](https://gitlab.sintef.no/idesignres/wp-2/EnergyModelsRecHorizon.jl/-/pipelines)
