@@ -36,6 +36,7 @@ function run_model_rh(
     𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
     has_future_value = !isempty(filter(el -> isa(el, Vector{<:FutureValue}), 𝒳ᵛᵉᶜ))
+    n_𝒽 = length(ℋ)
 
     # Create the `UpdateCase` based on the original `Case` structure
     𝒰 = _create_updatetype(model)
@@ -57,7 +58,7 @@ function run_model_rh(
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
-        @info "Solving for 𝒽: $𝒽"
+        @info "Solving for horizon $(𝒽.id) of $n_𝒽"
         # Extract the time structure from the case to identify the used operational periods
         # and the receding horizon time structure
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))

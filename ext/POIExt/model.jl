@@ -21,6 +21,7 @@ function EMRH.run_model_rh(
     𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
+    n_𝒽 = length(ℋ)
     has_future_value = !isempty(filter(el -> isa(el, Vector{<:FutureValue}), 𝒳ᵛᵉᶜ))
 
     # Assert that the horizon is functioning with the POI implementation.
@@ -80,8 +81,7 @@ function EMRH.run_model_rh(
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
-        @info "Solving for 𝒽: $𝒽"
-
+        @info "Solving for horizon $(𝒽.id) of $n_𝒽"
         # Necessary break as `ParametricOptInterface` requires that the number of operational
         # periods is always the same. In this case, we use the last values from the previous
         # horizon
