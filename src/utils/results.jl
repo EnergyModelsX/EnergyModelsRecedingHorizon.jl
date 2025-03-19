@@ -34,13 +34,14 @@ function _get_values_from_obj(
 end
 
 """
-    update_results!(results, m, 𝒰, opers)
+    update_results!(results, m, 𝒰, opers, 𝒽)
 
-Updates `results` given the optimization results `m` for the times `opers`.
+Updates `results` given the optimization results `m` for the times `opers`, performed in
+horizon `𝒽`.
 The results are indexed by the elements in the provided `case` (here accessed using the
 [`UpdateCase`](@ref) `𝒰`).
 """
-function update_results!(results, m, 𝒰, opers)
+function update_results!(results, m, 𝒰, opers, 𝒽)
     results_rh = get_results(m)
     if isempty(results)
         # first iteration - create DataFrame instances
@@ -55,10 +56,15 @@ function update_results!(results, m, 𝒰, opers)
                 results[k] = DataFrame()
             end
         end
+        results[:opt_status] = DataFrame()
     end
 
     # place values of results_rh into results
     for (k, container) ∈ results
+        if k == :opt_status
+            append!(container, [NamedTuple((:x1 => 𝒽, :y => termination_status(m)))])
+            continue
+        end
         oper_idx =
             findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(results_rh[k])])
         results_rh_k_new = [

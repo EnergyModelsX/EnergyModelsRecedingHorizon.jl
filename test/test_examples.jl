@@ -7,7 +7,7 @@ ENV["EMX_TEST"] = true # Set flag for example scripts to check if they are run a
             redirect_stdio(stdout = devnull, stderr = devnull) do
                 include(joinpath(exdir, file))
             end
-            @test true # not a good test flag for EMRH
+            @test all(res_emrh[:opt_status].y .== MOI.OPTIMAL)
         end
     end
     Pkg.activate(@__DIR__)

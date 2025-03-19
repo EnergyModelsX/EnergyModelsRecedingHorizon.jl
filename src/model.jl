@@ -89,7 +89,7 @@ function run_model_rh(
         optimize!(m)
 
         # Update the results
-        update_results!(results, m, 𝒰, opers_impl)
+        update_results!(results, m, 𝒰, opers_impl, 𝒽)
 
         # Update the value for the initial data
         for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ

@@ -72,7 +72,7 @@
 
     res_EMRH = Dict{Symbol,AbstractDataFrame}()
     opers_impl = collect(𝒯)[indices_implementation(hor_test)]
-    EMRH.update_results!(res_EMRH, m_rh, 𝒰, opers_impl)
+    EMRH.update_results!(res_EMRH, m_rh, 𝒰, opers_impl, hor_test)
     res_EMB = EMRH.get_results(m_EMB)
     excl_var = [
         # Strategic indexed and empty
@@ -86,9 +86,9 @@
     # - If loop in update_results!(results, m, 𝒰, opers)
     # - get_results(m::JuMP.Model)
     # - _get_values_from_obj
-    @test Set(keys(res_EMB)) == union(keys(res_EMRH), excl_var)
+    @test union(keys(res_EMB), [:opt_status]) == union(keys(res_EMRH), excl_var)
     res_EMB_df = EMRH.get_results_df(m_EMB)
-    @test Set(keys(res_EMB_df)) == union(keys(res_EMRH), excl_var)
+    @test union(keys(res_EMB_df), [:opt_status]) == union(keys(res_EMRH), excl_var)
 
     # Extract the empty keys from the EMB dictionary
     res_EMB_red = Dict(k => val for (k, val) ∈ res_EMB if !isempty(val))

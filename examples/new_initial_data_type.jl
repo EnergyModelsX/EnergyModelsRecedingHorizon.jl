@@ -184,12 +184,12 @@ end
 case, model = create_case_newinitdata()
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
-results_new_initdata = run_model_rh(case, model, optimizer)
+res_emrh = run_model_rh(case, model, optimizer)
 
 # Process results
 main_res = innerjoin(
-    results_new_initdata[:state_1],
-    results_new_initdata[:state_2],
+    res_emrh[:state_1],
+    res_emrh[:state_2],
     on = [:x1, :x2];
     makeunique = true,
 )

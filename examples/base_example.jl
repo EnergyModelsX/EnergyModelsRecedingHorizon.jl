@@ -125,7 +125,7 @@ results_full = EMRH.get_results_df(m)
 
 # - EnergyModelsRecedingHorizon
 # Call EMRH solver
-results_EMRH = run_model_rh(case, model, optimizer)
+res_emrh = run_model_rh(case, model, optimizer)
 
 ## COMPARE RESULTS
 """
@@ -160,7 +160,7 @@ function process_base_results(res_emb, res_emrh)
     return solution, out, stor
 end
 
-solution, out, stor = process_base_results(results_full, results_EMRH)
+solution, out, stor = process_base_results(results_full, res_emrh)
 
 @info "Source usage:"
 pretty_table(solution)

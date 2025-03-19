@@ -151,10 +151,10 @@ case,  model = generate_geo_case(init_state=0)
 
 # Run the model
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-res = run_model_rh(case, model, optimizer);
+res_emrh = run_model_rh(case, model, optimizer);
 
 # Extract the individual data frames for the analysis
-res_mod = process_geo_results(res, case)
+res_mod = process_geo_results(res_emrh, case)
 
 @info "The following table shows the source usage (source), the supply to the sink (sink) \n" *
     "and the energy stored in the pipeline (line_pack_level) at the end of the period.\n" *
