@@ -86,7 +86,7 @@ function EMRH.run_model_rh(
         # periods is always the same. In this case, we use the last values from the previous
         # horizon
         if length(𝒽) < length(𝒯ᵣₕ)
-            update_results!(results, m, 𝒰, opers_not_impl)
+            update_results!(results, m, 𝒰, opers_not_impl, 𝒽)
             break
         end
 
@@ -111,7 +111,7 @@ function EMRH.run_model_rh(
         optimize!(m)
 
         # Update the results
-        update_results!(results, m, 𝒰, opers_impl)
+        update_results!(results, m, 𝒰, opers_impl, 𝒽)
 
         # Update the value for the initial data
         for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ

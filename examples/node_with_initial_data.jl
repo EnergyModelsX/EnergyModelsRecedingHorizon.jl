@@ -129,10 +129,10 @@ end
 case, model = create_case_newnode(init_state = 1.0)
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
-results_new_node = run_model_rh(case, model, optimizer)
+res_emrh = run_model_rh(case, model, optimizer)
 
 # Process results
-main_res = select(results_new_node[:state], :x2 => (x -> repr.(x)) => :Period, :y => :state)
+main_res = select(res_emrh[:state], :x2 => (x -> repr.(x)) => :Period, :y => :state)
 node_inc = get_nodes(case)[1]
 init_data = data_init(node_inc)
 
