@@ -1,10 +1,10 @@
-# [Future value](@id man-fv)
+# [Storage end values](@id man-sev)
 
 A new `AbstractElement`, [`FutureValue`](@ref), has been implemented to be able to include additional terms to the objective without adding new nodes to the model.
 The composite type [`StorageValueCuts`](@ref) can be used to describe the value of storages at the end of the optimization period as multiple cutting hyperplanes that depend on one or several of the outgoing state variables.
 For more details about the generation of cuts in stochastic dual dynamic programming we refer to [Dowson2020](@cite).
 
-## [Arguments for `StorageValueCuts`](@id man-fv-args)
+## [Arguments for `StorageValueCuts`](@id man-sev-args)
 
 A [`StorageValueCuts`](@ref) object includes a `weight`, a `time` and a `Vector{StorageValueCut}`.
 The `weight` indicates the factor of the respective `StorageValueCuts` in the objective function.
@@ -14,7 +14,7 @@ The `time` indicates at which time the `StorageValueCuts` are valid relative to 
 Each [`StorageValueCut`](@ref) object is defined by a set of coefficients `coeffs`, and a constant `rhs`.
 The `coeffs` can be defined by a dictionary with keys ``s`` and values ``w_s``, where ``s`` denotes a given [`Storage`](@extref EnergyModelsBase nodes-storage) node for which the cut refers to, and ``w_s`` denotes the coefficient for the given cut.
 
-## [Mathematical description](@id man-fv-math)
+## [Mathematical description](@id man-sev-math)
 
 Let ``\texttt{future\_value}`` denote the future value of storages in a system given by `StorageValueCuts`.
 Multiple [`StorageValueCut`](@ref) elements bound the value of ``\texttt{future\_value}`` with linear cutting hyperplanes:
