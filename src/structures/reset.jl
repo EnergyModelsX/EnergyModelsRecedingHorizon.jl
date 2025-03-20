@@ -141,7 +141,7 @@ end
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
 - **`var`** is the variable when using `ParametricOptInterface`.
-- **`val`** is the initial data value that should be used in the analyses
+- **`val`** is the time weight that should be used in the analysis.
 """
 mutable struct TimeWeightReset <: AbstractReset
     lens::Union{PropertyLens,ComposedFunction}
@@ -172,7 +172,7 @@ utilized for automatically creating the lens to the field path.
 - **`path::AbstractInitDataPath`** is the [`AbstractPath`](@ref) of the init data. It
   includes additional information that is utilized when resetting an element.
 - **`var`** is the variable when using `ParametricOptInterface`.
-- **`val`** is the initial data value that should be used in the analyses
+- **`val`** is the initial data value that should be used in the analysis.
 """
 mutable struct InitReset{T} <: AbstractReset where {T<:AbstractInitDataPath}
     lens::Union{PropertyLens,ComposedFunction}

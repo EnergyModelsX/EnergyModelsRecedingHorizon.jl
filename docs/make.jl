@@ -67,7 +67,7 @@ makedocs(
         "Manual" => Any[
             "Quick Start"=>"manual/quick-start.md",
             "Philosophy"=>"manual/philosophy.md",
-            "Future value"=>"manual/future-value.md",
+            "Storage end value"=>"manual/storage_end_value.md",
             "Example"=>"manual/simple-example.md",
             "Release notes"=>"manual/NEWS.md",
         ],
@@ -78,6 +78,7 @@ makedocs(
         "Developer notes" => Any[
             "Code structure"=>"dev-notes/code-structure.md",
             "Problem initialization"=>"dev-notes/initialization.md",
+            "Future value implementation"=>"dev-notes/future_value.md",
         ],
         "Library" => Any[
             "Public"=>"library/public.md",

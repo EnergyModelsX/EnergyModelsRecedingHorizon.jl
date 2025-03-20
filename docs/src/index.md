@@ -15,7 +15,7 @@ This means that users are able to implement new technologies as new nodes withou
 Pages = [
     "manual/quick-start.md",
     "manual/philosophy.md",
-    "manual/future-value.md",
+    "manual/storage_end_value.md",
     "manual/simple-example.md",
     "manual/NEWS.md",
 ]
@@ -38,6 +38,7 @@ Depth = 1
 Pages = [
     "dev-notes/code-structure.md",
     "dev-notes/initialization.md",
+    "dev-notes/future_value.md",
 ]
 Depth = 1
 ```

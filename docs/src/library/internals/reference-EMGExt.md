@@ -6,14 +6,6 @@
 Pages = ["reference-EMGExt.md"]
 ```
 
-## [Extension](@id lib-int-EMGExt-ext)
-
-### [Utility functions](@id lib-EMGExt-ext-util)
-
-```@docs
-EMRH.update_init_data!(m, ri::EMRH.AbstractReset, l::Transmission, idp::EMGExt.TransInitDataPath, opers_implᵣₕ)
-```
-
 ## [EnergyModelsRecedingHorizon](@id lib-int-EMGExt-EMRH)
 
 ### [Types](@id lib-int-EMGExt-EMRH-typ)
@@ -50,6 +42,7 @@ EMGExt.TransmissionSub
 
 ```@docs
 EMRH._find_update_paths(field::Vector{T}, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:TransmissionMode}
+EMRH.update_init_data!(m, ri::EMRH.AbstractReset, l::Transmission, idp::EMGExt.TransInitDataPath, opers_implᵣₕ)
 ```
 
 ## [EnergyModelsGeography](@id lib-int-EMGExt-EMG)
