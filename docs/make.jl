@@ -42,10 +42,8 @@ DocMeta.setdocmeta!(
 
 makedocs(
     sitename = "EnergyModelsRecedingHorizon",
-    repo = "https://gitlab.sintef.no/idesignres/wp-2/EnergyModelsRecHorizon.jl/-/blob/{commit}/{path}#{line}",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "idesignres.pages.sintef.no/wp-2/EnergyModelsRecHorizon.jl",
         edit_link = "main",
         assets = String[],
         ansicolor = true,
@@ -96,6 +94,6 @@ makedocs(
     plugins = [links, bib],
 )
 
-# deploydocs(;
-#     repo = "https://idesignres.pages.sintef.no/wp-2/EnergyModelsRecHorizon.jl",
-# )
+deploydocs(;
+    repo = "github.com/EnergyModelsX/EnergyModelsRecedingHorizon.jl.git",
+)

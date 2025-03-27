@@ -11,7 +11,7 @@ In this package, this is done by the introduction of an [`AbstractInitData`](@re
 The [`AbstractInitData`](@ref) must be used in the model equations to calculate the initial states of the corresponding element.
 
 It is possible to initialize a node through dispatch on [`EMB.constraints_data`](@extref EnergyModelsBase.constraints_data).
-An example of such implementation is provided in the test files for the creation of a new node `IncrementInitNode`, see the file *[node_with_initial_data.jl](https://gitlab.sintef.no/idesignres/wp-2/energymodelsrechorizon.jl/-/blob/main/examples/node_with_initial_data.jl)*.
+An example of such implementation is provided in the test files for the creation of a new node `IncrementInitNode`, see the file *[node_with_initial_data.jl](https://github.com/EnergyModelsX/EnergyModelsRecedingHorizon.jl/tree/main/examples/node_with_initial_data.jl)*.
 However, care must be taken when defining the initial state as such, so as to not overspecify the system of equations.
 
 Some nodes have a more specialized way of initialization, such as [`Storage`](@extref EnergyModelsBase.Storage) nodes.
