@@ -22,6 +22,7 @@ EMGPOIExt = ["EnergyModelsGeography", "ParametricOptInterface"]
 
 [compat]
 Accessors = "0.1.42"
+CSV = "0.10.15"
 DataFrames = "1.7.0"
 EnergyModelsBase = "0.9.0"
 EnergyModelsGeography = "0.11.0"
