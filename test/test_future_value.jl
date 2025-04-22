@@ -1,4 +1,4 @@
-@testset "StorageValueCut" begin
+@testset "StorageValueCut type" begin
     # Introduce the node type for testing
     Power = ResourceCarrier("Power", 0.0)
     storage = RefStorage{RecedingAccumulating}(
@@ -20,7 +20,7 @@
     @test EMRH.coefficients(svc) == [(storage, 1)]
 end
 
-@testset "StorageValueCuts" begin
+@testset "StorageValueCuts type" begin
     @testset "Access functions" begin
         # Create the StorageValueCut type
         Power = ResourceCarrier("Power", 0.0)
@@ -336,4 +336,28 @@ end
     res_emrh_poi = ext_res(res_emrh_poi_df)
     @test all(all(r_f .≈ r_emrh) for (r_f, r_emrh) ∈ zip(res_full, res_emrh_poi))
 
+end
+
+@testset "Single future value description" begin
+    @testset "TypeFutureValue" begin
+        @testset "Access functions" begin
+            # Create the TypeFutureValue type
+            fv = TypeFutureValue(RefSink, :cap_use, 5)
+
+            # Test that the access functions are working
+            @test EMRH.element_type(fv) == RefSink
+            @test EMRH.value(fv) == 5
+            @test EMRH.model_key(fv) == :cap_use
+        end
+
+        @testset "Resetting of values" begin
+            # Create the TypeFutureValue type
+            fv = TypeFutureValue(RefSink, :cap_use, 5)
+
+            # Test that the path is correctly created, that is not as their are no things to
+            # update
+            # - _find_update_paths
+            @test EMRH._find_update_paths(fv) == Any[]
+        end
+    end
 end

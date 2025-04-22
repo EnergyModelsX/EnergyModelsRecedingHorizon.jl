@@ -63,8 +63,8 @@ coefficients(svc::StorageValueCut) = [(eleval.element, eleval.value) for eleval 
 """
     struct StorageValueCuts <: FutureValue
 
-A collection of multiple `StorageValueCut` that constructs a piecewise linear upper
-one the future value of the stored resource.
+A collection of multiple `StorageValueCut` that constructs a piecewise linear upper bound
+on the future value of the stored resource.
 
 ## Fields
 - **`id::Any`** is the name/identifier of the `StorageValueCuts`.
@@ -125,6 +125,30 @@ Returns true if the `FutureValue` is of type `StorageValueCuts`.
 """
 has_cuts(v::FutureValue) = false
 has_cuts(v::StorageValueCuts) = true
+
+"""
+    struct TypeFutureValue <: FutureValue
+
+A future value for a given nodal type and model key. It utilizes only the final value and
+directly adds it to the cost function for all instances of the given type.
+
+## Fields
+- **`element::Type{<:AbstractElement}`** is the nodal type for which the future value applies.
+- **`key::Symbol`** is the variable key for which the future value should count.
+- **`val::Real` is the chosen value for the future value.
+"""
+struct TypeFutureValue <: FutureValue
+    element_type::Type{<:AbstractElement}
+    key::Symbol
+    val::Real
+end
+
+Base.show(io::IO, v::TypeFutureValue) = print(io, "fut_val_$(v.element_type)")
+element_type(v::TypeFutureValue) = v.element_type
+value(v::TypeFutureValue) = v.val
+model_key(v::TypeFutureValue) = v.key
+
+
 
 """
     get_future_value(𝒳ᵛᵉᶜ::Vector{Vector})
