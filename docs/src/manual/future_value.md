@@ -1,10 +1,18 @@
-# [Storage end values](@id man-sev)
+# [Implementation of future values](@id man-fv)
 
-A new `AbstractElement`, [`FutureValue`](@ref), has been implemented to be able to include additional terms to the objective without adding new nodes to the model.
-The composite type [`StorageValueCuts`](@ref) can be used to describe the value of storages at the end of the optimization period as multiple cutting hyperplanes that depend on one or several of the outgoing state variables.
-For more details about the generation of cuts in stochastic dual dynamic programming we refer to [Dowson2020](@cite).
+A new [`AbstractElement`](@extref EnergyModelsBase.AbstractElement), [`FutureValue`](@ref), has been implemented to be able to include additional terms to the objective without adding new nodes to the model.
+Within `EnergyModelsRecedingHorizon`, we implemented two composite subtypes:
 
-## [Arguments for `StorageValueCuts`](@id man-sev-args)
+1. The composite type [`StorageValueCuts`](@ref) can be used to describe the value of storages at the end of the optimization period as multiple cutting hyperplanes that depend on one or several of the outgoing state variables.
+   Its implementations is explained below in *[Storage end values](@ref man-fv-sev)*
+   For more details about the generation of cuts in stochastic dual dynamic programming we refer to [Dowson2020](@cite).
+2. The composite type [`TypeFutureValue`](@ref) adds a value to a given variable for all instances of a specified node.
+   It is hence a simplified approach for elements which do not impact each other, *e.g.*, the state of a process.
+   Its implementations is explained below in *[Type end values](@ref man-fv-tev)*
+
+## [Storage end values](@id man-fv-sev)
+
+### [Introduced type and its fields](@id man-fv-sev-fields)
 
 A [`StorageValueCuts`](@ref) object includes a `weight`, a `time` and a `Vector{StorageValueCut}`.
 The `weight` indicates the factor of the respective `StorageValueCuts` in the objective function.
@@ -14,7 +22,7 @@ The `time` indicates at which time the `StorageValueCuts` are valid relative to 
 Each [`StorageValueCut`](@ref) object is defined by a set of coefficients `coeffs`, and a constant `rhs`.
 The `coeffs` can be defined by a dictionary with keys ``s`` and values ``w_s``, where ``s`` denotes a given [`Storage`](@extref EnergyModelsBase nodes-storage) node for which the cut refers to, and ``w_s`` denotes the coefficient for the given cut.
 
-## [Mathematical description](@id man-sev-math)
+### [Mathematical description](@id man-fv-sev-math)
 
 Let ``\texttt{future\_value}`` denote the future value of storages in a system given by `StorageValueCuts`.
 Multiple [`StorageValueCut`](@ref) elements bound the value of ``\texttt{future\_value}`` with linear cutting hyperplanes:
@@ -57,3 +65,37 @@ The value of ``time\_weight(v)`` can be expressed as weighting between the cuts 
     time\_weight(v_{up}) = 1 - time\_weight(v_{down})
 \end{aligned}
 ```
+
+## [Type end values](@id man-fv-tev)
+
+### [Introduced type and its fields](@id man-fv-tev-fields)
+
+The composite type [`TypeFutureValue`](@ref) can be used if you plan to use a single value for a variable for all instances of a node.
+In this case, the value is the same.
+
+The fields of a [`TypeFutureValue`](@ref) are given as:
+
+- **`element_type::Type{<:AbstractElement}`**:\
+  The node type corresponds to the type for which a variable is resulting in an additional contribution to the cost function.
+  The contribution is added for **all** instances of a given type.
+- **`key::Symbol`**:\
+  The key is the model variable.
+- **`val::Real`**:\
+  The value is the contribution of the given variable to the cost function.
+  A positive value corresponds to a beneficial contribution.
+
+!!! warning "Other AbstractElements"
+    While the functionality is in theory able to be used for any other `AbstractElement`, wecurrently limit it explicitly to nodes to avoid potential method ambiguities in the function `constraints_couple`.
+
+### [Mathematical description](@id man-fv-tev-math)
+
+Given the set of nodes corresponding to the type `element_type` is given ``N^{sub}``, we can calculate the future value as
+
+```math
+\texttt{future\_value}[v] = coeff(v) \sum_{n \in N^{sub}} \texttt{key}(n, last(t))
+```
+
+!!! note "The variable key"
+    The variable `var` is corresponding to the specified variable name in the model.
+    It **must** be indexed over the node and the operational period.
+    It is extracted through the function `model_key`.

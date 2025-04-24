@@ -144,8 +144,25 @@ struct TypeFutureValue <: FutureValue
 end
 
 Base.show(io::IO, v::TypeFutureValue) = print(io, "fut_val_$(v.element_type)")
+"""
+    element_type(v::TypeFutureValue)
+
+Returns the composite type who possesses a variable with a future value.
+"""
 element_type(v::TypeFutureValue) = v.element_type
+
+"""
+    coeff(v::TypeFutureValue)
+
+Returns the the cofficient of the future value.
+"""
 coeff(v::TypeFutureValue) = v.val
+
+"""
+    model_key(v::TypeFutureValue)
+
+Returns the the variable with a future value.
+"""
 model_key(v::TypeFutureValue) = v.key
 
 

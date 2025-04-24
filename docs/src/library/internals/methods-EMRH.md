@@ -70,4 +70,7 @@ EMRH.weight
 EMRH.time_weight
 EMRH.cuts_time
 EMRH.cuts
+EMRH.element_type
+EMRH.coeff
+EMRH.model_key(v::TypeFutureValue)
 ```

@@ -50,9 +50,9 @@ For more implementation details, see the developer notes section on *[initializa
 
 In some cases, it is necessary to use future value descriptions for dynamic states in receding horizon optimization.
 This is done to obtain solutions for the smaller problems that are compatible with the full-horizon behavior.
-The package provides a future value description based on the concept of storage end value [Aaslid2021](@cite), which introduces penalties related to the value of the outgoing state at the end of each individual optimization problem.
+The package provides a future value description based on the concept of storage end value [Aaslid2021](@cite), which introduces penalties related to the value of the outgoing state at the end of each individual optimization problem and a description in which the value of a variable of all instances of an element provide a future value.
 
-For a detailed description of this feature, refer to the section on *[storage end values](@ref man-sev)*.
+For a detailed description of this feature, refer to the section on the *[Implementation of future values](@ref man-fv)*.
 The implementation is furthermore explained in the *[development notes](@ref dev-fv)*
 
 ## [When should you use the package?](@id man-phil-when)
