@@ -15,7 +15,7 @@ An explanation of the required steps can be found in *[how to adapt an EMX eleme
 Pages = [
     "manual/quick-start.md",
     "manual/philosophy.md",
-    "manual/storage_end_value.md",
+    "manual/future_value.md",
     "manual/simple-example.md",
     "manual/NEWS.md",
 ]
