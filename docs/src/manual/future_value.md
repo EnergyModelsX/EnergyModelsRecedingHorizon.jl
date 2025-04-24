@@ -78,11 +78,10 @@ The fields of a [`TypeFutureValue`](@ref) are given as:
 - **`element_type::Type{<:AbstractElement}`**:\
   The node type corresponds to the type for which a variable is resulting in an additional contribution to the cost function.
   The contribution is added for **all** instances of a given type.
-- **`key::Symbol`**:\
-  The key is the model variable.
-- **`val::Real`**:\
-  The value is the contribution of the given variable to the cost function.
-  A positive value corresponds to a beneficial contribution.
+- **`val_dict::Dict{Symbol, Real}`**:\
+  The value dictionary is including the variables that should have a future value as keys and the corresponding future value as value.
+  A positive value corresponds to a beneficial contribution.\
+  It is also possible to provide a single variable and value through the implementation of a constructor.
 
 !!! warning "Other AbstractElements"
     While the functionality is in theory able to be used for any other `AbstractElement`, wecurrently limit it explicitly to nodes to avoid potential method ambiguities in the function `constraints_couple`.
@@ -92,10 +91,9 @@ The fields of a [`TypeFutureValue`](@ref) are given as:
 Given the set of nodes corresponding to the type `element_type` is given ``N^{sub}``, we can calculate the future value as
 
 ```math
-\texttt{future\_value}[v] = coeff(v) \sum_{n \in N^{sub}} \texttt{key}(n, last(t))
+\texttt{future\_value}[v] = \sum_{(\texttt{var}, val) \in coefficients(v)} val \sum_{n \in N^{sub}} \texttt{var}(n, last(t))
 ```
 
-!!! note "The variable key"
+!!! note "The variable var"
     The variable `var` is corresponding to the specified variable name in the model.
     It **must** be indexed over the node and the operational period.
-    It is extracted through the function `model_key`.

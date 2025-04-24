@@ -315,7 +315,8 @@ function create_future_value_couple(m, v::TypeFutureValue, 𝒩::Vector{<:EMB.No
     𝒩ˢᵘᵇ = filter(n -> isa(n, element_type(v)), 𝒩)
 
     @constraint(m,
-        m[:future_value][v] == sum(m[model_key(v)][n, last(𝒯)] for n ∈ 𝒩ˢᵘᵇ) * coeff(v)
+        m[:future_value][v] ==
+            sum(sum(m[var][n, last(𝒯)] for n ∈ 𝒩ˢᵘᵇ) * val for (var, val) ∈ coefficients(v))
     )
 end
 

@@ -128,19 +128,26 @@ has_cuts(v::StorageValueCuts) = true
 
 """
     struct TypeFutureValue <: FutureValue
+    TypeFutureValue(element_type::Type{<:AbstractElement}, key::Symbol, val::Real)
 
 A future value for a given nodal type and model key. It utilizes only the final value and
 directly adds it to the cost function for all instances of the given type.
 
 ## Fields
 - **`element::Type{<:AbstractElement}`** is the nodal type for which the future value applies.
-- **`key::Symbol`** is the variable key for which the future value should count.
-- **`val::Real` is the chosen value for the future value.
+- **`val_dict::Dict{Symbol, Real}` is a dictionary for including the variables provided as
+  keys with a given value for calculating the future value.
+
+!!! info "Single variable:
+    The field `val_dict` can also be provided as key and value input, if only a single variable
+    should be restricted
 """
 struct TypeFutureValue <: FutureValue
     element_type::Type{<:AbstractElement}
-    key::Symbol
-    val::Real
+    val_dict::Dict{Symbol, Real}
+end
+function TypeFutureValue(element_type::Type{<:AbstractElement}, key::Symbol, val::Real)
+    return TypeFutureValue(element_type, Dict(key => val))
 end
 
 Base.show(io::IO, v::TypeFutureValue) = print(io, "fut_val_$(v.element_type)")
@@ -152,20 +159,11 @@ Returns the composite type who possesses a variable with a future value.
 element_type(v::TypeFutureValue) = v.element_type
 
 """
-    coeff(v::TypeFutureValue)
+    coefficients(v::TypeFutureValue)
 
-Returns the the cofficient of the future value.
+Returns the the cofficients dictionary of of the future value `v`.
 """
-coeff(v::TypeFutureValue) = v.val
-
-"""
-    model_key(v::TypeFutureValue)
-
-Returns the the variable with a future value.
-"""
-model_key(v::TypeFutureValue) = v.key
-
-
+coefficients(v::TypeFutureValue) = v.val_dict
 
 """
     get_future_value(𝒳ᵛᵉᶜ::Vector{Vector})

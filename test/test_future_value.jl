@@ -346,8 +346,7 @@ end
 
             # Test that the access functions are working
             @test EMRH.element_type(fv) == RefSink
-            @test EMRH.coeff(fv) == 5
-            @test EMRH.model_key(fv) == :cap_use
+            @test EMRH.coefficients(fv) == Dict(:cap_use => 5)
         end
 
         @testset "Resetting of values" begin
