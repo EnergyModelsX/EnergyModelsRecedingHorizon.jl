@@ -40,6 +40,8 @@ end
 
 """
     _update_future_value!(𝒮ᵛ::Vector{FutureValueSub{T}}, time_elapsed::Real) where {T<:StorageValueCuts}
+    _update_future_value!(𝒮ᵛ::Vector{FutureValueSub{T}}, time_elapsed::Real) where {T<:TypeFutureValue}
+
 
 Update the value of [`TimeWeightReset`](@ref) based on the time `time_elapsed` at the end of
 the TimeStructure.
@@ -86,4 +88,10 @@ function _update_future_value!(
             end
         end
     end
+end
+
+function _update_future_value!(
+    𝒮ᵛ::Vector{FutureValueSub{T}},
+    time_elapsed::Real,
+) where {T<:TypeFutureValue}
 end

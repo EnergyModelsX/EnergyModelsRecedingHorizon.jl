@@ -145,7 +145,7 @@ end
 
 Base.show(io::IO, v::TypeFutureValue) = print(io, "fut_val_$(v.element_type)")
 element_type(v::TypeFutureValue) = v.element_type
-value(v::TypeFutureValue) = v.val
+coeff(v::TypeFutureValue) = v.val
 model_key(v::TypeFutureValue) = v.key
 
 
