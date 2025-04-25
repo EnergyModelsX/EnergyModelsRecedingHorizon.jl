@@ -80,11 +80,18 @@ The fields of a [`TypeFutureValue`](@ref) are given as:
   The contribution is added for **all** instances of a given type.
 - **`val_dict::Dict{Symbol, Real}`**:\
   The value dictionary is including the variables that should have a future value as keys and the corresponding future value as value.
+  The value has a corresponding cost value, *e.g.*, €/1000 h when looking at the previous utilization of an electrolyser.
   A positive value corresponds to a beneficial contribution.\
   It is also possible to provide a single variable and value through the implementation of a constructor.
 
 !!! warning "Other AbstractElements"
     While the functionality is in theory able to be used for any other `AbstractElement`, we currently limit it explicitly to nodes to avoid potential method ambiguities in the function `constraints_couple`.
+
+!!! danger "Utilizing `TypeFutureValue`"
+    `TypeFutureValue` is introduced for a simplified approach for providing a cost contribution to all instances of a given type.
+    It **should** never be used for the reference nodes!
+    Specifically, care has to be taken regarding the meaning of the provided value.
+    If, *e.g.*, you provide a cost to the previous usage of an electrolyzer, the unit of the value should be given by €/1000 h and be negative.
 
 ### [Mathematical description](@id man-fv-tev-math)
 
