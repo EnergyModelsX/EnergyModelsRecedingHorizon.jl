@@ -4,11 +4,11 @@ A new [`AbstractElement`](@extref EnergyModelsBase.AbstractElement), [`FutureVal
 Within `EnergyModelsRecedingHorizon`, we implemented two composite subtypes:
 
 1. The composite type [`StorageValueCuts`](@ref) can be used to describe the value of storages at the end of the optimization period as multiple cutting hyperplanes that depend on one or several of the outgoing state variables.
-   Its implementations is explained below in *[Storage end values](@ref man-fv-sev)*
+   Its implementation is explained below in *[Storage end values](@ref man-fv-sev)*.
    For more details about the generation of cuts in stochastic dual dynamic programming we refer to [Dowson2020](@cite).
 2. The composite type [`TypeFutureValue`](@ref) adds a value to a given variable for all instances of a specified node.
    It is hence a simplified approach for elements which do not impact each other, *e.g.*, the state of a process.
-   Its implementations is explained below in *[Type end values](@ref man-fv-tev)*
+   Its implementation is explained below in *[Type end values](@ref man-fv-tev)*.
 
 ## [Storage end values](@id man-fv-sev)
 
@@ -84,11 +84,11 @@ The fields of a [`TypeFutureValue`](@ref) are given as:
   It is also possible to provide a single variable and value through the implementation of a constructor.
 
 !!! warning "Other AbstractElements"
-    While the functionality is in theory able to be used for any other `AbstractElement`, wecurrently limit it explicitly to nodes to avoid potential method ambiguities in the function `constraints_couple`.
+    While the functionality is in theory able to be used for any other `AbstractElement`, we currently limit it explicitly to nodes to avoid potential method ambiguities in the function `constraints_couple`.
 
 ### [Mathematical description](@id man-fv-tev-math)
 
-Given the set of nodes corresponding to the type `element_type` is given ``N^{sub}``, we can calculate the future value as
+Given the set of nodes corresponding to the type `element_type` is given ``N^{sub}``, we can calculate the future value as:
 
 ```math
 \texttt{future\_value}[v] = \sum_{(\texttt{var}, val) \in coefficients(v)} val \sum_{n \in N^{sub}} \texttt{var}(n, last(t))

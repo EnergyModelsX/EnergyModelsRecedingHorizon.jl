@@ -374,7 +374,6 @@ end
         𝒯 = TwoLevel(1, 1, SimpleTimes(op_dur_vec); op_per_strat=24)
         hor = PeriodHorizons([duration(t) for t ∈ 𝒯], 8, 4)
 
-        # Create a hydro reservoir
         src_a = RefSource(
             "src_el",
             FixedProfile(10),

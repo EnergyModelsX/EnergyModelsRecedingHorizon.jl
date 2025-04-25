@@ -203,13 +203,6 @@ function EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, mode
     end
 end
 
-"""
-    EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, modeltype::EnergyModel)
-
-Creates the couple constraints for [`FutureValue`](@ref) elements. The current implementation
-only creates couplings for the sub-type `StorageValueCuts` by calling the function
-[`create_future_value_couple`](@ref).
-"""
 function EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒩::Vector{<:EMB.Node}, 𝒫, 𝒯, modeltype::EnergyModel)
     for v ∈ 𝒱
         create_future_value_couple(m, v, 𝒩, 𝒯, modeltype)
@@ -282,7 +275,7 @@ function create_future_value(m, v::FutureValue, 𝒯, modeltype) end
     create_future_value_couple(m, v::TypeFutureValue, 𝒯, modeltype::EnergyModel)
     create_future_value_couple(m, v::TypeFutureValue, 𝒩::Vector{<:EMB.Node}, 𝒯, modeltype::EnergyModel)
 
-Adds thec onstraints for the individual future values without the interaction with any other
+Adds the constraints for the individual future values without the interaction with any other
 [`AbstractElement`](@extref EnergyModelsBase.AbstractElement).
 
 In the case of [`StorageValueCuts`](@ref):

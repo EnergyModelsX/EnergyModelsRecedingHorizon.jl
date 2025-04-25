@@ -135,10 +135,10 @@ directly adds it to the cost function for all instances of the given type.
 
 ## Fields
 - **`element::Type{<:AbstractElement}`** is the nodal type for which the future value applies.
-- **`val_dict::Dict{Symbol, Real}` is a dictionary for including the variables provided as
+- **`val_dict::Dict{Symbol, Real}`** is a dictionary for including the variables provided as
   keys with a given value for calculating the future value.
 
-!!! info "Single variable:
+!!! info "Single variable"
     The field `val_dict` can also be provided as key and value input, if only a single variable
     should be restricted
 """
