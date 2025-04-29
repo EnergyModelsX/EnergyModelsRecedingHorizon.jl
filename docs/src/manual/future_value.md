@@ -88,8 +88,8 @@ The fields of a [`TypeFutureValue`](@ref) are given as:
     While the functionality is in theory able to be used for any other `AbstractElement`, we currently limit it explicitly to nodes to avoid potential method ambiguities in the function `constraints_couple`.
 
 !!! danger "Utilizing `TypeFutureValue`"
-    `TypeFutureValue` is introduced for a simplified approach for providing a cost contribution to all instances of a given type.
-    It **should** never be used for the reference nodes!
+    `TypeFutureValue` is introduced for a simplified approach for providing a cost contribution to all instances of a given element type.
+    It should **never** be used for the reference nodes!
     Specifically, care has to be taken regarding the meaning of the provided value.
     If, *e.g.*, you provide a cost to the previous usage of an electrolyzer, the unit of the value should be given by €/1000 h and be negative.
 

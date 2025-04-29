@@ -144,8 +144,8 @@ directly adds it to the cost function for all instances of the given type.
     should be restricted
 
 !!! danger "Application of TypeFutureValue"
-    `TypeFutureValue` assigns a future value to all instances of a given type. It **should**
-    never be used on reference nodes. It should only be used on dynamic variables for other
+    `TypeFutureValue` assigns a future value to all instances of a given type. It should
+    **never** be used on reference nodes. It should only be used on dynamic variables for other
     node types.
 """
 struct TypeFutureValue <: FutureValue
