@@ -63,6 +63,7 @@ FutureValue
 ElementValue
 StorageValueCuts
 StorageValueCut
+TypeFutureValue
 ```
 
 ### [Functions](@id lib-pub-fut_val-fcn)

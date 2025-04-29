@@ -180,15 +180,37 @@ end
 
 """
     EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, modeltype::EnergyModel)
+    EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒩::Vector{<:EMB.Node}, 𝒫, 𝒯, modeltype::EnergyModel)
+    EMB.constraints_couple(m, 𝒩::Vector{<:EMB.Node}, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, modeltype::EnergyModel)
 
-Creates the couple constraints for [`FutureValue`](@ref) elements. The current implementation
-only creates couplings for the sub-type `StorageValueCuts` by calling the function
-[`create_future_value_couple`](@ref).
+Creates the couple constraints for [`FutureValue`](@ref) elements.
+
+The current implementation creates couplings for the sub-types `StorageValueCuts` and
+`TypeFutureValue` by calling the function [`create_future_value_couple`](@ref).
+
+!!! note "Required input"
+    - If you only use [`StorageValueCuts`](@ref), it is sufficient to add coupling constraints
+    through adding `[get_future_value]` to the couplings of the case type.
+
+    - If you only use [`TypeFutureValue`](@ref), it is sufficient to add coupling constraints
+    through adding `[get_future_value, get_nodes]` to the couplings of the case type.
+
+    - If you utilize both types, you **must** add both type of couplings.
 """
 function EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, modeltype::EnergyModel)
     for v ∈ 𝒱
         create_future_value_couple(m, v, 𝒯, modeltype)
     end
+end
+
+function EMB.constraints_couple(m, 𝒱::Vector{<:FutureValue}, 𝒩::Vector{<:EMB.Node}, 𝒫, 𝒯, modeltype::EnergyModel)
+    for v ∈ 𝒱
+        create_future_value_couple(m, v, 𝒩, 𝒯, modeltype)
+    end
+end
+
+function EMB.constraints_couple(m, 𝒩::Vector{<:EMB.Node}, 𝒱::Vector{<:FutureValue}, 𝒫, 𝒯, modeltype::EnergyModel)
+    return EMB.constraints_couple(m, 𝒱, 𝒩, 𝒫, 𝒯, modeltype)
 end
 
 """
@@ -249,8 +271,26 @@ function create_future_value(m, v::FutureValue, 𝒯, modeltype) end
 
 """
     create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::EnergyModel)
+    create_future_value_couple(m, v::StorageValueCuts, 𝒩::Vector{<:EMB.Node}, 𝒯, modeltype::EnergyModel)
+    create_future_value_couple(m, v::TypeFutureValue, 𝒯, modeltype::EnergyModel)
+    create_future_value_couple(m, v::TypeFutureValue, 𝒩::Vector{<:EMB.Node}, 𝒯, modeltype::EnergyModel)
 
-Build cut constraints for all cuts in a `StorageValueCuts` element.
+Adds the constraints for the individual future values without the interaction with any other
+[`AbstractElement`](@extref EnergyModelsBase.AbstractElement).
+
+In the case of [`StorageValueCuts`](@ref):
+
+- If `𝒩` is **not** added, that is in the instance for the single couplings, the function
+  adds the cut constraints for all cuts.
+- If `𝒩` is added, that is in the instance for `FutureValue`-`Node` couplings, the function
+  returns nothing.
+
+In the case of [`TypeFutureValue`](@ref):
+
+- If `𝒩` is **not** added, that is in the instance for the single couplings, the function
+  returns nothing.
+- If `𝒩` is added, that is in the instance for `FutureValue`-`Node` couplings, the function
+  calculates the future value for the given type.
 """
 function create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::EnergyModel)
 
@@ -260,13 +300,30 @@ function create_future_value_couple(m, v::StorageValueCuts, 𝒯, modeltype::Ene
             ≤ cut_rhs(svc)
     )
 end
+function create_future_value_couple(m, v::StorageValueCuts, 𝒩::Vector{<:EMB.Node}, 𝒯, modeltype::EnergyModel)
+end
+function create_future_value_couple(m, v::TypeFutureValue, 𝒯, modeltype::EnergyModel) end
+function create_future_value_couple(m, v::TypeFutureValue, 𝒩::Vector{<:EMB.Node}, 𝒯, modeltype::EnergyModel)
+    # Identify all nodes with the given type
+    𝒩ˢᵘᵇ = filter(n -> isa(n, element_type(v)), 𝒩)
+
+    @constraint(m,
+        m[:future_value][v] ==
+            sum(sum(m[var][n, last(𝒯)] for n ∈ 𝒩ˢᵘᵇ) * val for (var, val) ∈ coefficients(v))
+    )
+end
 
 """
     get_future_value_expression(m, 𝒱::Vector{StorageValueCuts}, 𝒯ᴵⁿᵛ::TS.AbstractStratPers, modeltype::EnergyModel)
+    get_future_value_expression(m, 𝒱::Vector{TypeFutureValue}, 𝒯ᴵⁿᵛ::TS.AbstractStratPers, modeltype::EnergyModel)
 
-Returns an expression equal to the weighted sum of the `future_value` of all active cuts.
-Inactive cuts are weighted with 0 but still included to keep the number of variables
-unchanged.
+Returns the cost expression for the individual future values.
+
+In the case of [`StorageValueCuts`](@ref), the expression equals the weighted sum of the
+`future_value` of all active cuts. Inactive cuts are weighted with 0 but still included to
+keep the number of variables unchanged.
+
+In the case of [`TypeFutureValue`](@ref), the expression equals the sum of all values.
 """
 function get_future_value_expression(
     m,
@@ -277,5 +334,15 @@ function get_future_value_expression(
     return @expression(m, [t_inv ∈ 𝒯ᴵⁿᵛ],
         -sum(m[:future_value][v] * weight(v) * time_weight(v) for v ∈ 𝒱) /
         duration_strat(t_inv)
+    )
+end
+function get_future_value_expression(
+    m,
+    𝒱::Vector{TypeFutureValue},
+    𝒯ᴵⁿᵛ::TS.AbstractStratPers,
+    modeltype::EnergyModel,
+)
+    return @expression(m, [t_inv ∈ 𝒯ᴵⁿᵛ],
+        -sum(m[:future_value][v] for v ∈ 𝒱) / duration_strat(t_inv)
     )
 end

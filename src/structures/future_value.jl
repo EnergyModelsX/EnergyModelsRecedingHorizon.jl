@@ -63,8 +63,8 @@ coefficients(svc::StorageValueCut) = [(eleval.element, eleval.value) for eleval 
 """
     struct StorageValueCuts <: FutureValue
 
-A collection of multiple `StorageValueCut` that constructs a piecewise linear upper
-one the future value of the stored resource.
+A collection of multiple `StorageValueCut` that constructs a piecewise linear upper bound
+on the future value of the stored resource.
 
 ## Fields
 - **`id::Any`** is the name/identifier of the `StorageValueCuts`.
@@ -125,6 +125,51 @@ Returns true if the `FutureValue` is of type `StorageValueCuts`.
 """
 has_cuts(v::FutureValue) = false
 has_cuts(v::StorageValueCuts) = true
+
+"""
+    struct TypeFutureValue <: FutureValue
+    TypeFutureValue(element_type::Type{<:AbstractElement}, key::Symbol, val::Real)
+
+A future value for a given nodal type and model key. It utilizes only the final value and
+directly adds it to the cost function for all instances of the given type.
+
+## Fields
+- **`element::Type{<:AbstractElement}`** is the nodal type for which the future value applies.
+- **`val_dict::Dict{Symbol, Real}`** is a dictionary for including the variables provided as
+  keys with a given value for calculating the future value. It is important to consider the
+  unit of the value.
+
+!!! info "Single variable"
+    The field `val_dict` can also be provided as key and value input, if only a single variable
+    should be restricted
+
+!!! danger "Application of TypeFutureValue"
+    `TypeFutureValue` assigns a future value to all instances of a given type. It should
+    **never** be used on reference nodes. It should only be used on dynamic variables for other
+    node types.
+"""
+struct TypeFutureValue <: FutureValue
+    element_type::Type{<:AbstractElement}
+    val_dict::Dict{Symbol, Real}
+end
+function TypeFutureValue(element_type::Type{<:AbstractElement}, key::Symbol, val::Real)
+    return TypeFutureValue(element_type, Dict(key => val))
+end
+
+Base.show(io::IO, v::TypeFutureValue) = print(io, "fut_val_$(v.element_type)")
+"""
+    element_type(v::TypeFutureValue)
+
+Returns the composite type who possesses a variable with a future value.
+"""
+element_type(v::TypeFutureValue) = v.element_type
+
+"""
+    coefficients(v::TypeFutureValue)
+
+Returns the the cofficients dictionary of of the future value `v`.
+"""
+coefficients(v::TypeFutureValue) = v.val_dict
 
 """
     get_future_value(𝒳ᵛᵉᶜ::Vector{Vector})

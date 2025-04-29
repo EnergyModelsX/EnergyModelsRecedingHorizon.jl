@@ -1,5 +1,9 @@
 # Release notes
 
+## Version 0.1.1 (2025-04-25)
+
+* Introduction of `TypeFutureValue` for assigning a value to a variable for all instances of a given nodal type.
+
 ## Version 0.1.0 (2025-03-27)
 
 Initial version of the package:

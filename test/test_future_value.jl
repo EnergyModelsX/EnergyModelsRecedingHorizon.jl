@@ -1,4 +1,4 @@
-@testset "StorageValueCut" begin
+@testset "StorageValueCut type" begin
     # Introduce the node type for testing
     Power = ResourceCarrier("Power", 0.0)
     storage = RefStorage{RecedingAccumulating}(
@@ -20,7 +20,7 @@
     @test EMRH.coefficients(svc) == [(storage, 1)]
 end
 
-@testset "StorageValueCuts" begin
+@testset "StorageValueCuts type" begin
     @testset "Access functions" begin
         # Create the StorageValueCut type
         Power = ResourceCarrier("Power", 0.0)
@@ -336,4 +336,139 @@ end
     res_emrh_poi = ext_res(res_emrh_poi_df)
     @test all(all(r_f .≈ r_emrh) for (r_f, r_emrh) ∈ zip(res_full, res_emrh_poi))
 
+end
+
+@testset "Single future value description" begin
+    @testset "TypeFutureValue" begin
+        @testset "Access functions" begin
+            # Create the TypeFutureValue type
+            fv = TypeFutureValue(RefSink, :cap_use, 5)
+
+            # Test that the access functions are working
+            @test EMRH.element_type(fv) == RefSink
+            @test EMRH.coefficients(fv) == Dict(:cap_use => 5)
+        end
+
+        @testset "Resetting of values" begin
+            # Create the TypeFutureValue type
+            fv = TypeFutureValue(RefSink, :cap_use, 5)
+
+            # Test that the path is correctly created, that is not as their are no things to
+            # update
+            # - _find_update_paths
+            @test EMRH._find_update_paths(fv) == Any[]
+        end
+    end
+
+    @testset "Complete modelruns" begin
+        op_dur_vec = ones(Int64, 24)
+        price_profile = [
+            10, 20, 20, 50, 95, 100, 105, 100, 50, 40, 40,
+            40, 20, 70, 65, 45, 10, 5, 5, 90, 42, 42, 42, 42
+        ]
+        CO2 = ResourceEmit("CO2", 1.0)
+        el = ResourceCarrier("electricity", 0.0)
+        h2 = ResourceCarrier("hydrogen", 0.0)
+        products = [CO2, el, h2]
+
+        𝒯 = TwoLevel(1, 1, SimpleTimes(op_dur_vec); op_per_strat=24)
+        hor = PeriodHorizons([duration(t) for t ∈ 𝒯], 8, 4)
+
+        src_a = RefSource(
+            "src_el",
+            FixedProfile(10),
+            OperationalProfile(price_profile.-10),
+            FixedProfile(0),
+            Dict(el => 1),
+        )
+        src_b = RefSource(
+            "src_h2",
+            FixedProfile(10),
+            OperationalProfile(price_profile.-10),
+            FixedProfile(0),
+            Dict(h2 => 1),
+        )
+        snk_a = RefSink(
+            "demand_el",
+            FixedProfile(0),
+            Dict(
+                :surplus => OperationalProfile(-price_profile),
+                :deficit => FixedProfile(1000)
+            ),
+            Dict(el => 1),
+        )
+        snk_b = RefSink(
+            "demand_h2",
+            FixedProfile(0),
+            Dict(
+                :surplus => FixedProfile(-25),
+                :deficit => FixedProfile(1000)
+            ),
+            Dict(h2 => 1),
+        )
+        𝒩 = [src_a, src_b, snk_a, snk_b]
+        ℒ = [
+            Direct("src_a-snk_a", src_a, snk_a),
+            Direct("src_b-snk_b", src_b, snk_b),
+        ]
+
+        𝒱 = [
+            TypeFutureValue(RefSource, :cap_use, -2),
+            TypeFutureValue(RefSink, :cap_use, 10),
+        ]
+        case = Case(
+            𝒯,
+            products,
+            [𝒩, ℒ, 𝒱],
+            [[get_nodes, get_links], [get_future_value, get_nodes]],
+            Dict(:horizons => hor)
+        )
+
+        model = RecHorOperationalModel(
+            Dict(CO2 => FixedProfile(10)), #upper bound for CO2 in t/8h
+            Dict(CO2 => FixedProfile(0)), # emission price for CO2 in EUR/t
+            CO2,
+        )
+
+        # Function for calculating the results in a common format
+        function ext_res(res)
+            use_src_el = abs.(round.(filter(r -> r.x1 == src_a, res[:cap_use])[!, :y]'))
+            use_snk_el = abs.(round.(filter(r -> r.x1 == snk_a, res[:cap_use])[!, :y]'))
+            use_src_h2 = abs.(round.(filter(r -> r.x1 == src_b, res[:cap_use])[!, :y]'))
+            use_snk_h2 = abs.(round.(filter(r -> r.x1 == snk_b, res[:cap_use])[!, :y]'))
+            (use_src_el, use_snk_el, use_src_h2, use_snk_h2)
+        end
+
+        # Calculate the results from the complete run to check the future value calculations
+        optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+        m_comp = run_model(case, model, optimizer)
+        @test objective_value(m_comp) ≈ 4040
+
+        # Test that the value is correctly calculated
+        # - create_future_value_couple(m, v::TypeFutureValue, 𝒩::Vector{<:EMB.Node}, 𝒯, modeltype::EnergyModel)
+        @test value.(m_comp[:future_value][𝒱[1]]) ==
+            sum(value.(m_comp[:cap_use][[src_a, src_b], last(𝒯)])) * -2
+        @test value.(m_comp[:future_value][𝒱[2]]) ==
+            sum(value.(m_comp[:cap_use][[snk_a, snk_b], last(𝒯)])) * 10
+
+        # Run the model with the standard framework and test that we get a capacity usage for
+        # the last period while all other periods at the end of the horizons are 0 due to the
+        # non-dynamic nature of the variable (they should be non-zero in the individual
+        # optimization horizons)
+        res_emrh_org_df = run_model_rh(case, model, optimizer)
+        res_emrh_org = ext_res(res_emrh_org_df)
+        @test res_emrh_org[3][[8,12,16,20,24]] == [0, 0, 0, 0, 10]
+
+
+        # Test that providing the inverse couplings is also working
+        case = Case(
+            𝒯,
+            products,
+            [𝒩, ℒ, 𝒱],
+            [[get_nodes, get_links], [get_nodes, get_future_value]],
+            Dict(:horizons => hor)
+        )
+        m_comp = run_model(case, model, optimizer)
+        @test objective_value(m_comp) ≈ 4040
+    end
 end

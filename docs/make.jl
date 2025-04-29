@@ -65,7 +65,7 @@ makedocs(
         "Manual" => Any[
             "Quick Start"=>"manual/quick-start.md",
             "Philosophy"=>"manual/philosophy.md",
-            "Storage end value"=>"manual/storage_end_value.md",
+            "Future value"=>"manual/future_value.md",
             "Example"=>"manual/simple-example.md",
             "Release notes"=>"manual/NEWS.md",
         ],

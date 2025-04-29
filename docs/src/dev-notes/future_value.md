@@ -1,7 +1,7 @@
 # [Implementation of future values](@id dev-fv)
 
-As outlined on the page *[Storage end values](@ref man-sev)*, we implemented a new [`AbstractElement`](@extref EnergyModelsBase.AbstractElement) for representing the future value in dynamic constraints.
-So far, one subtype is implemented through [`StorageValueCuts`](@ref).
+As outlined on the page *[implementation of future values](@ref man-fv)*, we implemented a new [`AbstractElement`](@extref EnergyModelsBase.AbstractElement) for representing the future value in dynamic constraints.
+So far, two subtype are implemented through [`StorageValueCuts`](@ref) and  [`TypeFutureValue`](@ref).
 It is however possible to provide new subtypes representing different implementations for calculating or constraining a future value.
 
 ## [Function flow for incorporating future values](@id dev-fv-fun_flow)
@@ -63,7 +63,7 @@ The following steps must be conducted to incorporate a new type:
    end
    ```
 
-    It can include as many fields as desired, but it 1. **must** include the field `id` and 2. cannot include a dictionary in which a [`Node`](@extref EnergyModelsBase lib-pub-nodes) is a key (you may use [`ElementValue`](@ref) instead if necessary).
+   It can include as many fields as desired, but it 1. **must** include the field `id` and 2. cannot include a dictionary in which a [`Node`](@extref EnergyModelsBase lib-pub-nodes) is a key (you may use [`ElementValue`](@ref) instead if necessary).
 2. Create a new method for the function [`EMRH.create_future_value_couple`](@ref) for your `NewFutureValue`.
    In general, you should have the corresponding `Node` as field of your `NewFutureValue`.
    If this is not the case, *e.g.*, through assigning the same future value for all instances of a given variable of a type, it is necessary to provide new methods for [`EMB.constraints_couple`](@ref) which also includes a potentially empty method for `FutureValue`.
