@@ -15,14 +15,6 @@ The usage of the package is best illustrated through the commented examples.
 The examples are minimum working examples highlighting how to use the receding horizon framework.
 In addition, they provide a user with an overview regarding potential adjustments to their elements.
 
-> [!WARNING]
-> The package is not yet registered.
-> It is hence necessary to first clone the package and manually add the package to the example environment through:
->
-> ```julia
-> ] dev ..
-> ```
-
 ## Cite
 
 If you find `EnergyModelsRecedingHorizon` useful in your work, we kindly request that you cite the following [publication](https://doi.org/10.21105/joss.06619):
