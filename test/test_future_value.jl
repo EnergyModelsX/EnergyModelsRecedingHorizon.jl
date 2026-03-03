@@ -412,7 +412,7 @@ end
             Direct("src_b-snk_b", src_b, snk_b),
         ]
 
-        𝒱 = [
+        𝒱 = FutureValue[
             TypeFutureValue(RefSource, :cap_use, -2),
             TypeFutureValue(RefSink, :cap_use, 10),
         ]

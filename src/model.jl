@@ -254,7 +254,7 @@ function EMB.objective_operational(
     # Calculate the value for the future value
     future_value = JuMP.Containers.DenseAxisArray[]
     for val_type ∈ val_types
-        𝒱ˢᵘᵇ = filter(v -> typeof(v) == val_type, 𝒱)
+        𝒱ˢᵘᵇ = convert(Vector{val_type}, filter(v -> typeof(v) == val_type, 𝒱))
         push!(future_value, get_future_value_expression(m, 𝒱ˢᵘᵇ, 𝒯ᴵⁿᵛ, modeltype))
     end
 
