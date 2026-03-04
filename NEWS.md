@@ -1,5 +1,11 @@
 # Release notes
 
+## Version 0.1.2 (2026-03-04)
+
+### Bugfix
+
+* Fixed a bug when the `FutureValue` vector was of type `Vector{FutureValue}`.
+
 ## Version 0.1.1 (2025-04-25)
 
 * Introduction of `TypeFutureValue` for assigning a value to a variable for all instances of a given nodal type.
