@@ -35,6 +35,8 @@ struct NodeNewInitData{T<:Real} <: EMB.Node
 end
 
 # Create function dispatches so that corresponding model variables are not created
+EMB.inputs(n::NodeNewInitData) = Resource[]
+EMB.outputs(n::NodeNewInitData) = Resource[]
 EMB.has_input(n::NodeNewInitData) = false
 EMB.has_output(n::NodeNewInitData) = false
 EMB.has_opex(n::NodeNewInitData) = false

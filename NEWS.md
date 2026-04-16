@@ -1,5 +1,12 @@
 # Release notes
 
+## Version 0.2.0 (2026-04-15)
+
+* Adjusted to [`EnergyModelsBase` v0.10.0](https://github.com/EnergyModelsX/EnergyModelsBase.jl/releases/tag/v0.10.0):
+  * Model worked without adjustments.
+  * Test set was adjusted as implemented nodes did not adhere to definition of nodes.
+* Breaking change still included to maintain the possibility to do bug fixes in version 0.1.x for existing models with `EnergyModelsBase` v0.9.x.
+
 ## Version 0.1.2 (2026-03-04)
 
 ### Bugfix

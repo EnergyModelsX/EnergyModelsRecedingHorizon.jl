@@ -232,7 +232,7 @@ end
     EMB.objective_operational(m, 𝒱::Vector{<:FutureValue}, 𝒯ᴵⁿᵛ::TS.AbstractStratPers, modeltype::EnergyModel)
 
 Create JuMP expressions indexed over the investment periods `𝒯ᴵⁿᵛ` for different elements.
-The expressions correspond to the operational expenses of the different elements.
+The expressions correspond to the operating expenses of the different elements.
 The expressions are not discounted and do not take the duration of the investment periods
 into account.
 
