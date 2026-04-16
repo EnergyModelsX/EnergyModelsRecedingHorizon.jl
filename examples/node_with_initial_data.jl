@@ -33,6 +33,8 @@ struct IncrementInitNode{T<:Real} <: EMB.Node
 end
 
 # Create function dispatches so that corresponding model variables are not created
+EMB.inputs(n::IncrementInitNode) = Resource[]
+EMB.outputs(n::IncrementInitNode) = Resource[]
 EMB.has_input(n::IncrementInitNode) = false
 EMB.has_output(n::IncrementInitNode) = false
 EMB.has_opex(n::IncrementInitNode) = false

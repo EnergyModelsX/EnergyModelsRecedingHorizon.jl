@@ -136,6 +136,8 @@ end
         return case, model
     end
 
+    EMB.inputs(n::SampleInitNode) = Resource[]
+    EMB.outputs(n::SampleInitNode) = Resource[]
     EMB.has_input(n::SampleInitNode) = false
     EMB.has_output(n::SampleInitNode) = false
     EMB.has_opex(n::SampleInitNode) = false
