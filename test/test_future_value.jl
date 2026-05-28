@@ -122,17 +122,17 @@ end
         @test all(typeof(EMRH.resets(s)[1]) == EMRH.TimeWeightReset for s ∈ 𝒮ᵛ)
 
         # Test that the updates of the values are correctly calculated
-        # - _update_future_value!(𝒱::Vector{FutureValueSub{T}}, time::Real) where {T<:StorageValueCuts}
+        # - update_future_value!(𝒱::Vector{FutureValueSub{T}}, time::Real) where {T<:StorageValueCuts}
         𝒮ᵛ = convert(Vector{EMRH.FutureValueSub{EMRH.StorageValueCuts}}, 𝒮ᵛ)
-        EMRH._update_future_value!(𝒮ᵛ, 0)
+        EMRH.update_future_value!(𝒮ᵛ, 0)
         time_weights = [EMRH.resets(s)[1].val for s ∈ 𝒮ᵛ]
         @test all(iszero(tw) for (i, tw) ∈ enumerate(time_weights) if i ∉ [1])
         @test time_weights[1] == 1
-        EMRH._update_future_value!(𝒮ᵛ, 80)
+        EMRH.update_future_value!(𝒮ᵛ, 80)
         time_weights = [EMRH.resets(s)[1].val for s ∈ 𝒮ᵛ]
         @test all(iszero(tw) for (i, tw) ∈ enumerate(time_weights) if i ∈ [1, 2, 3, 4])
         @test time_weights[5] ≈ 1.0
-        EMRH._update_future_value!(𝒮ᵛ, 3)
+        EMRH.update_future_value!(𝒮ᵛ, 3)
         time_weights = [EMRH.resets(s)[1].val for s ∈ 𝒮ᵛ]
         @test all(iszero(tw) for (i, tw) ∈ enumerate(time_weights) if i ∉ [1, 2, 3])
         @test time_weights[1] ≈ 0.7
@@ -184,7 +184,7 @@ end
         @test all(isa(EMRH.time_weight(v), VariableRef) for v ∈ 𝒱ᵣₕ)
 
         # - _update_parameter!(m, res_type::TimeWeightReset, opers::Vector)
-        EMRH._update_future_value!(𝒮ᵛ, 3)
+        EMRH.update_future_value!(𝒮ᵛ, 3)
         POIExt._update_parameter_values!(m, 𝒮ᵛ, collect(𝒯ᵣₕ))
         @test all(iszero(parameter_value(EMRH.time_weight(v))) for v ∈ 𝒱ᵣₕ if v.id ∉ [1,2,3])
         @test parameter_value(EMRH.time_weight(𝒱ᵣₕ[1])) ≈ 0.7

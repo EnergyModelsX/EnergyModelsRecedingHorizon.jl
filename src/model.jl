@@ -71,7 +71,7 @@ function run_model_rh(
         # Update the time weights/values of `FutureValue` types
         if has_future_value
             for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
-                _update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
+                update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
             end
         end
 

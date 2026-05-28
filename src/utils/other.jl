@@ -39,8 +39,8 @@ function Accessors.ConstructionBase.constructorof(obj::Type{<:Storage})
 end
 
 """
-    _update_future_value!(𝒮ᵛ::Vector{FutureValueSub{T}}, time_elapsed::Real) where {T<:StorageValueCuts}
-    _update_future_value!(𝒮ᵛ::Vector{FutureValueSub{T}}, time_elapsed::Real) where {T<:TypeFutureValue}
+    update_future_value!(𝒮ᵛ::Vector{FutureValueSub{T}}, time_elapsed::Real) where {T<:StorageValueCuts}
+    update_future_value!(𝒮ᵛ::Vector{FutureValueSub{T}}, time_elapsed::Real) where {T<:TypeFutureValue}
 
 Update the value of [`TimeWeightReset`](@ref) based on the time `time_elapsed` at the end of
 the TimeStructure.
@@ -49,7 +49,7 @@ If a cut is given at the end time of an operational period, the weight is 1 for 
 cut and 0 for other. When the optimization end time is between cuts, the weights scales the
 weight of the nearest cuts such that they are weighted linearly.
 """
-function _update_future_value!(
+function update_future_value!(
     𝒮ᵛ::Vector{FutureValueSub{T}},
     time_elapsed::Real,
 ) where {T<:StorageValueCuts}
@@ -88,8 +88,7 @@ function _update_future_value!(
         end
     end
 end
-
-function _update_future_value!(
+function update_future_value!(
     𝒮ᵛ::Vector{FutureValueSub{T}},
     time_elapsed::Real,
 ) where {T<:TypeFutureValue}

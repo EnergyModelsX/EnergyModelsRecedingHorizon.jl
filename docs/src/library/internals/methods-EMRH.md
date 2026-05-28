@@ -9,6 +9,7 @@ Pages = ["methods-EMRH.md"]
 ### [Extension functions](@id lib-int-ext)
 
 ```@docs
+EMRH.update_future_value!
 EMRH.update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ::Vector{Vector{T}}, opers_implᵣₕ) where {T<:EMRH.AbstractSub}
 ```
 
@@ -42,7 +43,6 @@ EMRH._path_type
 ```@docs
 EMRH._create_updatetype
 EMRH._add_elements!
-EMRH._update_future_value!
 EMRH._update_update_case!
 EMRH._reset_field(x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, opers::Vector{<:TS.TimePeriod})
 ```

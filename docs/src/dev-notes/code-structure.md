@@ -105,7 +105,7 @@ The following section provides the general overview with differentiation between
 2. The individual elements with [`AbstractInitData`](@ref) are identified to avoid iterating through all elements in each iteration of the receding horizon framework.
    In addition, we rearrange the [`FutureValue`](@ref) substitution types for simplified later updating.
 3. The algorithm iterates through all horizons sequentially and solves the optimization problem.
-    1. If the system includes [`FutureValue`](@ref) types, we update `FutureValue`s whose weight is dependent on the elapsed time using the function [`EMRH._update_future_value!`](@ref).
+    1. If the system includes [`FutureValue`](@ref) types, we update `FutureValue`s whose weight is dependent on the elapsed time using the function [`EMRH.update_future_value!`](@ref).
        This is for example the case for [`StorageValueCuts`](@ref).
     2. The second step is different in the two implementations.
 
