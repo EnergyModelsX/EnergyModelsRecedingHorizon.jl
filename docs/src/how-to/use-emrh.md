@@ -1,6 +1,6 @@
 # [Use the package](@id how_to-use_emrh)
 
-The main function of the [`EnergyModelsRecedingHorizon`](@ref) package is [`run_model_rh`](@ref run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)).
+The main function of the [`EnergyModelsRecedingHorizon`](@ref) package is [`run_model_rh`](@ref run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)).
 Similarly to [`EnergyModelsBase`](https://energymodelsx.github.io/EnergyModelsBase.jl/), a problem is defined by its case and model objects.
 The following points should be accounted for when setting up a problem in [`EnergyModelsRecedingHorizon`](@ref):
 
@@ -13,7 +13,7 @@ The following points should be accounted for when setting up a problem in [`Ener
   This initial data must be used to define the first operational period (see the *[initialization section](@ref dev-init)* for more details).
 
 Contrary to other [`EnergyModelsX`](https://github.com/EnergyModelsX) packages, the current package does not solve a single optimization problem, but it solves a sequence of optimization problems.
-Therefore, the function [`run_model_rh`](@ref run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)) returns the overall results in a [`DataFrame`](https://dataframes.juliadata.org/stable/) format, containing only results related to the implementation horizons of the model.
+Therefore, the function [`run_model_rh`](@ref run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)) returns the overall results in a [`DataFrame`](https://dataframes.juliadata.org/stable/) format, containing only results related to the implementation horizons of the model.
 
 ## [ParametricOptInterface extension](@id how_to-use_emrh-POIext)
 

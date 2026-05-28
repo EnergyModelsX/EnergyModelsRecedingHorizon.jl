@@ -16,7 +16,7 @@ EnergyModelsRecedingHorizon
 
 ```@docs
 RecHorOperationalModel
-run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
+run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
 ```
 
 ## [Horizon](@id lib-pub-hor)

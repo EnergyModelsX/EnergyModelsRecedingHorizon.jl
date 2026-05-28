@@ -44,8 +44,8 @@ function create_case_base_ex(; init_state = 0)
     impl_hor = 4                                    # implementation horizon (in hours)
     ℋ = DurationHorizons([duration(t) for t ∈ 𝒯], optim_hor, impl_hor)
 
-    # Creation of the model type with global data
-    model = RecHorOperationalModel(
+    # Creation of the modeltype with global data
+    modeltype = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)),              # Emission cap for CO₂ in t/h
         Dict(co2 => FixedProfile(0)),               # Emission price for CO₂ in €/t
         co2,                                        # CO₂ instance
@@ -104,18 +104,18 @@ function create_case_base_ex(; init_state = 0)
     # Create case instance
     case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
 
-    return case, model
+    return case, modeltype
 end
 
 # Instance case and model type
 x0 = 5
-case, model = create_case_base_ex(init_state = x0)
+case, modeltype = create_case_base_ex(init_state = x0)
 
 ## RUN MODELS
 
 # - EnergyModelsBase
 # Create and solve JuMP model
-m = create_model(case, model)
+m = create_model(case, modeltype)
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 set_optimizer(m, optimizer)
 optimize!(m)
@@ -125,7 +125,7 @@ results_full = EMRH.get_results_df(m)
 
 # - EnergyModelsRecedingHorizon
 # Call EMRH solver
-res_emrh = run_model_rh(case, model, optimizer)
+res_emrh = run_model_rh(case, modeltype, optimizer)
 
 ## COMPARE RESULTS
 """

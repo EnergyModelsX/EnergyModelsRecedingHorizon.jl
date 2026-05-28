@@ -1,5 +1,5 @@
 """
-    EMRH.run_model_rh(case::AbstractCase, model::RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
+    EMRH.run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
 
 When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
 `ParametricOptInterface` (POI) for resetting the individual values.
@@ -11,7 +11,7 @@ When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
 """
 function EMRH.run_model_rh(
     case::AbstractCase,
-    model::RecHorEnergyModel,
+    modeltype::RecHorEnergyModel,
     optimizer::POI.Optimizer;
     check_timeprofiles::Bool = true,
 )
@@ -38,7 +38,7 @@ function EMRH.run_model_rh(
     )
 
     # Create the `UpdateCase` based on the original `Case` structure
-    𝒰 = _create_updatetype(case, model)
+    𝒰 = _create_updatetype(case, modeltype)
 
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure

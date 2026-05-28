@@ -90,22 +90,23 @@ function _reset_field(
 end
 
 """
-    _create_updatetype(model::RecHorEnergyModel)
-    _create_updatetype(model::RecHorEnergyModel, case::AbstractCase)
+    _create_updatetype(modeltype::RecHorEnergyModel)
+    _create_updatetype(modeltype::RecHorEnergyModel, case::AbstractCase)
 
-Initialize an [`UpdateCase`](@ref) based on the provided [`RecHorEnergyModel`](@ref) `model`.
+Initialize an [`UpdateCase`](@ref) based on the provided [`RecHorEnergyModel`](@ref)
+`modeltype`.
 
 Initialize and populate the [`UpdateCase`](@ref) if the function has as first argument an
 [`AbstractCase`](@extref EnergyModelsBase.AbstractCase).
 """
-function _create_updatetype(model::RecHorEnergyModel)
-    paths_model = _find_update_paths(model)
-    reset_model = AbstractReset[ResetType(field_id, field_id[end], model) for field_id ∈ paths_model]
-    return UpdateCase(Substitution(model, reset_model), Dict(), ProductSub[], Vector[])
+function _create_updatetype(modeltype::RecHorEnergyModel)
+    paths_model = _find_update_paths(modeltype)
+    reset_model = AbstractReset[ResetType(field_id, field_id[end], modeltype) for field_id ∈ paths_model]
+    return UpdateCase(Substitution(modeltype, reset_model), Dict(), ProductSub[], Vector[])
 end
-function _create_updatetype(case::AbstractCase, model::RecHorEnergyModel)
+function _create_updatetype(case::AbstractCase, modeltype::RecHorEnergyModel)
     # Create the `UpdateCase` based on the original `Case` structure
-    𝒰 = _create_updatetype(model)
+    𝒰 = _create_updatetype(modeltype)
     _add_elements!(𝒰, get_products(case))
     for 𝒳 ∈ get_elements_vec(case)
         _add_elements!(𝒰, 𝒳)

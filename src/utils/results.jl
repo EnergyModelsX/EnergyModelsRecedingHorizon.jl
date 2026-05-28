@@ -90,7 +90,7 @@ function get_results_df(m::JuMP.Model)
 end
 
 """
-    save_results(model::Model; directory=joinpath(pwd(),"csv_files"))
+    save_results(modeltype::Model; directory=joinpath(pwd(),"csv_files"))
     save_results(results::Dict{Symbol, AbstractDataFrame}; directory=joinpath(pwd(),"csv_files"))
 
 Saves the model results of all variables as CSV files. The model results are saved in the
@@ -98,15 +98,15 @@ specified directory.
 If no directory is specified, it will create, if necessary, a new directory "csv_files" in
 the current working directory and save the files in said directory.
 """
-function save_results(model::Model; directory = joinpath(pwd(), "csv_files"))
-    vars = collect(keys(object_dictionary(model)))
+function save_results(m::Model; directory = joinpath(pwd(), "csv_files"))
+    vars = collect(keys(object_dictionary(m)))
     if !ispath(directory)
         mkpath(directory)
     end
     Threads.@threads for v ∈ vars
-        if !isempty(model[v]) && !isa(model[v], VariableRef)
+        if !isempty(m[v]) && !isa(m[v], VariableRef)
             fn = joinpath(directory, string(v) * ".csv")
-            CSV.write(fn, JuMP.Containers.rowtable(value, model[v]))
+            CSV.write(fn, JuMP.Containers.rowtable(value, m[v]))
         end
     end
 end

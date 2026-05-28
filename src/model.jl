@@ -1,6 +1,6 @@
 
 """
-    run_model_rh(case::AbstractCase, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
+    run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
 
 Take the variables `case` and `model` and optimize the problem in a receding horizon fashion
 as a series of optimization problems.
@@ -25,7 +25,7 @@ Returns `results` as a dataframe indexed by the model variables.
 """
 function run_model_rh(
     case::AbstractCase,
-    model::RecHorEnergyModel,
+    modeltype::RecHorEnergyModel,
     optimizer;
     check_timeprofiles::Bool = true,
 )
@@ -36,7 +36,7 @@ function run_model_rh(
     n_𝒽 = length(ℋ)
 
     # Create the `UpdateCase` based on the original `Case` structure
-    𝒰 = _create_updatetype(case, model)
+    𝒰 = _create_updatetype(case, modeltype)
 
     # Initialize loop variables
     𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results = _initialize_loop_variables(𝒰)

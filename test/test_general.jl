@@ -6,7 +6,7 @@
     𝒯 = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
     ℋ = PeriodHorizons([duration(t) for t ∈ 𝒯], 2, 1)
 
-    model = RecHorOperationalModel(
+    modeltype = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2,
     )
 
@@ -50,10 +50,10 @@
 
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
-    m_EMB = run_model(case, model, optimizer)
+    m_EMB = run_model(case, modeltype, optimizer)
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
-    results_EMRH = run_model_rh(case, model, optimizer)
+    results_EMRH = run_model_rh(case, modeltype, optimizer)
     # Test that the extracted results are exactly the values we expected
     @test filter(r -> r.x1 == 𝒩[3], results_EMRH[:stor_level])[!, :y] ==
         [3.5, 0, 5.0, 0, 0]
@@ -74,7 +74,7 @@
     @test 𝒩[3].data[1].init_val_dict[:stor_level] == 0.5 # StorageInitData object unchanged
 
     # Test of the saving of the results
-    # - save_results(model::Model; directory = joinpath(pwd(), "csv_files"))
+    # - save_results(modeltype::Model; directory = joinpath(pwd(), "csv_files"))
     @testset "Save JuMP model as csv" begin
         save_dir = mktempdir(pwd())
         EMRH.save_results(m_EMB; directory = save_dir)

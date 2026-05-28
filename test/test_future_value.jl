@@ -73,7 +73,7 @@ end
         )
         𝒩 = [stor_a, stor_b]
 
-        model = RecHorOperationalModel(
+        modeltype = RecHorOperationalModel(
             Dict(CO2 => FixedProfile(10)), #upper bound for CO2 in t/8h
             Dict(CO2 => FixedProfile(0)), # emission price for CO2 in EUR/t
             CO2,
@@ -87,13 +87,13 @@ end
                 ]
             )
         for (j, k) ∈ enumerate(time_profile)]
-        return 𝒱, 𝒩, model
+        return 𝒱, 𝒩, modeltype
     end
 
     @testset "Resetting of values" begin
         # Create the cuts
         time_vec = [0, 10, 10, 40, 70]
-        𝒱, 𝒩, model = stor_val_cuts(time_vec)
+        𝒱, 𝒩, modeltype = stor_val_cuts(time_vec)
 
         # Test that the path is correctly created
         # - _find_update_paths(x::StorageValueCuts)
@@ -109,7 +109,7 @@ end
         ) for v ∈ 𝒱)
 
         # Create the Update type
-        𝒰 = EMRH._create_updatetype(model)
+        𝒰 = EMRH._create_updatetype(modeltype)
         EMRH._add_elements!(𝒰, 𝒩)
         EMRH._add_elements!(𝒰, 𝒱)
         𝒮ⁿ = EMRH.get_sub_elements_vec(𝒰)[1]
@@ -161,10 +161,10 @@ end
     @testset "Resetting of values - POI" begin
         # Create the cuts
         time_vec = [0, 10, 10, 40, 70]
-        𝒱, 𝒩, model = stor_val_cuts(time_vec)
+        𝒱, 𝒩, modeltype = stor_val_cuts(time_vec)
 
         # Create the Update type
-        𝒰 = EMRH._create_updatetype(model)
+        𝒰 = EMRH._create_updatetype(modeltype)
         EMRH._add_elements!(𝒰, 𝒩)
         EMRH._add_elements!(𝒰, 𝒱)
         𝒮ⁿ = EMRH.get_sub_elements_vec(𝒰)[1]
@@ -281,7 +281,7 @@ end
         Dict(:horizons => hor)
     )
 
-    model = RecHorOperationalModel(
+    modeltype = RecHorOperationalModel(
         Dict(CO2 => FixedProfile(10)), #upper bound for CO2 in t/8h
         Dict(CO2 => FixedProfile(0)), # emission price for CO2 in EUR/t
         CO2,
@@ -303,7 +303,7 @@ end
 
     # Calculate the results from the complete run to check the future value calculations
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-    m_comp = run_model(case, model, optimizer)
+    m_comp = run_model(case, modeltype, optimizer)
     @test objective_value(m_comp) ≈ 16168.1
 
     # Test that the value is correctly restricted
@@ -326,13 +326,13 @@ end
     res_full = ext_res(res_full_df)
 
     # Run the model with the standard framework and test that we get the same results
-    res_emrh_org_df = run_model_rh(case, model, optimizer);
+    res_emrh_org_df = run_model_rh(case, modeltype, optimizer);
     res_emrh_org = ext_res(res_emrh_org_df)
     @test all(all(r_f .≈ r_emrh) for (r_f, r_emrh) ∈ zip(res_full, res_emrh_org))
 
     # Run the model with the POI framework and test that we get the same results
     optimizer = POI.Optimizer(HiGHS.Optimizer())
-    res_emrh_poi_df = run_model_rh(case, model, optimizer);
+    res_emrh_poi_df = run_model_rh(case, modeltype, optimizer);
     res_emrh_poi = ext_res(res_emrh_poi_df)
     @test all(all(r_f .≈ r_emrh) for (r_f, r_emrh) ∈ zip(res_full, res_emrh_poi))
 
@@ -424,7 +424,7 @@ end
             Dict(:horizons => hor)
         )
 
-        model = RecHorOperationalModel(
+        modeltype = RecHorOperationalModel(
             Dict(CO2 => FixedProfile(10)), #upper bound for CO2 in t/8h
             Dict(CO2 => FixedProfile(0)), # emission price for CO2 in EUR/t
             CO2,
@@ -441,7 +441,7 @@ end
 
         # Calculate the results from the complete run to check the future value calculations
         optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-        m_comp = run_model(case, model, optimizer)
+        m_comp = run_model(case, modeltype, optimizer)
         @test objective_value(m_comp) ≈ 4040
 
         # Test that the value is correctly calculated
@@ -455,7 +455,7 @@ end
         # the last period while all other periods at the end of the horizons are 0 due to the
         # non-dynamic nature of the variable (they should be non-zero in the individual
         # optimization horizons)
-        res_emrh_org_df = run_model_rh(case, model, optimizer)
+        res_emrh_org_df = run_model_rh(case, modeltype, optimizer)
         res_emrh_org = ext_res(res_emrh_org_df)
         @test res_emrh_org[3][[8,12,16,20,24]] == [0, 0, 0, 0, 10]
 
@@ -468,7 +468,7 @@ end
             [[get_nodes, get_links], [get_nodes, get_future_value]],
             Dict(:horizons => hor)
         )
-        m_comp = run_model(case, model, optimizer)
+        m_comp = run_model(case, modeltype, optimizer)
         @test objective_value(m_comp) ≈ 4040
     end
 end

@@ -127,13 +127,13 @@ end
 
         case = Case(𝒯, 𝒫, Vector{Vector}([𝒩]), [Function[]], Dict(:horizons => ℋ))
 
-        model = RecHorOperationalModel(
+        modeltype = RecHorOperationalModel(
             Dict(co2 => FixedProfile(10)),
             Dict(co2 => FixedProfile(0)),
             co2,
         )
 
-        return case, model
+        return case, modeltype
     end
 
     EMB.inputs(n::SampleInitNode) = Resource[]
@@ -170,8 +170,8 @@ end
     end
 
     # TODO: should system throw an error if model is run without initialization data?
-    case, model = create_case_newnode(InitData(Dict(:state => 1.0, :state2 => 1.3)))
-    results_bad = run_model_rh(case, model, optimizer)
+    case, modeltype = create_case_newnode(InitData(Dict(:state => 1.0, :state2 => 1.3)))
+    results_bad = run_model_rh(case, modeltype, optimizer)
 
     function EMB.constraints_data(
         m,
@@ -188,12 +188,12 @@ end
         )
     end
 
-    m = EMB.create_model(case, model)
+    m = EMB.create_model(case, modeltype)
     set_optimizer(m, optimizer)
     optimize!(m)
     results_full = EMRH.get_results_df(m)
 
-    results_1 = run_model_rh(case, model, optimizer)
+    results_1 = run_model_rh(case, modeltype, optimizer)
 
     @test results_1[:state].y[1] ≈ 2.5
     @test results_1[:state].y[8] ≈ 13.0
@@ -222,11 +222,11 @@ end
         )
     end
 
-    case, model = create_case_newnode(CustomInitData(1.0, 1.3))
+    case, modeltype = create_case_newnode(CustomInitData(1.0, 1.3))
 
     # Following test should throw before the definitions below it
     @test_throws "function `_find_update_paths(field, current_path, all_path)`" bad_results =
-        run_model_rh(case, model, optimizer)
+        run_model_rh(case, modeltype, optimizer)
 
     struct CustomInitDataPath <: EMRH.AbstractInitDataPath
         key::Any
@@ -245,7 +245,7 @@ end
     end
 
     # Following test should throw before the definition below it
-    @test_throws MethodError bad_results = run_model_rh(case, model, optimizer)
+    @test_throws MethodError bad_results = run_model_rh(case, modeltype, optimizer)
 
     function EMRH.update_init_data!(
         m,
@@ -258,9 +258,9 @@ end
         ri.val = value.(m[idp.key][x, t_last])
     end
 
-    case, model = create_case_newnode(CustomInitData(1.0, 1.3))
+    case, modeltype = create_case_newnode(CustomInitData(1.0, 1.3))
 
-    results_2 = run_model_rh(case, model, optimizer)
+    results_2 = run_model_rh(case, modeltype, optimizer)
 
     @test results_2[:state].y[1] ≈ 2.5
     @test results_2[:state].y[8] ≈ 13.0
