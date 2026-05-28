@@ -32,17 +32,11 @@ function run_model_rh(
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
     opers = collect(𝒯)
-    𝒳ᵛᵉᶜ = get_elements_vec(case)
-    𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
     n_𝒽 = length(ℋ)
 
     # Create the `UpdateCase` based on the original `Case` structure
-    𝒰 = _create_updatetype(model)
-    _add_elements!(𝒰, 𝒫)
-    for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        _add_elements!(𝒰, 𝒳)
-    end
+    𝒰 = _create_updatetype(case, model)
 
     # Initialize loop variables
     𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results = _initialize_loop_variables(𝒰)

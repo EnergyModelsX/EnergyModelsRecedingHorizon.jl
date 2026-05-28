@@ -18,8 +18,6 @@ function EMRH.run_model_rh(
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
     opers = collect(𝒯)
-    𝒳ᵛᵉᶜ = get_elements_vec(case)
-    𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
     n_𝒽 = length(ℋ)
@@ -40,11 +38,7 @@ function EMRH.run_model_rh(
     )
 
     # Create the `UpdateCase` based on the original `Case` structure
-    𝒰 = _create_updatetype(model)
-    _add_elements!(𝒰, 𝒫)
-    for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        _add_elements!(𝒰, 𝒳)
-    end
+    𝒰 = _create_updatetype(case, model)
 
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure
