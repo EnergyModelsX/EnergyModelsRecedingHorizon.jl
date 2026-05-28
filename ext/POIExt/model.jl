@@ -1,5 +1,5 @@
 """
-    EMRH.run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
+    EMRH.run_model_rh(case::AbstractCase, model::RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
 
 When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
 `ParametricOptInterface` (POI) for resetting the individual values.
@@ -11,12 +11,13 @@ When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
 """
 function EMRH.run_model_rh(
     case::AbstractCase,
-    model::EMRH.RecHorEnergyModel,
+    model::RecHorEnergyModel,
     optimizer::POI.Optimizer;
     check_timeprofiles::Bool = true,
 )
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
+    opers = collect(𝒯)
     𝒳ᵛᵉᶜ = get_elements_vec(case)
     𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
@@ -49,11 +50,8 @@ function EMRH.run_model_rh(
     # and the receding horizon time structure
     𝒯 = get_time_struct(case)
     𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
-    opers_opt = collect(𝒯)[indices_optimization(𝒽₀)]
-    ind_impl = indices_implementation(𝒽₀)
-    opers_impl = collect(𝒯)[ind_impl]
-    opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
-    opers_not_impl = setdiff(opers_opt, opers_impl)
+    opers_opt = opers[indices_optimization(𝒽₀)]
+    opers_impl = opers[indices_implementation(𝒽₀)]
 
     # Update the receding horizon case and model as well as JuMP model
     m = Model(() -> optimizer)
@@ -77,17 +75,16 @@ function EMRH.run_model_rh(
         # periods is always the same. In this case, we use the last values from the previous
         # horizon
         if length(𝒽) < length(𝒯ᵣₕ)
+            opers_not_impl = setdiff(opers_opt, opers_impl)
             update_results!(results, m, 𝒰, opers_not_impl, 𝒽)
             break
         end
 
         # Extract the time structure from the case to identify the used operational periods
         # and the receding horizon time structure
-        opers_opt = collect(𝒯)[indices_optimization(𝒽)]
-        ind_impl = indices_implementation(𝒽)
-        opers_impl = collect(𝒯)[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
-        opers_not_impl = setdiff(opers_opt, opers_impl)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[indices_implementation(𝒽)]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[eachindex(opers_impl)]
         time_elapsed = end_oper_time(last(opers_opt), 𝒯)
 
         # Update the time weights/values of `FutureValue` types

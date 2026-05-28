@@ -53,10 +53,9 @@ function run_model_rh(
         # Extract the time structure from the case to identify the used operational periods
         # and the receding horizon time structure
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
         opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+        opers_impl = opers[indices_implementation(𝒽)]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[eachindex(opers_impl)]
         time_elapsed = end_oper_time(last(opers_opt), 𝒯)
 
         # Update the time weights/values of `FutureValue` types
