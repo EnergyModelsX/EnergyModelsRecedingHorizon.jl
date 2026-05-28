@@ -48,7 +48,7 @@ function run_model_rh(
 
     # Initialize loop variables
     results = Dict{Symbol,AbstractDataFrame}()
-    𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
+    𝒮ᵛᵉᶜᵢₙ = Vector{AbstractSub}[filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
     if has_future_value
         # Extract the individual `FutureValue` types
         𝒮ᵛ = get_sub_ele(𝒰, FutureValue)
@@ -92,12 +92,7 @@ function run_model_rh(
         update_results!(results, m, 𝒰, opers_impl, 𝒽)
 
         # Update the value for the initial data
-        for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ
-            reset_init = filter(is_init_reset, resets(s_in))
-            for ri ∈ reset_init
-                update_init_data!(m, ri, updated(s_in), ri.path, opers_implᵣₕ)
-            end
-        end
+        update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ, opers_implᵣₕ)
     end
 
     return results

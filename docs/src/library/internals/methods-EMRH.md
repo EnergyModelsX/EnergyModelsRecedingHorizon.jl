@@ -9,7 +9,7 @@ Pages = ["methods-EMRH.md"]
 ### [Extension functions](@id lib-int-ext)
 
 ```@docs
-EMRH.update_init_data!
+EMRH.update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ::Vector{Vector{T}}, opers_implᵣₕ) where {T<:EMRH.AbstractSub}
 ```
 
 ### [Utility functions](@id lib-int-util)
