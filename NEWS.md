@@ -1,5 +1,11 @@
 # Release notes
 
+## Unversioned
+
+* Restructured internal function structure:
+  * Aim to reduce similar code in normal and `ParametricOptInterface` implementation.
+  * Simplify code structure for potential changes in the future.
+
 ## Version 0.2.0 (2026-04-15)
 
 * Adjusted to [`EnergyModelsBase` v0.10.0](https://github.com/EnergyModelsX/EnergyModelsBase.jl/releases/tag/v0.10.0):
