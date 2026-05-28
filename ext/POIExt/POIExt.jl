@@ -6,7 +6,7 @@ using .EnergyModelsRecedingHorizon: RecHorEnergyModel, UpdateCase, AbstractSub,
 ElementReset, InitReset, TimeWeightReset, OperReset,
 _create_updatetype, _add_elements!, update_results!, update_init_data!, _update_case_types!,
 update_future_value!, get_sub_model, get_sub_products, get_sub_elements_vec, get_sub_ele,
-updated, original, resets
+updated, original, resets, _initialize_loop_variables
 
 using JuMP
 using TimeStruct

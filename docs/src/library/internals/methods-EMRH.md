@@ -25,6 +25,7 @@ EMRH.get_results_df
 ### [Miscellaneous functions](@id lib-int-ext)
 
 ```@docs
+EMRH._initialize_loop_variables
 EMRH.init_level
 EMRH._create_lens_dict
 ```

@@ -35,7 +35,6 @@ function run_model_rh(
     𝒳ᵛᵉᶜ = get_elements_vec(case)
     𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
-    has_future_value = !isempty(filter(el -> isa(el, Vector{<:FutureValue}), 𝒳ᵛᵉᶜ))
     n_𝒽 = length(ℋ)
 
     # Create the `UpdateCase` based on the original `Case` structure
@@ -44,17 +43,9 @@ function run_model_rh(
     for 𝒳 ∈ 𝒳ᵛᵉᶜ
         _add_elements!(𝒰, 𝒳)
     end
-    𝒮ᵛᵉᶜ = get_sub_elements_vec(𝒰)
 
     # Initialize loop variables
-    results = Dict{Symbol,AbstractDataFrame}()
-    𝒮ᵛᵉᶜᵢₙ = Vector{AbstractSub}[filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
-    if has_future_value
-        # Extract the individual `FutureValue` types
-        𝒮ᵛ = get_sub_ele(𝒰, FutureValue)
-        val_types = unique([typeof(s_v) for s_v ∈ 𝒮ᵛ])
-        𝒮ᵛ⁻ᵛᵉᶜ = [convert(Vector{fv_type}, filter(s_v -> typeof(s_v) == fv_type, 𝒮ᵛ)) for fv_type ∈ val_types]
-    end
+    𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results = _initialize_loop_variables(𝒰)
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
@@ -69,10 +60,8 @@ function run_model_rh(
         time_elapsed = end_oper_time(last(opers_opt), 𝒯)
 
         # Update the time weights/values of `FutureValue` types
-        if has_future_value
-            for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
-                update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
-            end
+        for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
+            update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
         end
 
         # Update the `UpdateCase` with the new values
