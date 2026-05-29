@@ -14,6 +14,7 @@ function EMRH.run_model_rh(
     modeltype::RecHorEnergyModel,
     optimizer::POI.Optimizer;
     check_timeprofiles::Bool = true,
+    use_op_per_strat = false,
 )
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
@@ -42,7 +43,11 @@ function EMRH.run_model_rh(
 
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure
-    𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
+    if use_op_per_strat
+        𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)); op_per_strat)
+    else
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
+    end
     opers_opt = opers[indices_optimization(𝒽₀)]
     opers_impl = opers[indices_implementation(𝒽₀)]
 

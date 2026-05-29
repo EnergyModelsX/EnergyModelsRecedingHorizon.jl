@@ -125,7 +125,7 @@ results_full = EMRH.get_results_df(m)
 
 # - EnergyModelsRecedingHorizon
 # Call EMRH solver
-res_emrh = run_model_rh(case, modeltype, optimizer)
+res_emrh = run_model_rh(case, modeltype, optimizer, use_op_per_strat=true)
 
 ## COMPARE RESULTS
 """
