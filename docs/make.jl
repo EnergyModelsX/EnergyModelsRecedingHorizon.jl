@@ -10,6 +10,8 @@ using TimeStruct
 using EnergyModelsBase
 using EnergyModelsGeography
 using EnergyModelsRecedingHorizon
+
+using JuMP
 using ParametricOptInterface
 
 const TS = TimeStruct

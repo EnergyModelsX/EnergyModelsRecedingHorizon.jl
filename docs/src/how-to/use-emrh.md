@@ -13,7 +13,7 @@ The following points should be accounted for when setting up a problem in [`Ener
       Examples are the CO₂ limit of [`RecHorEnergyModel`](@ref EMRH.RecHorEnergyModel) or all fixed operating expenses.
       The time divisor (*e.g.*, year in €/kW/year) is per default given by the time of a duration of 1 of an operational period (see the description in *[the documentation of `EnergyModelsBase`](@extref EnergyModelsBase how_to-utilize_TS-struct-sp)).
 
-      It can be manually chosen by changing the keyword argument `use_op_per_strat` of the function [`run_model_rh`](@ref run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true, use_op_per_strat::Bool=false)) to `true`.
+      It can be manually chosen by changing the keyword argument `use_op_per_strat` of the function [`run_model_rh`](@ref run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true, use_op_per_strat::Bool=false, optimizer_param::Dict=Dict(MOI.Silent() => true))) to `true`.
       In this case, the specified value `op_per_strat` of the `TwoLevel` is used to scale the values correctly.
 
 - The elements in the problem case must have [`AbstractInitData`](@ref EMRH.AbstractInitData) objects in their data fields where applicable.
@@ -21,13 +21,13 @@ The following points should be accounted for when setting up a problem in [`Ener
   This initial data must be used to define the first operational period (see the *[initialization section](@ref dev-init)* for more details).
 
 Contrary to other [`EnergyModelsX`](https://github.com/EnergyModelsX) packages, the current package does not solve a single optimization problem, but it solves a sequence of optimization problems.
-Therefore, the function [`run_model_rh`](@ref run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true, use_op_per_strat::Bool=false)) returns the overall results in a [`DataFrame`](https://dataframes.juliadata.org/stable/) format, containing only results related to the implementation horizons of the model.
+Therefore, the function [`run_model_rh`](@ref run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true, use_op_per_strat::Bool=false, optimizer_param::Dict=Dict(MOI.Silent() => true))) returns the overall results in a [`DataFrame`](https://dataframes.juliadata.org/stable/) format, containing only results related to the implementation horizons of the model.
 
 ## [ParametricOptInterface extension](@id how_to-use_emrh-POIext)
 
 If one wants to use the [`ParametricOptInterface`](https://jump.dev/ParametricOptInterface.jl/stable/) extension, the following adjustments must be made.
 The only supported type for horizons is [`PeriodHorizons`](@ref EMRH.PeriodHorizons) (please refer to the *[horizons section](@ref man-phil-hortyp)*).
-Additionally, the optimizer provided to [`run_model_rh`](@ref EMRH.run_model_rh) must be a [`POI.Optimizer`](https://jump.dev/ParametricOptInterface.jl/stable/reference/#ParametricOptInterface.Optimizer) object.
+Additionally, the optimizer provided to [`run_model_rh`](@ref run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true, use_op_per_strat::Bool=false, optimizer_param::Dict=Dict(MOI.Silent() => true))) must be a [`POI.Optimizer`](https://jump.dev/ParametricOptInterface.jl/stable/reference/#ParametricOptInterface.Optimizer) object.
 
 ## [EnergyModelsGeography extension](@id how_to-use_emrh-EMGExt)
 

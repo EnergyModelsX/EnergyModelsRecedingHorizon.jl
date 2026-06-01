@@ -1,6 +1,6 @@
 
 """
-    run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true, use_op_per_strat::Bool=false)
+    run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true, use_op_per_strat::Bool=false, optimizer_param::Dict=Dict(MOI.Silent() => true))
 
 Create and run the model utilizing a receding horizon framework. The results are returned as
 a dataframe indexed by the model variables.
@@ -38,6 +38,11 @@ a dataframe indexed by the model variables.
   structure or not. The former could correspond to utilizing, *e.g.*, providing annual values
   for the fixed operating expenses and the CO₂ limit. The parameters are otherwise relative
   to a duration of 1 of an operational period If the value is specified as `false`,
+- `optimizer_param::Dict = Dict(MOI.Silent() => true)` - A dictionary in which the key
+  represents the parameter and the value the chosen value for the parameter.
+  !!! note "Parameter names"
+      The name of some parameters is optimizer specific. You must hence be careful when
+      changing the optimizer
 """
 function run_model_rh(
     case::AbstractCase,
@@ -45,6 +50,7 @@ function run_model_rh(
     optimizer;
     check_timeprofiles::Bool = true,
     use_op_per_strat::Bool = false,
+    optimizer_param::Dict = Dict(MOI.Silent() => true),
 )
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
@@ -89,7 +95,9 @@ function run_model_rh(
         # Create and solve model
         m = create_model(caseᵣₕ, modelᵣₕ; check_timeprofiles)
         set_optimizer(m, optimizer)
-        set_optimizer_attribute(m, MOI.Silent(), true)
+        for (k, v) ∈ optimizer_param
+            set_optimizer_attribute(m, k, v)
+        end
         optimize!(m)
 
         # Update the results
@@ -97,6 +105,9 @@ function run_model_rh(
 
         # Update the value for the initial data
         update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ, opers_implᵣₕ)
+
+        # Finalize the solver if a token base solution is used
+        finalize(backend(m).optimizer.model)
     end
 
     return results
