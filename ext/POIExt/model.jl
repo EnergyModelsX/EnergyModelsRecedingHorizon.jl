@@ -42,7 +42,6 @@ function EMRH.run_model_rh(
 
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure
-    𝒯 = get_time_struct(case)
     𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
     opers_opt = opers[indices_optimization(𝒽₀)]
     opers_impl = opers[indices_implementation(𝒽₀)]
@@ -56,7 +55,7 @@ function EMRH.run_model_rh(
     caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
     modelᵣₕ = updated(get_sub_model(𝒰))
 
-    # Create the EMX model
+    # Create the JuMP model
     m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
 
     # Initialize loop variables

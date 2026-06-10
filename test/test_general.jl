@@ -74,7 +74,7 @@
     @test 𝒩[3].data[1].init_val_dict[:stor_level] == 0.5 # StorageInitData object unchanged
 
     # Test of the saving of the results
-    # - save_results(modeltype::Model; directory = joinpath(pwd(), "csv_files"))
+    # - save_results(m::JuMP.Model; directory = joinpath(pwd(), "csv_files"))
     @testset "Save JuMP model as csv" begin
         save_dir = mktempdir(pwd())
         EMRH.save_results(m_EMB; directory = save_dir)
