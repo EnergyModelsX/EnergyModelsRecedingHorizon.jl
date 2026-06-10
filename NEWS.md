@@ -5,6 +5,9 @@
 * Restructured internal function structure:
   * Aim to reduce similar code in normal and `ParametricOptInterface` implementation.
   * Simplify code structure for potential changes in the future.
+* Added keyword arguments for providing additional utilities:
+  * Added possibility for scaling of the parameters indexed over strategic periods.
+  * Added possibility to adjust solver parameters.
 
 ## Version 0.2.0 (2026-04-15)
 
