@@ -6,7 +6,7 @@
     𝒯 = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
     ℋ = PeriodHorizons([duration(t) for t ∈ 𝒯], 2, 1)
 
-    model = RecHorOperationalModel(
+    modeltype = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2,
     )
 
@@ -51,7 +51,7 @@
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
     hor_test = first(ℋ)
 
-    𝒰 = EMRH._create_updatetype(model)
+    𝒰 = EMRH._create_updatetype(modeltype)
     EMRH._add_elements!(𝒰, 𝒫)
     for 𝒳 ∈ get_elements_vec(case)
         EMRH._add_elements!(𝒰, 𝒳)
@@ -60,14 +60,14 @@
     opers_opt = collect(𝒯)[indices_optimization(hor_test)]
     EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
 
-    # Extract the case and the model from the `UpdateCase`
+    # Extract the case and the modeltype from the `UpdateCase`
     case_rh = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
     model_rh = EMRH.updated(EMRH.get_sub_model(𝒰))
 
     m_rh = run_model(case_rh, model_rh, optimizer)
     @test termination_status(m_rh) == MOI.OPTIMAL
 
-    m_EMB = run_model(case, model, optimizer)
+    m_EMB = run_model(case, modeltype, optimizer)
     @test termination_status(m_EMB) == MOI.OPTIMAL
 
     res_EMRH = Dict{Symbol,AbstractDataFrame}()

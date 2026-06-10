@@ -43,7 +43,7 @@ function generate_geo_case(; init_state=0)
     # The horizon consists of 4 h in the optimization horizon of which 2 h are implemented
     T = TwoLevel(1, 8, operational_periods)
     ℋ = PeriodHorizons([duration(t) for t ∈ T], 4, 2)
-    model = RecHorOperationalModel(
+    modeltype = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)),  # Emission cap for CO₂ in t/8h
         Dict(co2 => FixedProfile(0)),   # Emission price for CO₂ in EUR/t
         co2,
@@ -119,7 +119,7 @@ function generate_geo_case(; init_state=0)
         [[get_nodes, get_links], [get_areas, get_transmissions]],
         Dict(:horizons => ℋ)
     )
-    return case, model
+    return case, modeltype
 end
 
 
@@ -147,11 +147,11 @@ function process_geo_results(res, case)
 end
 
 # Generate the case and the model data
-case,  model = generate_geo_case(init_state=0)
+case,  modeltype = generate_geo_case(init_state=0)
 
 # Run the model
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-res_emrh = run_model_rh(case, model, optimizer);
+res_emrh = run_model_rh(case, modeltype, optimizer);
 
 # Extract the individual data frames for the analysis
 res_mod = process_geo_results(res_emrh, case)

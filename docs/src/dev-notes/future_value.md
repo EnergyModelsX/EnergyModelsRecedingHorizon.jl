@@ -40,7 +40,7 @@ It is hence a `constraints_couple` constraint, even if the function has only a s
 We furthermore decided to split the overall contribution to the cost function in the current design into additional subfunctions through [`EMRH.get_future_value_expression`](@ref) for the individual supertypes.
 While this is not strictly necessary, it is one approach for differentiating between subtypes of `FutureValue`.
 
-Within the concept of `EnergyModelsRecedingHorizon`, we added as well an additional function [`EMRH._update_future_value!`](@ref) for updating parameters of the `FutureValue` before each optimization run.
+Within the concept of `EnergyModelsRecedingHorizon`, we added as well an additional function [`EMRH.update_future_value!`](@ref) for updating parameters of the `FutureValue` before each optimization run.
 
 !!! warning "Default methods"
     We do not include default methods for the subfunctions.
@@ -68,7 +68,7 @@ The following steps must be conducted to incorporate a new type:
    In general, you should have the corresponding `Node` as field of your `NewFutureValue`.
    If this is not the case, *e.g.*, through assigning the same future value for all instances of a given variable of a type, it is necessary to provide new methods for [`EMB.constraints_couple`](@ref) which also includes a potentially empty method for `FutureValue`.
 3. Create a new method for the function [`EMRH.get_future_value_expression`](@ref) which returns a `JuMP` expression indexed over the strategic periods which corresponds to the contribution to the cost function.
-4. Create a new method for the function [`EMRH._update_future_value!`](@ref).
+4. Create a new method for the function [`EMRH.update_future_value!`](@ref).
    This function is used for updating potential fields that are dependent on the elapsed time *before* the optimization problem is solved.
    If the future value for your `NewFutureValue` is independent of the elapsed time, you can provide an empty method.
 

@@ -1,6 +1,6 @@
 
 """
-    run_model_rh(case::AbstractCase, model::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
+    run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
 
 Take the variables `case` and `model` and optimize the problem in a receding horizon fashion
 as a series of optimization problems.
@@ -25,36 +25,21 @@ Returns `results` as a dataframe indexed by the model variables.
 """
 function run_model_rh(
     case::AbstractCase,
-    model::RecHorEnergyModel,
+    modeltype::RecHorEnergyModel,
     optimizer;
     check_timeprofiles::Bool = true,
 )
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
     opers = collect(𝒯)
-    𝒳ᵛᵉᶜ = get_elements_vec(case)
-    𝒫 = get_products(case)
     ℋ = case.misc[:horizons]
-    has_future_value = !isempty(filter(el -> isa(el, Vector{<:FutureValue}), 𝒳ᵛᵉᶜ))
     n_𝒽 = length(ℋ)
 
     # Create the `UpdateCase` based on the original `Case` structure
-    𝒰 = _create_updatetype(model)
-    _add_elements!(𝒰, 𝒫)
-    for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        _add_elements!(𝒰, 𝒳)
-    end
-    𝒮ᵛᵉᶜ = get_sub_elements_vec(𝒰)
+    𝒰 = _create_updatetype(case, modeltype)
 
     # Initialize loop variables
-    results = Dict{Symbol,AbstractDataFrame}()
-    𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
-    if has_future_value
-        # Extract the individual `FutureValue` types
-        𝒮ᵛ = get_sub_ele(𝒰, FutureValue)
-        val_types = unique([typeof(s_v) for s_v ∈ 𝒮ᵛ])
-        𝒮ᵛ⁻ᵛᵉᶜ = [convert(Vector{fv_type}, filter(s_v -> typeof(s_v) == fv_type, 𝒮ᵛ)) for fv_type ∈ val_types]
-    end
+    𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results = _initialize_loop_variables(𝒰)
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
@@ -62,17 +47,14 @@ function run_model_rh(
         # Extract the time structure from the case to identify the used operational periods
         # and the receding horizon time structure
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
         opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+        opers_impl = opers[indices_implementation(𝒽)]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[eachindex(opers_impl)]
         time_elapsed = end_oper_time(last(opers_opt), 𝒯)
 
         # Update the time weights/values of `FutureValue` types
-        if has_future_value
-            for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
-                _update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
-            end
+        for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
+            update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
         end
 
         # Update the `UpdateCase` with the new values
@@ -92,12 +74,7 @@ function run_model_rh(
         update_results!(results, m, 𝒰, opers_impl, 𝒽)
 
         # Update the value for the initial data
-        for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ
-            reset_init = filter(is_init_reset, resets(s_in))
-            for ri ∈ reset_init
-                update_init_data!(m, ri, updated(s_in), ri.path, opers_implᵣₕ)
-            end
-        end
+        update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ, opers_implᵣₕ)
     end
 
     return results

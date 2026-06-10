@@ -9,7 +9,8 @@ Pages = ["methods-EMRH.md"]
 ### [Extension functions](@id lib-int-ext)
 
 ```@docs
-EMRH.update_init_data!
+EMRH.update_future_value!
+EMRH.update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ::Vector{Vector{T}}, opers_implᵣₕ) where {T<:EMRH.AbstractSub}
 ```
 
 ### [Utility functions](@id lib-int-util)
@@ -24,6 +25,7 @@ EMRH.get_results_df
 ### [Miscellaneous functions](@id lib-int-ext)
 
 ```@docs
+EMRH._initialize_loop_variables
 EMRH.init_level
 EMRH._create_lens_dict
 ```
@@ -42,7 +44,6 @@ EMRH._path_type
 ```@docs
 EMRH._create_updatetype
 EMRH._add_elements!
-EMRH._update_future_value!
 EMRH._update_update_case!
 EMRH._reset_field(x_rh, res_type::EMRH.ElementReset, 𝒰::EMRH.UpdateCase, opers::Vector{<:TS.TimePeriod})
 ```

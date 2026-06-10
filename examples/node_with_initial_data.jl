@@ -103,7 +103,7 @@ function create_case_newnode(; init_state = 0.0)
     ℋ = DurationHorizons([duration(t) for t ∈ 𝒯], 8, 4)
 
     # Create model instance
-    model = RecHorOperationalModel(
+    modeltype = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)),
         Dict(co2 => FixedProfile(0)),
         co2,
@@ -124,14 +124,14 @@ function create_case_newnode(; init_state = 0.0)
     # Create case instance
     case = Case(𝒯, 𝒫, Vector{Vector}([𝒩]), [Function[]], Dict(:horizons => ℋ))
 
-    return case, model
+    return case, modeltype
 end
 
 # Generate the case and model instances and run the receding horizon model
-case, model = create_case_newnode(init_state = 1.0)
+case, modeltype = create_case_newnode(init_state = 1.0)
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
 
-res_emrh = run_model_rh(case, model, optimizer)
+res_emrh = run_model_rh(case, modeltype, optimizer)
 
 # Process results
 main_res = select(res_emrh[:state], :x2 => (x -> repr.(x)) => :Period, :y => :state)

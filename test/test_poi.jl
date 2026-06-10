@@ -44,7 +44,7 @@ function create_poi_case(;
     ℋ = HorizonType(dur_op, 4, 2)
 
     # Define the model depending on input
-    model = RecHorOperationalModel(
+    modeltype = RecHorOperationalModel(
         Dict(co2 => FixedProfile(100)),
         Dict(co2 => FixedProfile(60)),
         co2,
@@ -86,12 +86,12 @@ function create_poi_case(;
     # Create the input case structure
     case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
 
-    return case, model
+    return case, modeltype
 end
 
 @testset "Variable replacement - standard" begin
     # Create the case and model
-    case, model = create_poi_case()
+    case, modeltype = create_poi_case()
     optimizer = POI.Optimizer(HiGHS.Optimizer())
 
     # Extract the data
@@ -102,7 +102,7 @@ end
     𝒽₀ = first(ℋ)
 
     # Create the lenses
-    𝒰 = EMRH._create_updatetype(model)
+    𝒰 = EMRH._create_updatetype(modeltype)
     EMRH._add_elements!(𝒰, 𝒫)
     for 𝒳 ∈ 𝒳ᵛᵉᶜ
         EMRH._add_elements!(𝒰, 𝒳)
@@ -157,18 +157,18 @@ end
 @testset "Full model run" begin
     optimizer = POI.Optimizer(HiGHS.Optimizer())
     # Test that the wrong horizon type is caught
-    case, model = create_poi_case(; HorizonType = DurationHorizons)
-    @test_throws AssertionError run_model_rh(case, model, optimizer)
+    case, modeltype = create_poi_case(; HorizonType = DurationHorizons)
+    @test_throws AssertionError run_model_rh(case, modeltype, optimizer)
 
     # Test that a wrong duration vector is caught
     dur_op = [1, 2, 1, 4, 1, 3, 1, 3]
-    case, model = create_poi_case(; dur_op)
-    @test_throws AssertionError run_model_rh(case, model, optimizer)
+    case, modeltype = create_poi_case(; dur_op)
+    @test_throws AssertionError run_model_rh(case, modeltype, optimizer)
 
     # Run a working model
-    case, model = create_poi_case()
+    case, modeltype = create_poi_case()
     optimizer = POI.Optimizer(HiGHS.Optimizer())
-    results = run_model_rh(case, model, optimizer)
+    results = run_model_rh(case, modeltype, optimizer)
 
     # Extract data
     𝒩 = get_nodes(case)

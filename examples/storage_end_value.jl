@@ -42,7 +42,7 @@ function generate_future_value_case(; init_state=0)
     # The horizon consists of 8 h in the optimization horizon of which 4 h are implemented
     T = TwoLevel(1, sum(dur_op), operational_periods)
     ℋ = DurationHorizons([duration(t) for t ∈ T], 8, 4)
-    model = RecHorOperationalModel(
+    modeltype = RecHorOperationalModel(
         Dict(CO2 => FixedProfile(10)),  # Emission cap for CO₂ in t/24h
         Dict(CO2 => FixedProfile(0)),   # Emission price for CO₂ in EUR/t
         CO2,
@@ -135,7 +135,7 @@ function generate_future_value_case(; init_state=0)
         [[get_nodes, get_links]],
         Dict(:horizons => ℋ)
     )
-    return case, caseʷᵒ, model
+    return case, caseʷᵒ, modeltype
 end
 
 
@@ -175,18 +175,18 @@ end
 
 # Generate the case with future value (case) and without future value (caseʷᵒ) as
 # well as the model data
-case, caseʷᵒ, model = generate_future_value_case(init_state=40)
+case, caseʷᵒ, modeltype = generate_future_value_case(init_state=40)
 
 # Run the model without the receding horizon framework, but with the future value
 optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-m = run_model(case, model, optimizer)
+m = run_model(case, modeltype, optimizer)
 res_full = EMRH.get_results_df(m)
 
 # Run the model with the receding horizon framework and the future value
-res_emrh = run_model_rh(case, model, optimizer);
+res_emrh = run_model_rh(case, modeltype, optimizer);
 
 # Run the model with the receding horizon framework and without the future value
-res_emrhʷᵒ = run_model_rh(caseʷᵒ, model, optimizer);
+res_emrhʷᵒ = run_model_rh(caseʷᵒ, modeltype, optimizer);
 
 # Extract the individual data frames for the analysis
 buy, sell, lvl = process_future_value_results(res_full, res_emrh, res_emrhʷᵒ, case)

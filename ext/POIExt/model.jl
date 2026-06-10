@@ -1,5 +1,5 @@
 """
-    EMRH.run_model_rh(case::AbstractCase, model::EMRH.RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
+    EMRH.run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
 
 When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
 `ParametricOptInterface` (POI) for resetting the individual values.
@@ -11,18 +11,16 @@ When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
 """
 function EMRH.run_model_rh(
     case::AbstractCase,
-    model::EMRH.RecHorEnergyModel,
+    modeltype::RecHorEnergyModel,
     optimizer::POI.Optimizer;
     check_timeprofiles::Bool = true,
 )
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
-    𝒳ᵛᵉᶜ = get_elements_vec(case)
-    𝒫 = get_products(case)
+    opers = collect(𝒯)
     ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
     n_𝒽 = length(ℋ)
-    has_future_value = !isempty(filter(el -> isa(el, Vector{<:FutureValue}), 𝒳ᵛᵉᶜ))
 
     # Assert that the horizon is functioning with the POI implementation.
     horizon_duration = all(
@@ -40,22 +38,13 @@ function EMRH.run_model_rh(
     )
 
     # Create the `UpdateCase` based on the original `Case` structure
-    𝒰 = _create_updatetype(model)
-    _add_elements!(𝒰, 𝒫)
-    for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        _add_elements!(𝒰, 𝒳)
-    end
-    𝒮ᵛᵉᶜ = get_sub_elements_vec(𝒰)
+    𝒰 = _create_updatetype(case, modeltype)
 
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure
-    𝒯 = get_time_struct(case)
     𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
-    opers_opt = collect(𝒯)[indices_optimization(𝒽₀)]
-    ind_impl = indices_implementation(𝒽₀)
-    opers_impl = collect(𝒯)[ind_impl]
-    opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
-    opers_not_impl = setdiff(opers_opt, opers_impl)
+    opers_opt = opers[indices_optimization(𝒽₀)]
+    opers_impl = opers[indices_implementation(𝒽₀)]
 
     # Update the receding horizon case and model as well as JuMP model
     m = Model(() -> optimizer)
@@ -66,18 +55,11 @@ function EMRH.run_model_rh(
     caseᵣₕ = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
     modelᵣₕ = updated(get_sub_model(𝒰))
 
-    # Create the EMX model
+    # Create the JuMP model
     m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
 
     # Initialize loop variables
-    results = Dict{Symbol,AbstractDataFrame}()
-    𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
-    if has_future_value
-        # Extract the individual `FutureValue` types
-        𝒮ᵛ = get_sub_ele(𝒰, FutureValue)
-        val_types = unique([typeof(s_v) for s_v ∈ 𝒮ᵛ])
-        𝒮ᵛ⁻ᵛᵉᶜ = [convert(Vector{fv_type}, filter(s_v -> typeof(s_v) == fv_type, 𝒮ᵛ)) for fv_type ∈ val_types]
-    end
+    𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results = _initialize_loop_variables(𝒰)
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
@@ -86,24 +68,21 @@ function EMRH.run_model_rh(
         # periods is always the same. In this case, we use the last values from the previous
         # horizon
         if length(𝒽) < length(𝒯ᵣₕ)
+            opers_not_impl = setdiff(opers_opt, opers_impl)
             update_results!(results, m, 𝒰, opers_not_impl, 𝒽)
             break
         end
 
         # Extract the time structure from the case to identify the used operational periods
         # and the receding horizon time structure
-        opers_opt = collect(𝒯)[indices_optimization(𝒽)]
-        ind_impl = indices_implementation(𝒽)
-        opers_impl = collect(𝒯)[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
-        opers_not_impl = setdiff(opers_opt, opers_impl)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[indices_implementation(𝒽)]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[eachindex(opers_impl)]
         time_elapsed = end_oper_time(last(opers_opt), 𝒯)
 
         # Update the time weights/values of `FutureValue` types
-        if has_future_value
-            for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
-                _update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
-            end
+        for 𝒮ᵛ⁻ˢᵘᵇ ∈ 𝒮ᵛ⁻ᵛᵉᶜ
+            update_future_value!(𝒮ᵛ⁻ˢᵘᵇ, time_elapsed)
         end
 
         # Update and solve model
@@ -114,12 +93,7 @@ function EMRH.run_model_rh(
         update_results!(results, m, 𝒰, opers_impl, 𝒽)
 
         # Update the value for the initial data
-        for 𝒮ᵢₙ ∈ 𝒮ᵛᵉᶜᵢₙ, s_in ∈ 𝒮ᵢₙ
-            reset_init = filter(EMRH.is_init_reset, resets(s_in))
-            for ri ∈ reset_init
-                update_init_data!(m, ri, s_in.new, ri.path, opers_implᵣₕ)
-            end
-        end
+        update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ, opers_implᵣₕ)
     end
 
     return results
