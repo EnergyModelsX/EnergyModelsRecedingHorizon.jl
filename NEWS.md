@@ -1,6 +1,6 @@
 # Release notes
 
-## Unversioned
+## Version 0.2.1 (2026-06-21)
 
 * Restructured internal function structure:
   * Aim to reduce similar code in normal and `ParametricOptInterface` implementation.
