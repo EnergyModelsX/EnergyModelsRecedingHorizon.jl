@@ -4,7 +4,8 @@ The main function of the [`EnergyModelsRecedingHorizon`](@ref) package is [`run_
 Similarly to [`EnergyModelsBase`](https://energymodelsx.github.io/EnergyModelsBase.jl/), a problem is defined by its case and model objects.
 The following points should be accounted for when setting up a problem in [`EnergyModelsRecedingHorizon`](@ref):
 
-- The modetype object must be a subtype of [`RecHorEnergyModel`](@ref EMRH.RecHorEnergyModel) for dispatching purposes.- The provided case object should be an [`Case`](@extref EnergyModelsBase.Case) with problem horizons included in the case object through the `misc` dictionary using the `:horizons` key.
+- The modeltype object must be a subtype of [`RecHorEnergyModel`](@ref EMRH.RecHorEnergyModel) for dispatching purposes.
+- The provided case object should be a [`Case`](@extref EnergyModelsBase.Case) with problem horizons included in the case object through the `misc` dictionary using the `:horizons` key.
 - The case must have its [`OperationalProfile`](@extref TimeStruct.OperationalProfile)s covering the full problem horizon, otherwise the last value in the time profile will be repeated.
 - The horizon object must be compatible with the case's [`TimeStructure`](@extref TimeStruct.TimeStructure).
 
