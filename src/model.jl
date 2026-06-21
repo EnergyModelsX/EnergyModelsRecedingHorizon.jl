@@ -1,36 +1,60 @@
 
 """
-    run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true)
+    run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer; check_timeprofiles::Bool=true, use_op_per_strat::Bool=false, optimizer_param::Dict=Dict(MOI.Silent() => true))
 
-Take the variables `case` and `model` and optimize the problem in a receding horizon fashion
-as a series of optimization problems.
+Create and run the model utilizing a receding horizon framework. The results are returned as
+a dataframe indexed by the model variables.
 
-!!! warning "Required input"
-    While the [`Case`](@extref EnergyModelsBase.Case) type is flexible, we have to follow
-    certain structures.
-    - The `case` type requires as additional input in the dictionary field `misc` the entry
+## Arguments
+- `case::Case` - The case type represents the chosen time structure, the included
+  [`Resource`](@extref EnergyModelsBase.Resource)s and the 𝒳 and potential coupling between
+  the 𝒳. It is explained in more detail in its *[docstring](@extref EnergyModelsBase.Case)*.
+
+  !!! warning "Required input"
+      While the [`Case`](@extref EnergyModelsBase.Case) type is flexible, we have to follow
+      certain structures:
+      - The `case` type requires as additional input in the dictionary field `misc` the entry
       `:horizons` corresponding to an [`AbstractHorizons`](@ref) type.
-    - The order of the individual elements vector in the field `elements` cannot be arbitrary
-      at the moment due to the structure of the code. You **must** use the following
-      order:
+      - The order of the individual elements vector in the field `elements` cannot be arbitrary
+        at the moment due to the structure of the code. You **must** use the following
+        order:
 
-      1. `Vector{<:EMB.Node}`
-      2. `Vector{<:Link}`
-      3. `Vector{<:Area}`
-      4. `Vector{<:Transmission}`
+        1. `Vector{<:EMB.Node}`
+        2. `Vector{<:Link}`
+        3. `Vector{<:Area}`
+        4. `Vector{<:Transmission}`
 
       If you do not use this structure, the model will not run.
+- `modeltype::RecHorEnergyModel` - Used modeltype, that is a subtype of the type `EnergyModel`.
+- `optimizer` - A `MathOptInteface` optimizer.
 
-Returns `results` as a dataframe indexed by the model variables.
+## Keyword arguments
+- `check_timeprofiles::Bool = true` - A boolean indicator whether the time profiles should
+  be checked or not. It is advised to not deactivate the check, except if you are testing
+  new components. It may lead to unexpected behaviour and potential inconsistencies in the
+  input data, if the time profiles are not checked.
+- `use_op_per_strat::Bool = false` - A boolean indicator whether the provided parameters
+  indexed over strategic periods should be based on the parameter `op_per_strat` of the time
+  structure or not. The former could correspond to utilizing, *e.g.*, providing annual values
+  for the fixed operating expenses and the CO₂ limit. The parameters are otherwise relative
+  to a duration of 1 of an operational period If the value is specified as `false`,
+- `optimizer_param::Dict = Dict(MOI.Silent() => true)` - A dictionary in which the key
+  represents the parameter and the value the chosen value for the parameter.
+  !!! note "Parameter names"
+      The name of some parameters is optimizer specific. You must hence be careful when
+      changing the optimizer
 """
 function run_model_rh(
     case::AbstractCase,
     modeltype::RecHorEnergyModel,
     optimizer;
     check_timeprofiles::Bool = true,
+    use_op_per_strat::Bool = false,
+    optimizer_param::Dict = Dict(MOI.Silent() => true),
 )
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
+    op_per_strat = 𝒯.op_per_strat
     opers = collect(𝒯)
     ℋ = case.misc[:horizons]
     n_𝒽 = length(ℋ)
@@ -46,7 +70,11 @@ function run_model_rh(
         @info "Solving for horizon $(𝒽.id) of $n_𝒽"
         # Extract the time structure from the case to identify the used operational periods
         # and the receding horizon time structure
-        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        if use_op_per_strat
+            𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)); op_per_strat)
+        else
+            𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        end
         opers_opt = opers[indices_optimization(𝒽)]
         opers_impl = opers[indices_implementation(𝒽)]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[eachindex(opers_impl)]
@@ -67,7 +95,9 @@ function run_model_rh(
         # Create and solve model
         m = create_model(caseᵣₕ, modelᵣₕ; check_timeprofiles)
         set_optimizer(m, optimizer)
-        set_optimizer_attribute(m, MOI.Silent(), true)
+        for (k, v) ∈ optimizer_param
+            set_optimizer_attribute(m, k, v)
+        end
         optimize!(m)
 
         # Update the results
@@ -75,6 +105,9 @@ function run_model_rh(
 
         # Update the value for the initial data
         update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ, opers_implᵣₕ)
+
+        # Finalize the solver if a token base solution is used
+        finalize(backend(m).optimizer.model)
     end
 
     return results

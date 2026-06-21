@@ -32,7 +32,7 @@ _update_parameter!(m, res_type::EMRH.ElementReset, opers::Vector)
 Because the receding horizon implementation using [`ParametricOptInterface`](https://jump.dev/ParametricOptInterface.jl/dev/) relies on pre-allocation of the input parameters for time profiles, its use is only allowed with [`PeriodHorizons`](@ref), as it is a horizon type that preserves the length of the input time profiles.
 
 ```@docs
-EMRH.run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
+EMRH.run_model_rh(case::AbstractCase, modeltype::EMRH.RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true, use_op_per_strat::Bool=false, optimizer_param::Dict=Dict(MOI.Silent() => true))
 ```
 
 ### [Internal methods](@id lib-int-POIExt-EMRH-int_met)

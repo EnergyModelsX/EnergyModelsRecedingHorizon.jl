@@ -1,5 +1,5 @@
 """
-    EMRH.run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true)
+    EMRH.run_model_rh(case::AbstractCase, modeltype::RecHorEnergyModel, optimizer::POI.Optimizer; check_timeprofiles::Bool = true, use_op_per_strat::Bool=false, optimizer_param::Dict=Dict(MOI.Silent() => true))
 
 When the optimizer is a `ParametricOptInterface.Optimizer` type, it utilizes
 `ParametricOptInterface` (POI) for resetting the individual values.
@@ -14,6 +14,8 @@ function EMRH.run_model_rh(
     modeltype::RecHorEnergyModel,
     optimizer::POI.Optimizer;
     check_timeprofiles::Bool = true,
+    use_op_per_strat = false,
+    optimizer_param::Dict = Dict(MOI.Silent() => true),
 )
     # Extract the individual values from the `Case` structure
     𝒯 = get_time_struct(case)
@@ -42,13 +44,19 @@ function EMRH.run_model_rh(
 
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure
-    𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
+    if use_op_per_strat
+        𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)); op_per_strat)
+    else
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
+    end
     opers_opt = opers[indices_optimization(𝒽₀)]
     opers_impl = opers[indices_implementation(𝒽₀)]
 
     # Update the receding horizon case and model as well as JuMP model
     m = Model(() -> optimizer)
-    set_optimizer_attribute(m, MOI.Silent(), true)
+    for (k, v) ∈ optimizer_param
+        set_optimizer_attribute(m, k, v)
+    end
     _init_update_case!(m, 𝒰, opers_opt, 𝒯ᵣₕ)
 
     # Extract the case and the model from the `UpdateCase`
@@ -95,6 +103,9 @@ function EMRH.run_model_rh(
         # Update the value for the initial data
         update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ, opers_implᵣₕ)
     end
+
+    # Finalize the solver if a token base solution is used
+    finalize(backend(m).optimizer.model.optimizer)
 
     return results
 end
