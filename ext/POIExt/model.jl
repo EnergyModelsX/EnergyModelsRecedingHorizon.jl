@@ -23,6 +23,8 @@ function EMRH.run_model_rh(
     ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
     n_𝒽 = length(ℋ)
+    op_per_strat = 𝒯.op_per_strat
+
 
     # Assert that the horizon is functioning with the POI implementation.
     horizon_duration = all(
