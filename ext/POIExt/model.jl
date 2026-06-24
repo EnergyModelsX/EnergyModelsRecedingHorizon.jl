@@ -23,6 +23,8 @@ function EMRH.run_model_rh(
     ℋ = case.misc[:horizons]
     𝒽₀ = first(ℋ)
     n_𝒽 = length(ℋ)
+    op_per_strat = 𝒯.op_per_strat
+
 
     # Assert that the horizon is functioning with the POI implementation.
     horizon_duration = all(
@@ -45,7 +47,7 @@ function EMRH.run_model_rh(
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure
     if use_op_per_strat
-        𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽)); op_per_strat)
+        𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(𝒽₀)); op_per_strat)
     else
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽₀)), SimpleTimes(durations(𝒽₀)))
     end

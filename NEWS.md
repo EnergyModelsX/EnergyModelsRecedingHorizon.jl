@@ -1,5 +1,11 @@
 # Release notes
 
+## Version 0.2.2 (2026-06-24)
+
+### Bugfix
+* Fixed undefined variable 𝒽 in POIExt/model.jl and used 𝒽₀ instead.
+* Fixed undefined variable op_per_strat in POIExt/model.jl.
+
 ## Version 0.2.1 (2026-06-21)
 
 * Restructured internal function structure:
