@@ -100,7 +100,8 @@ The following functions are included for extracting the values from paths:
 
 ```@docs
 EMRH.get_sub_model
-EMRH.get_sub_periods
+EMRH.get_mapping_original
+EMRH.get_mapping_updated
 EMRH.get_sub_products
 EMRH.get_sub_elements_vec
 EMRH.get_sub_ele

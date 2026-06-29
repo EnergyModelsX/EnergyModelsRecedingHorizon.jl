@@ -106,7 +106,7 @@
     # - update_results!(results, m, 𝒰, opers)
     # - get_results(m::JuMP.Model)
     # - _get_values_from_obj
-    t_dict = Dict(val => k for (k, val) ∈ EMRH.get_sub_periods(𝒰))
+    t_dict = Dict(val => k for (k, val) ∈ EMRH.get_mapping_original(𝒰, "periods"))
     EMRH.updated(𝒰::EMRH.UpdateCase, x_org::TS.TimePeriod) = t_dict[x_org]
     @test all(
         all(

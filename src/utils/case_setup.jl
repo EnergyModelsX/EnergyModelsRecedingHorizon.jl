@@ -14,7 +14,8 @@ function _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_case_types!(𝒮, 𝒰, opers)
     end
-    𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_org["periods"] = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_updated["periods"] = Dict(zip(opers, 𝒯ᵣₕ))
 end
 
 """
@@ -39,6 +40,7 @@ function _update_case_types!(
     𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
 )
+    _delete_mapping!(𝒰, s)
     if isempty(s.resets)
         s.new = deepcopy(original(s))
     else
@@ -46,6 +48,7 @@ function _update_case_types!(
             s.new = _reset_field(updated(s), res_type, 𝒰, opers)
         end
     end
+    _add_mapping!(𝒰, s)
 end
 
 """
@@ -102,7 +105,9 @@ Initialize and populate the [`UpdateCase`](@ref) if the function has as first ar
 function _create_updatetype(modeltype::RecHorEnergyModel)
     paths_model = _find_update_paths(modeltype)
     reset_model = AbstractReset[ResetType(field_id, field_id[end], modeltype) for field_id ∈ paths_model]
-    return UpdateCase(Substitution(modeltype, reset_model), Dict(), ProductSub[], Vector[])
+    𝒰 = UpdateCase(Substitution(modeltype, reset_model), Dict(), Dict(), ProductSub[], Vector[])
+    _init_mapping!(𝒰, modeltype)
+    return 𝒰
 end
 function _create_updatetype(case::AbstractCase, modeltype::RecHorEnergyModel)
     # Create the `UpdateCase` based on the original `Case` structure
@@ -119,20 +124,51 @@ end
     _add_elements!(𝒰::UpdateCase, 𝒳::Vector{T}) where {T<:AbstractElement}
 
 Add the vector of `Resource`s or `AbstractElement` substitution types to the [`UpdateCase`](@ref)
-`𝒰` for a given `Vector{<:Resource}` or `Vector{<:AbstractElement}`.
+`𝒰` for a given `Vector{<:Resource}` or `Vector{<:AbstractElement}` and initiate the mapping.
 """
 function _add_elements!(𝒰::UpdateCase, 𝒫::Vector{T}) where {T<:Resource}
+    _init_mapping!(𝒰, 𝒫)
     for p ∈ 𝒫
         paths_oper = _find_update_paths(p)
         reset_types = AbstractReset[ResetType(field_id, field_id[end], p) for field_id ∈ paths_oper]
         push!(get_sub_products(𝒰), Substitution(p, reset_types))
+        _add_mapping!(𝒰, p)
     end
 end
 function _add_elements!(𝒰::UpdateCase, 𝒳::Vector{T}) where {T<:AbstractElement}
     push!(get_sub_elements_vec(𝒰), _ele_to_sub(T)[])
+    _init_mapping!(𝒰, 𝒳)
     for x ∈ 𝒳
         paths_oper = _find_update_paths(x)
         reset_types = AbstractReset[ResetType(field_id, field_id[end], x) for field_id ∈ paths_oper]
         push!(get_sub_elements_vec(𝒰)[end], Substitution(x, reset_types))
+        _add_mapping!(𝒰, x)
     end
 end
+
+function _init_mapping!(𝒰::UpdateCase, ::Vector{T}) where {T<:Union{Resource, AbstractElement}}
+    𝒰.map_org[_type_to_string(T)] = Dict{T,T}()
+    𝒰.map_updated[_type_to_string(T)] = Dict{T,T}()
+end
+function _init_mapping!(𝒰::UpdateCase, modeltype::T) where {T<:EnergyModel}
+    𝒰.map_org[_type_to_string(T)] = Dict{T,T}(modeltype => modeltype)
+    𝒰.map_updated[_type_to_string(T)] = Dict{T,T}(modeltype => modeltype)
+end
+function _delete_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
+    delete!(𝒰.map_org[_type_to_string(T)], updated(s))
+    delete!(𝒰.map_updated[_type_to_string(T)], original(s))
+end
+function _add_mapping!(𝒰::UpdateCase, x::T) where {T}
+    𝒰.map_org[_type_to_string(T)][x] = x
+    𝒰.map_updated[_type_to_string(T)][x] = x
+end
+function _add_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
+    𝒰.map_org[_type_to_string(T)][updated(s)] = original(s)
+    𝒰.map_updated[_type_to_string(T)][original(s)] = updated(s)
+end
+
+_type_to_string(::Type{T}) where {T<:Union{Resource, ProductSub}} = "products"
+_type_to_string(::Type{T}) where {T<:Union{EMB.Node, NodeSub}} = "nodes"
+_type_to_string(::Type{T}) where {T<:Union{Link, LinkSub}} = "links"
+_type_to_string(::Type{T}) where {T<:Union{FutureValue, FutureValueSub}} = "future_values"
+_type_to_string(::Type{T}) where {T<:Union{EnergyModel, ModelSub}} = "modeltype"
