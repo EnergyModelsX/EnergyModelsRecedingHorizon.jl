@@ -65,15 +65,16 @@ function update_results!(results, m, 𝒰, opers, 𝒽)
             append!(container, [NamedTuple((:x1 => 𝒽, :y => termination_status(m)))])
             continue
         end
-        oper_idx =
-            findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(results_rh[k])])
-        results_rh_k_new = [
-            NamedTuple(
-                (ax == :y) ? ax => v : ax => original(𝒰, v) for (ax, v) ∈ pairs(row)
-            )
-            for row ∈ results_rh[k] if original(𝒰, row[oper_idx]) ∈ opers
-        ]
-        append!(container, results_rh_k_new)
+        df = DataFrame(results_rh[k])
+        col = names(df)[findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(df)])]
+        subset!(df, col => op -> [original(𝒰, t) ∈ opers for t ∈ op])
+
+        subnames = filter(n -> n ≠ "y", names(df))
+        for id ∈ subnames
+            transform!(df, id => (𝒳 -> [original(𝒰, x) for x ∈ 𝒳]) => id)
+        end
+
+        append!(container, df)
     end
 end
 
