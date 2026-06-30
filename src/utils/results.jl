@@ -85,10 +85,7 @@ function update_results!(results, m, vars, 𝒰, opers, 𝒽)
         else
             df = DataFrame(results_rh[k])
             subnames = filter(n -> n ≠ "y", names(df))
-            for id ∈ subnames
-                transform!(df, id => (𝒳 -> [original(𝒰, x) for x ∈ 𝒳]) => id)
-            end
-
+            mapcols!(𝒳 -> [original(𝒰, x) for x ∈ 𝒳], df, cols=subnames)
             append!(container, df)
         end
     end
