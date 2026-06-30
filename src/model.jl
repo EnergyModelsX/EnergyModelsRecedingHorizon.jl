@@ -63,7 +63,7 @@ function run_model_rh(
     𝒰 = _create_updatetype(case, modeltype)
 
     # Initialize loop variables
-    𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results = _initialize_loop_variables(𝒰)
+    𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results, vars = _initialize_loop_variables(𝒰)
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
@@ -101,7 +101,7 @@ function run_model_rh(
         optimize!(m)
 
         # Update the results
-        update_results!(results, m, 𝒰, opers_impl, 𝒽)
+        update_results!(results, m, vars, 𝒰, opers_impl, 𝒽)
 
         # Update the value for the initial data
         update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ, opers_implᵣₕ)

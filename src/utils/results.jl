@@ -1,14 +1,14 @@
 """
-    get_results(m::JuMP.Model, opers::Vector{<:TS.TimePeriod})
+    get_results(m::JuMP.Model, vars::Vector{Symbol}, opers::Vector{<:TS.TimePeriod})
 
 Function returning the values of the optimized model `m` for the operational periods `opers`.
 If the vector `opers` is empty, it returns the values for the complete horizon.
 Prints a warning message for currently unsupported types without extracting their value.
 """
-function get_results(m::JuMP.Model, opers::Vector{<:TS.TimePeriod})
+function get_results(m::JuMP.Model, vars::Vector{Symbol}, opers::Vector{<:TS.TimePeriod})
     res = Dict{Symbol,Vector}()
-    for (key, obj) ∈ object_dictionary(m)
-        val = _get_values_from_obj(obj, opers)
+    for key ∈ vars
+        val = _get_values_from_obj(m[key], opers)
         if !isnothing(val)
             res[key] = val
         end
@@ -49,16 +49,17 @@ function _get_values_from_obj(
 end
 
 """
-    update_results!(results, m, 𝒰, opers, 𝒽)
+    update_results!(results, m, vars, 𝒰, opers, 𝒽)
 
 Updates `results` given the optimization results `m` for the times `opers`, performed in
 horizon `𝒽`.
 The results are indexed by the elements in the provided `case` (here accessed using the
 [`UpdateCase`](@ref) `𝒰`).
 """
-function update_results!(results, m, 𝒰, opers, 𝒽)
-    results_rh = get_results(m, [updated(𝒰, t) for t ∈ opers])
+function update_results!(results, m, vars, 𝒰, opers, 𝒽)
+    opers_EMRH = [updated(𝒰, t) for t ∈ opers]
     if isempty(results)
+        results_rh = get_results(m, collect(keys(object_dictionary(m))), opers_EMRH)
         # first iteration - create DataFrame instances
         for (k, container_rh) ∈ results_rh
             if isempty(container_rh)
@@ -69,27 +70,27 @@ function update_results!(results, m, 𝒰, opers, 𝒽)
                 continue
             else
                 results[k] = DataFrame()
+                push!(vars, k)
             end
         end
         results[:opt_status] = DataFrame()
+    else
+        results_rh = get_results(m, vars, opers_EMRH)
     end
 
     # place values of results_rh into results
     for (k, container) ∈ results
         if k == :opt_status
             append!(container, [NamedTuple((:x1 => 𝒽, :y => termination_status(m)))])
-            continue
-        end
-        df = DataFrame(results_rh[k])
-        col = names(df)[findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(df)])]
-        subset!(df, col => op -> [original(𝒰, t) ∈ opers for t ∈ op])
+        else
+            df = DataFrame(results_rh[k])
+            subnames = filter(n -> n ≠ "y", names(df))
+            for id ∈ subnames
+                transform!(df, id => (𝒳 -> [original(𝒰, x) for x ∈ 𝒳]) => id)
+            end
 
-        subnames = filter(n -> n ≠ "y", names(df))
-        for id ∈ subnames
-            transform!(df, id => (𝒳 -> [original(𝒰, x) for x ∈ 𝒳]) => id)
+            append!(container, df)
         end
-
-        append!(container, df)
     end
 end
 
@@ -100,7 +101,8 @@ Function returning the values of the optimized model `m` as a `DataFrame`. Print
 message for currently unsupported types without extracting their value.
 """
 function get_results_df(m::JuMP.Model)
-    res = get_results(m, TS.TimePeriod[])
+    vars = collect(keys(object_dictionary(m)))
+    res = get_results(m, vars, TS.TimePeriod[])
     df = Dict(k => DataFrame(val) for (k, val) ∈ res)
     return df
 end

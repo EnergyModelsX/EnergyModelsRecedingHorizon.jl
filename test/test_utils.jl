@@ -72,8 +72,8 @@
 
     res_EMRH = Dict{Symbol,AbstractDataFrame}()
     opers_impl = collect(𝒯)[indices_implementation(hor_test)]
-    EMRH.update_results!(res_EMRH, m_rh, 𝒰, opers_impl, hor_test)
-    res_EMB = EMRH.get_results(m_EMB)
+    EMRH.update_results!(res_EMRH, m_rh, Symbol[], 𝒰, opers_impl, hor_test)
+    res_EMB = EMRH.get_results(m_EMB, collect(keys(object_dictionary(m_EMB))), TS.TimePeriod[])
     excl_var = [
         # Strategic indexed and empty
         :opex_var, :opex_fixed, :link_opex_var, :link_opex_fixed, :stor_level_Δ_sp,
@@ -106,8 +106,6 @@
     # - update_results!(results, m, 𝒰, opers)
     # - get_results(m::JuMP.Model)
     # - _get_values_from_obj
-    t_dict = Dict(val => k for (k, val) ∈ EMRH.get_mapping_original(𝒰, "periods"))
-    EMRH.updated(𝒰::EMRH.UpdateCase, x_org::TS.TimePeriod) = t_dict[x_org]
     @test all(
         all(
             value.(m_rh[k][EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2])]) ==
