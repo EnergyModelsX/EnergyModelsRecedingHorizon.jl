@@ -1,13 +1,14 @@
 """
-    get_results(m::JuMP.Model)
+    get_results(m::JuMP.Model, opers::Vector{<:TS.TimePeriod})
 
-Function returning the values of the optimized model `m`. Prints a warning message for
-currently unsupported types without extracting their value.
+Function returning the values of the optimized model `m` for the operational periods `opers`.
+If the vector `opers` is empty, it returns the values for the complete horizon.
+Prints a warning message for currently unsupported types without extracting their value.
 """
-function get_results(m::JuMP.Model)
+function get_results(m::JuMP.Model, opers::Vector{<:TS.TimePeriod})
     res = Dict{Symbol,Vector}()
-    for key ∈ keys(object_dictionary(m))
-        val = _get_values_from_obj(m[key], key)
+    for (key, obj) ∈ object_dictionary(m)
+        val = _get_values_from_obj(obj, opers)
         if !isnothing(val)
             res[key] = val
         end
@@ -16,18 +17,32 @@ function get_results(m::JuMP.Model)
 end
 
 function _get_values_from_obj(
-    obj::Union{JuMP.Containers.SparseAxisArray,JuMP.Containers.DenseAxisArray},
-    key::Symbol,
+    obj::Union{JuMP.Containers.DenseAxisArray, JuMP.Containers.SparseAxisArray},
+    opers::Vector{<:TS.TimePeriod},
 )
     if isempty(obj)
         return []
-    else
+    elseif isempty(opers)
         return JuMP.Containers.rowtable(value.(obj))
+    else
+        if isa(obj, JuMP.Containers.DenseAxisArray)
+            iter = axes(obj)
+            idx_t = findall(col -> isa(col, Vector{<:TS.TimePeriod}), iter)
+        else
+            iter = first(keys(obj.data))
+            idx_t = findall(col -> isa(col, TS.TimePeriod), iter)
+        end
+        subset = Any[Colon() for _ ∈ iter]
+        for k ∈ idx_t
+            subset[k] = opers
+        end
+
+        return JuMP.Containers.rowtable(value.(obj[subset...]))
     end
 end
 function _get_values_from_obj(
     obj,
-    key::Symbol,
+    opers::Vector{<:TS.TimePeriod},
 )
     @warn "Extracting values from $(typeof(obj)) is not yet supported." maxlog = 1
     return []
@@ -42,7 +57,7 @@ The results are indexed by the elements in the provided `case` (here accessed us
 [`UpdateCase`](@ref) `𝒰`).
 """
 function update_results!(results, m, 𝒰, opers, 𝒽)
-    results_rh = get_results(m)
+    results_rh = get_results(m, [updated(𝒰, t) for t ∈ opers])
     if isempty(results)
         # first iteration - create DataFrame instances
         for (k, container_rh) ∈ results_rh
@@ -85,7 +100,7 @@ Function returning the values of the optimized model `m` as a `DataFrame`. Print
 message for currently unsupported types without extracting their value.
 """
 function get_results_df(m::JuMP.Model)
-    res = get_results(m)
+    res = get_results(m, TS.TimePeriod[])
     df = Dict(k => DataFrame(val) for (k, val) ∈ res)
     return df
 end
