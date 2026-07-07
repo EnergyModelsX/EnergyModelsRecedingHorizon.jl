@@ -1,10 +1,20 @@
 # Release notes
 
+## Version 0.2.3 (2026-07-xx)
+
+### Improved results saving
+
+* Moved from `Array{Tuple}` to `DataFrame` in results mapping.
+* Moved the mapping of `EMRH` `caseᵣₕ` to the orginal `case` from `filter` to a mapping dictionary to reduce the computational cost.
+* Extract only the results for the periods that are saved.
+* Extract only results for variables that are not indexed over strategic periods.
+
 ## Version 0.2.2 (2026-06-24)
 
 ### Bugfix
-* Fixed undefined variable 𝒽 in POIExt/model.jl and used 𝒽₀ instead.
-* Fixed undefined variable op_per_strat in POIExt/model.jl.
+
+* Fixed undefined variable `𝒽` in POIExt/model.jl and used `𝒽₀` instead.
+* Fixed undefined variable `op_per_strat` in POIExt/model.jl.
 
 ## Version 0.2.1 (2026-06-21)
 
