@@ -87,7 +87,9 @@ The extension for `EnergyModelsGeography` adds the following additional reset ty
     2. a method to the function [`EMRH._ele_to_sub`](@ref), and
     3. a method for your function for extracting the `AbstractElement` from the `UpdateCase`, see, *e.g.*, [`EMB.get_nodes`](@ref).
 
-    Depending on the structure of your `AbstractElement`, it can be furthermore necessary to provide new methods to the functions [`EMRH.original`](@ref) and [`EMRH.updated`](@ref).
+    It is furthermore necessary to provide new methods to the functions [`EMRH.original`](@ref), [`EMRH.updated`](@ref), and [`EMRH._type_to_string`](@ref).
+
+    If you create a new unconventional `AbstractElement`, *i.e.*, an `AbstractElement` with fields that are used for variable indexing, you must also create new methods for [`EMRH._init_mapping!`](@ref), [`EMRH._add_mapping!`](@ref), and [`EMRH._delete_mapping!`](@ref).
 
 ## [Internal work flow](@id dev-code-int_flow)
 

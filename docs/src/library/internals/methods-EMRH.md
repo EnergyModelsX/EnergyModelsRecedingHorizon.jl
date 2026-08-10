@@ -54,6 +54,15 @@ The following function is introduced for parametric types in which the type is n
 EMRH.Accessors.ConstructionBase.constructorof
 ```
 
+### [Functions for mapping types](@id lib-int-map)
+
+```@docs
+EMRH._init_mapping!
+EMRH._add_mapping!
+EMRH._delete_mapping!
+EMRH._type_to_string
+```
+
 ### [Future value functions](@id lib-int-fut_val)
 
 ```@docs

@@ -1,7 +1,9 @@
 """
     get_results(m::JuMP.Model, vars::Vector{Symbol}, opers::Vector{<:TS.TimePeriod})
 
-Function returning the values of the optimized model `m` for the operational periods `opers`.
+Function returning the values of the optimized model `m` of the variables `vars` for the
+operational periods `opers`.
+
 If the vector `opers` is empty, it returns the values for the complete horizon.
 Prints a warning message for currently unsupported types without extracting their value.
 """
@@ -51,8 +53,8 @@ end
 """
     update_results!(results, m, vars, 𝒰, opers, 𝒽)
 
-Updates `results` given the optimization results `m` for the times `opers`, performed in
-horizon `𝒽`.
+Updates `results` given the optimization results `m` for the operational periods `opers` and
+the identified variables `vars`, performed in horizon `𝒽`.
 The results are indexed by the elements in the provided `case` (here accessed using the
 [`UpdateCase`](@ref) `𝒰`).
 """

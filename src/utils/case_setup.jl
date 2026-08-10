@@ -146,6 +146,18 @@ function _add_elements!(𝒰::UpdateCase, 𝒳::Vector{T}) where {T<:AbstractEle
     end
 end
 
+"""
+    _init_mapping!(𝒰::UpdateCase, ::Vector{T}) where {T<:Union{Resource, AbstractElement}}
+    _init_mapping!(𝒰::UpdateCase, modeltype::T) where {T<:EnergyModel}
+
+Initialize the ampping dictionary used for mapping the original to the receding horizon
+problem and *vice versa*.
+
+!!! note "New, unconventional `AbstractElement`s"
+    If you create a new unconventional `AbstractElement`, *i.e.*, an `AbstractElement` with
+    fields that are used for variable indexing, you must create a new method for this
+    function.
+"""
 function _init_mapping!(𝒰::UpdateCase, ::Vector{T}) where {T<:Union{Resource, AbstractElement}}
     𝒰.map_org[_type_to_string(T)] = Dict{T,T}()
     𝒰.map_updated[_type_to_string(T)] = Dict{T,T}()
@@ -154,10 +166,19 @@ function _init_mapping!(𝒰::UpdateCase, modeltype::T) where {T<:EnergyModel}
     𝒰.map_org[_type_to_string(T)] = Dict{T,T}(modeltype => modeltype)
     𝒰.map_updated[_type_to_string(T)] = Dict{T,T}(modeltype => modeltype)
 end
-function _delete_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
-    delete!(𝒰.map_org[_type_to_string(T)], updated(s))
-    delete!(𝒰.map_updated[_type_to_string(T)], original(s))
-end
+
+"""
+    _add_mapping!(𝒰::UpdateCase, x::T) where {T}
+    _add_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
+
+Add the mapping for `x` or `AbstractSub` `s` both from the original to the receding horizon
+problem and *vice versa*.
+
+!!! note "New, unconventional `AbstractElement`s"
+    If you create a new unconventional `AbstractElement`, *i.e.*, an `AbstractElement` with
+    fields that are used for variable indexing, you must create a new method for this
+    function.
+"""
 function _add_mapping!(𝒰::UpdateCase, x::T) where {T}
     𝒰.map_org[_type_to_string(T)][x] = x
     𝒰.map_updated[_type_to_string(T)][x] = x
@@ -167,6 +188,31 @@ function _add_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
     𝒰.map_updated[_type_to_string(T)][original(s)] = updated(s)
 end
 
+"""
+    _delete_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
+
+Delete the mapping for `AbstractSub` `s` both from the original to the receding horizon
+problem and *vice versa*.
+
+!!! note "New, unconventional `AbstractElement`s"
+    If you create a new unconventional `AbstractElement`, *i.e.*, an `AbstractElement` with
+    fields that are used for variable indexing, you must create a new method for this
+    function.
+"""
+function _delete_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
+    delete!(𝒰.map_org[_type_to_string(T)], updated(s))
+    delete!(𝒰.map_updated[_type_to_string(T)], original(s))
+end
+
+"""
+    _type_to_string(::Type{T}) where {T<:Union{Resource, ProductSub}}
+    _type_to_string(::Type{T}) where {T<:Union{EMB.Node, NodeSub}}
+    _type_to_string(::Type{T}) where {T<:Union{Link, LinkSub}}
+    _type_to_string(::Type{T}) where {T<:Union{FutureValue, FutureValueSub}}
+    _type_to_string(::Type{T}) where {T<:Union{EnergyModel, ModelSub}}
+
+Returns the string used for the type `T` when creating the mapping for the individual elements.
+"""
 _type_to_string(::Type{T}) where {T<:Union{Resource, ProductSub}} = "products"
 _type_to_string(::Type{T}) where {T<:Union{EMB.Node, NodeSub}} = "nodes"
 _type_to_string(::Type{T}) where {T<:Union{Link, LinkSub}} = "links"
