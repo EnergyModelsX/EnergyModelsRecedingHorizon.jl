@@ -60,7 +60,7 @@ EMRH.Accessors.ConstructionBase.constructorof
 EMRH._init_mapping!
 EMRH._add_mapping!
 EMRH._delete_mapping!
-EMRH._type_to_string
+EMRH._type_to_key
 ```
 
 ### [Future value functions](@id lib-int-fut_val)

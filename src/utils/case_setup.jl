@@ -14,8 +14,8 @@ function _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_case_types!(𝒮, 𝒰, opers)
     end
-    𝒰.map_org["periods"] = Dict(zip(𝒯ᵣₕ, opers))
-    𝒰.map_updated["periods"] = Dict(zip(opers, 𝒯ᵣₕ))
+    𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
 end
 
 """
@@ -159,12 +159,12 @@ problem and *vice versa*.
     function.
 """
 function _init_mapping!(𝒰::UpdateCase, ::Vector{T}) where {T<:Union{Resource, AbstractElement}}
-    𝒰.map_org[_type_to_string(T)] = Dict{T,T}()
-    𝒰.map_updated[_type_to_string(T)] = Dict{T,T}()
+    𝒰.map_org[_type_to_key(T)] = Dict{T,T}()
+    𝒰.map_updated[_type_to_key(T)] = Dict{T,T}()
 end
 function _init_mapping!(𝒰::UpdateCase, modeltype::T) where {T<:EnergyModel}
-    𝒰.map_org[_type_to_string(T)] = Dict{T,T}(modeltype => modeltype)
-    𝒰.map_updated[_type_to_string(T)] = Dict{T,T}(modeltype => modeltype)
+    𝒰.map_org[_type_to_key(T)] = Dict{T,T}(modeltype => modeltype)
+    𝒰.map_updated[_type_to_key(T)] = Dict{T,T}(modeltype => modeltype)
 end
 
 """
@@ -180,12 +180,12 @@ problem and *vice versa*.
     function.
 """
 function _add_mapping!(𝒰::UpdateCase, x::T) where {T}
-    𝒰.map_org[_type_to_string(T)][x] = x
-    𝒰.map_updated[_type_to_string(T)][x] = x
+    𝒰.map_org[_type_to_key(T)][x] = x
+    𝒰.map_updated[_type_to_key(T)][x] = x
 end
 function _add_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
-    𝒰.map_org[_type_to_string(T)][updated(s)] = original(s)
-    𝒰.map_updated[_type_to_string(T)][original(s)] = updated(s)
+    𝒰.map_org[_type_to_key(T)][updated(s)] = original(s)
+    𝒰.map_updated[_type_to_key(T)][original(s)] = updated(s)
 end
 
 """
@@ -200,21 +200,22 @@ problem and *vice versa*.
     function.
 """
 function _delete_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
-    delete!(𝒰.map_org[_type_to_string(T)], updated(s))
-    delete!(𝒰.map_updated[_type_to_string(T)], original(s))
+    delete!(𝒰.map_org[_type_to_key(T)], updated(s))
+    delete!(𝒰.map_updated[_type_to_key(T)], original(s))
 end
 
 """
-    _type_to_string(::Type{T}) where {T<:Union{Resource, ProductSub}}
-    _type_to_string(::Type{T}) where {T<:Union{EMB.Node, NodeSub}}
-    _type_to_string(::Type{T}) where {T<:Union{Link, LinkSub}}
-    _type_to_string(::Type{T}) where {T<:Union{FutureValue, FutureValueSub}}
-    _type_to_string(::Type{T}) where {T<:Union{EnergyModel, ModelSub}}
+    _type_to_key(::Type{T}) where {T<:Union{Resource, ProductSub}}
+    _type_to_key(::Type{T}) where {T<:Union{EMB.Node, NodeSub}}
+    _type_to_key(::Type{T}) where {T<:Union{Link, LinkSub}}
+    _type_to_key(::Type{T}) where {T<:Union{FutureValue, FutureValueSub}}
+    _type_to_key(::Type{T}) where {T<:Union{EnergyModel, ModelSub}}
 
-Returns the string used for the type `T` when creating the mapping for the individual elements.
+Returns the symbol used for the type `T` when creating the mapping for the individual elements.
 """
-_type_to_string(::Type{T}) where {T<:Union{Resource, ProductSub}} = "products"
-_type_to_string(::Type{T}) where {T<:Union{EMB.Node, NodeSub}} = "nodes"
-_type_to_string(::Type{T}) where {T<:Union{Link, LinkSub}} = "links"
-_type_to_string(::Type{T}) where {T<:Union{FutureValue, FutureValueSub}} = "future_values"
-_type_to_string(::Type{T}) where {T<:Union{EnergyModel, ModelSub}} = "modeltype"
+_type_to_key(::Type{T}) where {T<:TS.TimePeriod} = :periods
+_type_to_key(::Type{T}) where {T<:Union{Resource, ProductSub}} = :resources
+_type_to_key(::Type{T}) where {T<:Union{EMB.Node, NodeSub}} = :nodes
+_type_to_key(::Type{T}) where {T<:Union{Link, LinkSub}} = :links
+_type_to_key(::Type{T}) where {T<:Union{FutureValue, FutureValueSub}} = :future_values
+_type_to_key(::Type{T}) where {T<:Union{EnergyModel, ModelSub}} = :modeltype

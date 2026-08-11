@@ -13,8 +13,8 @@ function _init_update_case!(m, 𝒰, opers, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_case_types!(m, 𝒮, 𝒰, 𝒯ᵣₕ)
     end
-    𝒰.map_org["periods"] = Dict(zip(𝒯ᵣₕ, opers))
-    𝒰.map_updated["periods"] = Dict(zip(opers, 𝒯ᵣₕ))
+    𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
 end
 """
     update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
@@ -31,8 +31,8 @@ function update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_parameter_values!(m, 𝒮, opers)
     end
-    𝒰.map_org["periods"] = Dict(zip(𝒯ᵣₕ, opers))
-    𝒰.map_updated["periods"] = Dict(zip(opers, 𝒯ᵣₕ))
+    𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
 end
 
 """

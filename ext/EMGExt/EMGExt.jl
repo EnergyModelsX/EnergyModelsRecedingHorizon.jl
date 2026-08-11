@@ -6,7 +6,7 @@ using EnergyModelsRecedingHorizon
 using .EnergyModelsRecedingHorizon: RecHorEnergyModel, _find_update_paths,
 AbstractSub, AbstractReset, get_sub_ele, UpdateCase,
 AbstractInitDataPath, InitReset, InitDataPath,
-get_mapping_original, original, get_mapping_updated, updated, _type_to_string
+get_mapping_original, original, get_mapping_updated, updated, _type_to_key
 
 using JuMP
 using TimeStruct
