@@ -131,7 +131,15 @@ function _find_update_paths(
     all_paths::Vector{Any},
 )
     new_path = vcat(current_path, [OperPath()])
-    push!(all_paths, new_path)  # Add current_path to all_paths
+    push!(all_paths, new_path)
+end
+function _find_update_paths(
+    field::PartitionProfile,
+    current_path::Vector{Any},
+    all_paths::Vector{Any},
+)
+    new_path = vcat(current_path, [PartitionPath()])
+    push!(all_paths, new_path)
 end
 function _find_update_paths(
     field::StrategicProfile,

@@ -14,6 +14,7 @@ They are used internally for dispatch.
 ```@docs
 EMRH.AbstractPath
 EMRH.OperPath
+EMRH.PartitionPath
 EMRH.ElementPath
 EMRH.TimeWeightPath
 EMRH.AbstractInitDataPath
@@ -37,8 +38,8 @@ They are used internally for dispatch.
 
 ```@docs
 EMRH.AbstractReset
-EMRH.ElementReset
 EMRH.OperReset
+EMRH.ElementReset
 EMRH.TimeWeightReset
 EMRH.InitReset
 EMRH.ResetType

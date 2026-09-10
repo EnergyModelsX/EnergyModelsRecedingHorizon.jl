@@ -181,8 +181,8 @@ end
         "demand",
         profile,
         Dict(
-            :surplus => FixedProfile(0),
-            :deficit => profile,
+            :surplus => profile,
+            :deficit => PartitionProfile([1, 2, 3]),
         ),
         Dict(heat => 1)
     )
@@ -255,11 +255,16 @@ end
 
         # Test of a node with operational profile and symbol dictionary
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::PartitionProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _dict_key(key::Symbol)
         @test issetequal(
             EMRH._find_update_paths(sink),
-            [[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]],
+            [
+                [:cap, EMRH.OperPath()],
+                [:penalty, "[:surplus]", EMRH.OperPath()],
+                [:penalty, "[:deficit]", EMRH.PartitionPath()]
+            ],
         )
 
         # Test of the new node with string dictionary

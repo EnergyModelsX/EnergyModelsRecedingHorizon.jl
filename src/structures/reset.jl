@@ -22,6 +22,13 @@ Internal type for paths pointing towards operational profiles.
 struct OperPath <: AbstractPath end
 
 """
+    struct PartitionPath <: AbstractPath
+
+Internal type for paths pointing towards partitioned profiles.
+"""
+struct PartitionPath <: AbstractPath end
+
+"""
     struct ElementPath <: AbstractPath
 
 Internal type for paths pointing towards elements.
