@@ -129,8 +129,10 @@ end
 
     # Create the profiles
     n_op = 15
+    n_part = 5
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
+    part_profile = PartitionProfile(rand(n_part))
     em_data = [EmissionsProcess(Dict(co2 => profile))]
 
     struct TestInitData <: AbstractInitData end
@@ -182,7 +184,7 @@ end
         profile,
         Dict(
             :surplus => profile,
-            :deficit => PartitionProfile([1, 2, 3]),
+            :deficit => part_profile,
         ),
         Dict(heat => 1)
     )
@@ -300,6 +302,11 @@ end
             all(
                 lens(n) == profile
             for (field, lens) ∈ lens_dict[n] if isa(typeof(field[end]), EMRH.OperPath))
+        for n ∈ 𝒩)
+        @test all(
+            all(
+                lens(n) == part_profile
+            for (field, lens) ∈ lens_dict[n] if isa(typeof(field[end]), EMRH.PartitionPath))
         for n ∈ 𝒩)
         @test all(
             all(
