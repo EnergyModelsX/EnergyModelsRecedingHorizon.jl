@@ -150,7 +150,7 @@ end
     _init_mapping!(𝒰::UpdateCase, ::Vector{T}) where {T<:Union{Resource, AbstractElement}}
     _init_mapping!(𝒰::UpdateCase, modeltype::T) where {T<:EnergyModel}
 
-Initialize the ampping dictionary used for mapping the original to the receding horizon
+Initialize the mapping dictionary used for mapping the original to the receding horizon
 problem and *vice versa*.
 
 !!! note "New, unconventional `AbstractElement`s"
