@@ -45,6 +45,7 @@ Initialize and return the following loop variables:
   future values or an empty vector.
 - `𝒮ᵛᵉᶜᵢₙ` is a `Vector{Vector{AbstractSub}}` for all substitution types with initial data.
 - `results` is an empty `Dict{Symbol,AbstractDataFrame}` used for saving the results.
+- `vars` is an empty `Vector{Symbol}` for saving the variable names that should be extracted.
 """
 function _initialize_loop_variables(𝒰::UpdateCase)
     # Extract values
@@ -68,7 +69,9 @@ function _initialize_loop_variables(𝒰::UpdateCase)
     # Identify the vector of `AbstractSub` vectors that have initial values
     𝒮ᵛᵉᶜᵢₙ = Vector{AbstractSub}[filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
 
-    return 𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results
+    # Initiate a vector of all vaariables that should be saved
+    vars = Symbol[]
+    return 𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results, vars
 end
 
 """

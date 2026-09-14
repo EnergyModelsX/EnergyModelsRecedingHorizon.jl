@@ -366,8 +366,10 @@ type introduced in `EnergyModelsBase` in which the individual vectors of `Resour
 
 # Fields
 - **`model::ModelSub`** is the substitution type for the [`RecHorEnergyModel`](@ref).
-- **`opers::Dict`** is a dictionary for mapping the operational periods of the receding
-  horizon problem to the operational periods of the full problem.
+- **`map_org::Dict`** is a dictionary for mapping the types of the receding horizon problem
+  to the types of the full problem.
+- **`map_updated::Dict`** is a dictionary for mapping the types of the full problem to the
+   types of the receding horizon problem.
 - **`products::Vector{<:ProductSub}`** is a vector of substitution types for the individual
   [`Resource`](@extref EnergyModelsBase.Resource)s.
 - **`elements::elements::Vector{Vector}`** is a vector of vectors of substitution types for
@@ -375,7 +377,8 @@ type introduced in `EnergyModelsBase` in which the individual vectors of `Resour
 """
 mutable struct UpdateCase <: AbstractCase
     model::ModelSub
-    opers::Dict
+    map_org::Dict
+    map_updated::Dict
     products::Vector{<:ProductSub}
     elements::Vector{Vector}
 end
@@ -388,11 +391,19 @@ Returns the [`ModelSub`](@ref) type of UpdateCase `𝒰`.
 """
 get_sub_model(𝒰::UpdateCase) = 𝒰.model
 """
-    get_sub_periods(𝒰::UpdateCase)
+    get_mapping_original(𝒰::UpdateCase, symb::Symbol)
 
-Returns the periods mapping dictionary of UpdateCase `𝒰`.
+Returns the mapping dictionary of UpdateCase `𝒰` from the receding horizon problem to the
+full problem for the given `symb`.
 """
-get_sub_periods(𝒰::UpdateCase) = 𝒰.opers
+get_mapping_original(𝒰::UpdateCase, symb::Symbol) = 𝒰.map_org[symb]
+"""
+    get_mapping_updated(𝒰::UpdateCase, symb::Symbol)
+
+Returns the mapping dictionary of UpdateCase `𝒰` from the full problem to the receding
+horizon problem for the given `symb`.
+"""
+get_mapping_updated(𝒰::UpdateCase, symb::Symbol) = 𝒰.map_updated[symb]
 """
     get_sub_products(𝒰::UpdateCase)
 
@@ -472,8 +483,7 @@ EMB.get_links(𝒰::UpdateCase) = Link[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, E
 get_future_value(𝒰::UpdateCase) = FutureValue[s.new for s ∈ get_sub_ele(𝒰, FutureValue)]
 
 """
-    updated(𝒰::UpdateCase, x_org::AbstractElement)
-    updated(𝒰::UpdateCase, x_org::Resource)
+    updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}}
     updated(𝒮::Vector{<:AbstractSub}, x_org::AbstractElement)
     updated(s::AbstractSub)
 
@@ -482,18 +492,14 @@ It is used for mapping and replacing instances of the type in fields.
 
 If the input is an `AbstractSub`, it returns the value of the field `new`.
 """
-updated(𝒰::UpdateCase, x_org::AbstractElement) =
-    updated(get_sub_ele(𝒰, typeof(x_org)), x_org)
-updated(𝒰::UpdateCase, x_org::Resource) =
-    updated(filter(x -> original(x) == x_org, get_sub_products(𝒰))[1])
+updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
+    get_mapping_updated(𝒰, _type_to_key(T))[x_org]
 updated(𝒮::Vector{<:AbstractSub}, x_org::AbstractElement) =
     updated(filter(x -> original(x) == x_org, 𝒮)[1])
 updated(s::AbstractSub) = s.new
 
 """
-    original(𝒰::UpdateCase, x_new::AbstractElement)
-    original(𝒰::UpdateCase, x_new::Resource)
-    original(𝒰::UpdateCase, x_new::TS.TimePeriod)
+    original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}}
     original(𝒮::Vector{<:AbstractSub}, x_new::AbstractElement)
     original(s::AbstractSub)
 
@@ -502,11 +508,8 @@ It is used for results extraction.
 
 If the input is an `AbstractSub`, it returns the value of the field `org`.
 """
-original(𝒰::UpdateCase, x_new::AbstractElement) =
-    original(get_sub_ele(𝒰, typeof(x_new)), x_new)
+original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
+    get_mapping_original(𝒰, _type_to_key(T))[x_new]
 original(𝒮::Vector{<:AbstractSub}, x_new::AbstractElement) =
     original(filter(x -> updated(x) == x_new, 𝒮)[1])
-original(𝒰::UpdateCase, x_new::Resource) =
-    original(filter(x -> updated(x) == x_new, get_sub_products(𝒰))[1])
-original(𝒰::UpdateCase, x_new::TS.TimePeriod) = get_sub_periods(𝒰)[x_new]
 original(s::AbstractSub) = s.org

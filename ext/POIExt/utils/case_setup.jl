@@ -4,7 +4,7 @@
 Initialize the JuMP model `m` and the [`UpdateCase`](@ref) `𝒰` with the anonymous variables
 corresponding to the inidividual fields of all types whose value(s) change(s).
 
-In addition, the [`UpdateCase`](@ref) `𝒰` is updated with the new mapping between the operational
+In addition, the [`UpdateCase`](@ref) `𝒰` is updated with the mapping between the operational
 periods of the optimization (through `𝒯ᵣₕ`) and the original (through `opers`) problem.
 """
 function _init_update_case!(m, 𝒰, opers, 𝒯ᵣₕ)
@@ -13,7 +13,8 @@ function _init_update_case!(m, 𝒰, opers, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_case_types!(m, 𝒮, 𝒰, 𝒯ᵣₕ)
     end
-    𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
 end
 """
     update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
@@ -30,7 +31,8 @@ function update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_parameter_values!(m, 𝒮, opers)
     end
-    𝒰.opers = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
+    𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
 end
 
 """
@@ -66,6 +68,7 @@ function EMRH._update_case_types!(
             s.new = EMRH._reset_field(m, updated(s), res_type, 𝒰, 𝒯ᴿᴴ)
         end
     end
+    _add_mapping!(𝒰, s)
 end
 
 """

@@ -1,13 +1,16 @@
 """
-    get_results(m::JuMP.Model)
+    get_results(m::JuMP.Model, vars::Vector{Symbol}, opers::Vector{<:TS.TimePeriod})
 
-Function returning the values of the optimized model `m`. Prints a warning message for
-currently unsupported types without extracting their value.
+Function returning the values of the optimized model `m` of the variables `vars` for the
+operational periods `opers`.
+
+If the vector `opers` is empty, it returns the values for the complete horizon.
+Prints a warning message for currently unsupported types without extracting their value.
 """
-function get_results(m::JuMP.Model)
+function get_results(m::JuMP.Model, vars::Vector{Symbol}, opers::Vector{<:TS.TimePeriod})
     res = Dict{Symbol,Vector}()
-    for key ∈ keys(object_dictionary(m))
-        val = _get_values_from_obj(m[key], key)
+    for key ∈ vars
+        val = _get_values_from_obj(m[key], opers)
         if !isnothing(val)
             res[key] = val
         end
@@ -16,34 +19,49 @@ function get_results(m::JuMP.Model)
 end
 
 function _get_values_from_obj(
-    obj::Union{JuMP.Containers.SparseAxisArray,JuMP.Containers.DenseAxisArray},
-    key::Symbol,
+    obj::Union{JuMP.Containers.DenseAxisArray, JuMP.Containers.SparseAxisArray},
+    opers::Vector{<:TS.TimePeriod},
 )
     if isempty(obj)
         return []
-    else
+    elseif isempty(opers)
         return JuMP.Containers.rowtable(value.(obj))
+    else
+        if isa(obj, JuMP.Containers.DenseAxisArray)
+            iter = axes(obj)
+            idx_t = findall(col -> isa(col, Vector{<:TS.TimePeriod}), iter)
+        else
+            iter = first(keys(obj.data))
+            idx_t = findall(col -> isa(col, TS.TimePeriod), iter)
+        end
+        subset = Any[Colon() for _ ∈ iter]
+        for k ∈ idx_t
+            subset[k] = opers
+        end
+
+        return JuMP.Containers.rowtable(value.(obj[subset...]))
     end
 end
 function _get_values_from_obj(
     obj,
-    key::Symbol,
+    opers::Vector{<:TS.TimePeriod},
 )
     @warn "Extracting values from $(typeof(obj)) is not yet supported." maxlog = 1
     return []
 end
 
 """
-    update_results!(results, m, 𝒰, opers, 𝒽)
+    update_results!(results, m, vars, 𝒰, opers, 𝒽)
 
-Updates `results` given the optimization results `m` for the times `opers`, performed in
-horizon `𝒽`.
+Updates `results` given the optimization results `m` for the operational periods `opers` and
+the identified variables `vars`, performed in horizon `𝒽`.
 The results are indexed by the elements in the provided `case` (here accessed using the
 [`UpdateCase`](@ref) `𝒰`).
 """
-function update_results!(results, m, 𝒰, opers, 𝒽)
-    results_rh = get_results(m)
+function update_results!(results, m, vars, 𝒰, opers, 𝒽)
+    opers_EMRH = [updated(𝒰, t) for t ∈ opers]
     if isempty(results)
+        results_rh = get_results(m, collect(keys(object_dictionary(m))), opers_EMRH)
         # first iteration - create DataFrame instances
         for (k, container_rh) ∈ results_rh
             if isempty(container_rh)
@@ -54,26 +72,24 @@ function update_results!(results, m, 𝒰, opers, 𝒽)
                 continue
             else
                 results[k] = DataFrame()
+                push!(vars, k)
             end
         end
         results[:opt_status] = DataFrame()
+    else
+        results_rh = get_results(m, vars, opers_EMRH)
     end
 
     # place values of results_rh into results
     for (k, container) ∈ results
         if k == :opt_status
             append!(container, [NamedTuple((:x1 => 𝒽, :y => termination_status(m)))])
-            continue
+        else
+            df = DataFrame(results_rh[k])
+            subnames = filter(n -> n ≠ "y", names(df))
+            mapcols!(𝒳 -> [original(𝒰, x) for x ∈ 𝒳], df, cols=subnames)
+            append!(container, df)
         end
-        oper_idx =
-            findfirst([typeof(v) <: TS.OperationalPeriod for v ∈ first(results_rh[k])])
-        results_rh_k_new = [
-            NamedTuple(
-                (ax == :y) ? ax => v : ax => original(𝒰, v) for (ax, v) ∈ pairs(row)
-            )
-            for row ∈ results_rh[k] if original(𝒰, row[oper_idx]) ∈ opers
-        ]
-        append!(container, results_rh_k_new)
     end
 end
 
@@ -84,7 +100,8 @@ Function returning the values of the optimized model `m` as a `DataFrame`. Print
 message for currently unsupported types without extracting their value.
 """
 function get_results_df(m::JuMP.Model)
-    res = get_results(m)
+    vars = collect(keys(object_dictionary(m)))
+    res = get_results(m, vars, TS.TimePeriod[])
     df = Dict(k => DataFrame(val) for (k, val) ∈ res)
     return df
 end

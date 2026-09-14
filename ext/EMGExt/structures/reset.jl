@@ -82,27 +82,7 @@ This element vector can be directly utilized for the field elements of a
 """
 EMG.get_transmissions(𝒰::UpdateCase) = Transmission[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, Transmission)]
 
-function EMRH.original(𝒰::UpdateCase, tm_new::TransmissionMode)
-    𝒮ˡ = get_sub_ele(𝒰, Transmission)
-    tm_old = nothing
-    for s_l ∈ 𝒮ˡ
-        idx = findfirst(tm -> tm == tm_new, modes(s_l.new))
-        if !isnothing(idx)
-            tm_old = modes(s_l.org)[idx]
-            break
-        end
-    end
-    return tm_old
-end
-function EMRH.updated(𝒰::UpdateCase, tm_org::TransmissionMode)
-    𝒮ˡ = get_sub_ele(𝒰, Transmission)
-    tm_new = nothing
-    for s_l ∈ 𝒮ˡ
-        idx = findfirst(tm -> tm == tm_org, modes(s_l.org))
-        if !isnothing(idx)
-            tm_new = modes(s_l.new)[idx]
-            break
-        end
-    end
-    return tm_new
-end
+EMRH.updated(𝒰::UpdateCase, x_org::T) where {T<:TransmissionMode} =
+    get_mapping_updated(𝒰, _type_to_key(T))[x_org]
+EMRH.original(𝒰::UpdateCase, x_new::T) where {T<:TransmissionMode} =
+    get_mapping_original(𝒰, _type_to_key(T))[x_new]

@@ -69,7 +69,7 @@ function EMRH.run_model_rh(
     m = create_model(caseᵣₕ, modelᵣₕ, m; check_timeprofiles, check_any_data = false)
 
     # Initialize loop variables
-    𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results = _initialize_loop_variables(𝒰)
+    𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results, vars = _initialize_loop_variables(𝒰)
 
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
@@ -79,7 +79,7 @@ function EMRH.run_model_rh(
         # horizon
         if length(𝒽) < length(𝒯ᵣₕ)
             opers_not_impl = setdiff(opers_opt, opers_impl)
-            update_results!(results, m, 𝒰, opers_not_impl, 𝒽)
+            update_results!(results, m, vars, 𝒰, opers_not_impl, 𝒽)
             break
         end
 
@@ -100,7 +100,7 @@ function EMRH.run_model_rh(
         optimize!(m)
 
         # Update the results
-        update_results!(results, m, 𝒰, opers_impl, 𝒽)
+        update_results!(results, m, vars, 𝒰, opers_impl, 𝒽)
 
         # Update the value for the initial data
         update_init_data!(m, 𝒮ᵛᵉᶜᵢₙ, opers_implᵣₕ)
