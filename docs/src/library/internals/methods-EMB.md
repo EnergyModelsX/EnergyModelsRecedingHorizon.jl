@@ -38,3 +38,9 @@ EnergyModelsBase.get_elements_vec
 EnergyModelsBase.get_nodes
 EnergyModelsBase.get_links
 ```
+
+In addition, a new method is created for `get_time_struct` to extract the original time structure from the `UpdateCase`:
+
+```@docs
+EnergyModelsBase.get_time_struct
+```

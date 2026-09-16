@@ -51,11 +51,7 @@
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
     hor_test = first(ℋ)
 
-    𝒰 = EMRH._create_updatetype(modeltype)
-    EMRH._add_elements!(𝒰, 𝒫)
-    for 𝒳 ∈ get_elements_vec(case)
-        EMRH._add_elements!(𝒰, 𝒳)
-    end
+    𝒰 = EMRH._create_updatetype(case, modeltype)
     𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(hor_test)))
     opers_opt = collect(𝒯)[indices_optimization(hor_test)]
     EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
@@ -125,11 +121,11 @@ end
     el = ResourceCarrier("el", 0.2)
     heat = ResourceCarrier("heat", 0.0)
     co2 = ResourceEmit("co2", 1.0)
-    resources = [el, heat, co2]
+    𝒫 = [el, heat, co2]
 
     # Create the profiles
     n_op = 15
-    n_part = 5
+    n_part = 8
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
     part_profile = PartitionProfile(rand(n_part))
@@ -138,7 +134,7 @@ end
     struct TestInitData <: AbstractInitData end
 
     # Create the individual nodes
-    av = GenAvailability("Availability", resources)
+    av = GenAvailability("Availability", 𝒫)
     source_initdata = RefSource(
         "source",
         FixedProfile(1e12),
@@ -316,6 +312,11 @@ end
     end
 
     @testset "Reset functionality" begin
+        # Test that the error throwing functionality is working
+        @test_throws ErrorException EMRH.partition_periods(sink)
+        pps = PartitionProfile(vcat(fill(2,7), [1]))
+        EMRH.partition_periods(n::Sink) = pps
+
         # Create an operational modeltype and the time structure
         modeltype = RecHorOperationalModel(
             Dict(co2 => FixedProfile(100)),
@@ -323,20 +324,18 @@ end
             co2,
         )
 
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
         𝒽 = first(ℋ)
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
-        opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+        𝒯ᵖᵈ = partition_duration(𝒯, pps)
+
+        # Create the update type
+        ℒ = Link[]
+        case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
 
         # Test that the individual reset functions are working for all types
         # All functions are located within the file src/structures/reset.jl
@@ -355,6 +354,17 @@ end
         @test reset_src.val == opex_var(source_oper)
         @test isnothing(reset_src.var)
 
+        # Test the sink resets (PartitionReset)
+        reset_snk = EMRH.resets(𝒮ᵛᵉᶜ[1][5])[2]
+        @test isa(reset_snk, EMRH.PartitionReset)
+        @test !EMRH.is_init_reset(reset_snk)
+        @test reset_snk.lens(sink) == deficit_penalty(sink)
+        @test reset_snk.val == deficit_penalty(sink)
+        @test isnothing(reset_snk.var)
+        @test all(
+            [reset_snk.pps.vals[k] == EMRH.partition_periods(sink).vals[k] for k ∈ 1:n_part]
+        )
+
         # Test the storages resets (InitReset)
         reset_storage = EMRH.resets(𝒮ᵛᵉᶜ[1][4])[3]
         @test isa(reset_storage, EMRH.InitReset{EMRH.InitDataPath})
@@ -363,6 +373,14 @@ end
         @test reset_storage.val == data_init(storage).init_val_dict[:stor_level]
         @test isnothing(reset_storage.var)
         @test reset_storage.path == EMRH.InitDataPath(:stor_level)
+
+        # Create all time related parameters for the first horizon
+        𝒽 = first(ℋ)
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+        parts_opt = filter(t_pd -> isempty(setdiff(t_pd, opers_opt)), 𝒯ᵖᵈ)
 
         # Test that the reset functionality is working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
@@ -384,7 +402,11 @@ end
         # Test the individual resets
         @test all(opex_var(𝒩ʳ[k]).vals == opex_var(𝒩[k])[opers_opt] for k ∈ [2,3])
         @test data_init(𝒩ʳ[4]).init_val_dict[:stor_level] == 5.0
-        @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[opers_opt]
+        @test surplus_penalty(𝒩ʳ[5]).vals == surplus_penalty(𝒩[5])[opers_opt]
+        @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[parts_opt]
+
+        # Delete the created method
+        Base.delete_method(@which EMRH.partition_periods(sink))
     end
 end
 
@@ -393,6 +415,7 @@ end
     # Create the individual resources
     co2 = ResourceEmit("co2", 1.0)
     el = ResourceCarrier("el", 0.2)
+    𝒫 = [co2, el]
 
     # Create the profile
     n_op = 15
@@ -473,21 +496,14 @@ end
             co2,
         )
 
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-        EMRH._add_elements!(𝒰, ℒ)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
-        𝒽 = first(ℋ)
-        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
-        opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+
+        # Create the update type
+        case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
 
         # Test that the individual reset functions are working for all types
         # All functions are located within the file src/structures/reset.jl
@@ -504,6 +520,14 @@ end
         @test reset_link[1].val == src
         @test reset_link[2].lens(link) == sink
         @test reset_link[2].val == sink
+
+        # Create all time related parameters for the first horizon
+        𝒽 = first(ℋ)
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
         # Test that the reset functionality is working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
@@ -579,24 +603,26 @@ end
     end
 
     @testset "Reset functionality" begin
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
+
+        # Create the update type
+        𝒰 = EMRH._create_updatetype(𝒯, modeltype)
+
+        # Test that the individual reset functions are working for all types
+        # All functions are located within the file src/structures/reset.jl
+        sᵐ = EMRH.get_sub_model(𝒰)
+        @test isa(EMRH.resets(sᵐ)[1], EMRH.OperReset)
+
+        # Create all time related parameters for the first horizon
         𝒽 = first(ℋ)
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
         ind_impl = indices_implementation(𝒽)
         opers_opt = opers[indices_optimization(𝒽)]
         opers_impl = opers[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
-
-        # Test that the individual reset functions are working for all types
-        # All functions are located within the file src/structures/reset.jl
-        sᵐ = EMRH.get_sub_model(𝒰)
-        @test isa(EMRH.resets(sᵐ)[1], EMRH.OperReset)
 
         # Test that the reset functionality is working
         # - _update_case_types!
@@ -701,15 +727,16 @@ end
             co2,
         )
 
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-        EMRH._add_elements!(𝒰, 𝒱)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
+
+        # Create the update type
+        case = Case(𝒯, 𝒫, [𝒩, 𝒱], [[get_nodes, get_future_value]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
+
+        # Create all time related parameters
         𝒽 = first(ℋ)
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
         ind_impl = indices_implementation(𝒽)

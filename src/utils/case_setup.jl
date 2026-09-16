@@ -55,6 +55,7 @@ end
     _reset_field(x_rh, res_type::ElementReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
     _reset_field(x_rh, res_type::Union{InitReset, TimeWeightReset}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
     _reset_field(x_rh, res_type::OperReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _reset_field(x_rh, res_type::PartitionReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
 of the new value is depending on the specified `res_type`:
@@ -63,6 +64,8 @@ of the new value is depending on the specified `res_type`:
 2. `res_type::Union{InitReset, TimeWeightReset}` uses the value in `res_type` directly,
 3. `res_type::OperReset` creates a new operational profile based on the original
    operational profile in `res_type` and the set of operational periods `opers`.
+4. `res_type::PartitionReset` creates a new partition profile based on the original
+   partition profile in `res_type` and the set of operational periods `opers`.
 """
 function _reset_field(
     x_rh,
@@ -91,10 +94,29 @@ function _reset_field(
     @reset res_type.lens(x_rh) = OperationalProfile(res_type.val[opers])
     return x_rh
 end
+function _reset_field(
+    x_rh,
+    res_type::PartitionReset,
+    𝒰::UpdateCase,
+    opers::Vector{<:TS.TimePeriod},
+)
+    # Extract the required variables from the UpdateCase
+    𝒯 = get_time_struct(𝒰)
+
+    # Identify the partitions of the original problem that are used within the current
+    # receding horizon problem
+    𝒯ᵖᵈ = partition_periods(res_type, 𝒯)
+    parts = filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
+
+    # Reset the partition profile of the receding horizon problem based on the relevant
+    # partitions
+    @reset res_type.lens(x_rh) = PartitionProfile(res_type.val[parts])
+    return x_rh
+end
 
 """
-    _create_updatetype(modeltype::RecHorEnergyModel)
-    _create_updatetype(modeltype::RecHorEnergyModel, case::AbstractCase)
+    _create_updatetype(case::AbstractCase, modeltype::RecHorEnergyModel)
+    _create_updatetype(𝒯::TS.TimeStructure, modeltype::RecHorEnergyModel)
 
 Initialize an [`UpdateCase`](@ref) based on the provided [`RecHorEnergyModel`](@ref)
 `modeltype`.
@@ -102,20 +124,27 @@ Initialize an [`UpdateCase`](@ref) based on the provided [`RecHorEnergyModel`](@
 Initialize and populate the [`UpdateCase`](@ref) if the function has as first argument an
 [`AbstractCase`](@extref EnergyModelsBase.AbstractCase).
 """
-function _create_updatetype(modeltype::RecHorEnergyModel)
-    paths_model = _find_update_paths(modeltype)
-    reset_model = AbstractReset[ResetType(field_id, field_id[end], modeltype) for field_id ∈ paths_model]
-    𝒰 = UpdateCase(Substitution(modeltype, reset_model), Dict(), Dict(), ProductSub[], Vector[])
-    _init_mapping!(𝒰, modeltype)
-    return 𝒰
-end
 function _create_updatetype(case::AbstractCase, modeltype::RecHorEnergyModel)
     # Create the `UpdateCase` based on the original `Case` structure
-    𝒰 = _create_updatetype(modeltype)
+    𝒰 = _create_updatetype(get_time_struct(case), modeltype)
     _add_elements!(𝒰, get_products(case))
     for 𝒳 ∈ get_elements_vec(case)
         _add_elements!(𝒰, 𝒳)
     end
+    return 𝒰
+end
+function _create_updatetype(𝒯::TS.TimeStructure, modeltype::RecHorEnergyModel)
+    paths_model = _find_update_paths(modeltype)
+    reset_model = AbstractReset[ResetType(field_id, field_id[end], modeltype) for field_id ∈ paths_model]
+    𝒰 = UpdateCase(
+        𝒯,
+        Substitution(modeltype, reset_model),
+        Dict(),
+        Dict(),
+        ProductSub[],
+        Vector[],
+    )
+    _init_mapping!(𝒰, modeltype)
     return 𝒰
 end
 

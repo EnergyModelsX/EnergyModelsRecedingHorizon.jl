@@ -136,6 +136,44 @@ mutable struct OperReset <: AbstractReset
 end
 
 """
+    mutable struct PartitionReset <: AbstractReset
+
+[`AbstractReset`](@ref) for resetting partition profiles within an element. The inner
+constructor is utilized for automatically creating the lens to the field path.
+
+# Inner constructor arguments
+- **`field_path::Vector`** is the path towards the field as identified through the function
+  [`_find_update_paths`](@ref).
+- **`x`** is the instance of a type for which the reset type is created.
+
+# Fields
+- **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
+- **`var`** is the variable when using `ParametricOptInterface`.
+- **`pps::PartitionProfile`** is the partition profile corresponding to the duration of the
+  individual partition periods.
+- **`val::PartitionProfile`** is the complete partition profile from the original
+  element. The individual values are extracted from this profile in the receding horizon
+  framework.
+
+!!! warning "PartitionReset"
+    The `PartitionReset` type requires the user to declare a new method `partition_periods`
+    for the type `x` which utilizes the concept of partitions. An error is provided if no
+    method is declared.
+"""
+mutable struct PartitionReset <: AbstractReset
+    lens::Union{PropertyLens,ComposedFunction}
+    var
+    val::PartitionProfile
+    pps::PartitionProfile
+    function PartitionReset(field_path::Vector, x)
+        lens = _create_lens_for_field(field_path)
+        val = lens(x)
+        pps = partition_periods(x)
+        new(lens, nothing, val, pps)
+    end
+end
+
+"""
     mutable struct TimeWeightReset <: AbstractReset
 
 [`AbstractReset`](@ref) for resetting the time weight used in future value calculations.
@@ -195,6 +233,7 @@ end
 
 """
     ResetType(field_path::Vector, _::OperPath, x)
+    ResetType(field_path::Vector, _::PartitionPath, x)
     ResetType(field_path::Vector, _::ElementPath, x)
     ResetType(field_path::Vector, _::TimeWeightPath, x)
     ResetType(field_path::Vector, path::AbstractInitDataPath, x)
@@ -208,6 +247,7 @@ Constructor for [`AbstractReset`](@ref) types depending on their specified [`Abs
     This is **not** necessary for a new subtype of [`AbstractInitDataPath`](@ref).
 """
 ResetType(field_path::Vector, _::OperPath, x) = OperReset(field_path, x)
+ResetType(field_path::Vector, _::PartitionPath, x) = PartitionReset(field_path, x)
 ResetType(field_path::Vector, _::ElementPath, x) = ElementReset(field_path, x)
 ResetType(field_path::Vector, _::TimeWeightPath, x) = TimeWeightReset(field_path, x)
 ResetType(field_path::Vector, path::AbstractInitDataPath, x) =
@@ -220,6 +260,26 @@ Function fo identifying whether the AbstractReset `rt` is of type `InitReset`.
 """
 is_init_reset(rt::AbstractReset) = false
 is_init_reset(rt::InitReset) = true
+
+"""
+    partition_periods(x)
+    partition_periods(res_type::PartitionReset, 𝒯::TS.TimeStructure)
+
+"""
+function partition_periods(x)
+    x_type = typeof(x)
+    throw(
+        ErrorException(
+            "No method for `partition_periods` is defined for $(x_type).\n" *
+            "This error is caused by including a `PartitionProfile` in $(x_type) which " *
+            "requires a method for the `EnergyModelsRecedingHorizon` function " *
+            "`partition_periods(x)` to be defined."
+        )
+    )
+end
+function partition_periods(res_type::PartitionReset, 𝒯::TS.TimeStructure)
+    return partition_duration(𝒯, res_type.pps)
+end
 
 """
     abstract type AbstractSub
@@ -372,6 +432,7 @@ type introduced in `EnergyModelsBase` in which the individual vectors of `Resour
 `AbstractElement`s are replaced with the corresponding vectors of [`AbstractSub`](@ref).
 
 # Fields
+- **`T::TS.TimeStructure`** is the time structure of the original problem.
 - **`model::ModelSub`** is the substitution type for the [`RecHorEnergyModel`](@ref).
 - **`map_org::Dict`** is a dictionary for mapping the types of the receding horizon problem
   to the types of the full problem.
@@ -383,6 +444,7 @@ type introduced in `EnergyModelsBase` in which the individual vectors of `Resour
   the individual [`AbstractElement`](@extref EnergyModelsBase.AbstractElement)s.
 """
 mutable struct UpdateCase <: AbstractCase
+    T::TS.TimeStructure
     model::ModelSub
     map_org::Dict
     map_updated::Dict
@@ -438,6 +500,14 @@ get_sub_ele(𝒮ᵛᵉᶜ::Vector{Vector}, x::Type{<:AbstractElement}) =
 get_sub_ele(𝒰::UpdateCase, x::Type{<:AbstractElement}) = get_sub_ele(get_sub_elements_vec(𝒰), x)
 
 """
+    EMB.get_time_struct(𝒰::UpdateCase)
+
+Method for the `EnergyModelsBase` function to extract the original time structure of the
+update case
+"""
+EMB.get_time_struct(𝒰::UpdateCase) = 𝒰.T
+
+"""
     EMB.get_products(𝒰::UpdateCase)
 
 Method for the `EnergyModelsBase` function to extract the **new** `Resource`s of the
@@ -476,6 +546,7 @@ This element vector can be directly utilized for the field elements of a
 [`Case`](@extref EnergyModelsBase.Case).
 """
 EMB.get_nodes(𝒰::UpdateCase) = EMB.Node[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, EMB.Node)]
+
 """
     EMB.get_links(𝒰::UpdateCase)
 
