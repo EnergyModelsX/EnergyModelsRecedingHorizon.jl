@@ -80,6 +80,14 @@ related to the chosen [`AbstractPath`](@ref) as outlined above.
 """
 abstract type AbstractReset end
 
+
+"""
+    struct EmptyReset <: AbstractReset
+
+Empty reset type, introduced to avoid problems with partition profile resetting.
+"""
+struct EmptyReset <: AbstractReset end
+
 """
     mutable struct ElementReset <: AbstractReset
 
@@ -169,7 +177,11 @@ mutable struct PartitionReset <: AbstractReset
         lens = _create_lens_for_field(field_path)
         val = lens(x)
         pps = partition_periods(x)
-        new(lens, nothing, val, pps)
+        if val ≠ pps
+            new(lens, nothing, val, pps)
+        else
+            EmptyReset()
+        end
     end
 end
 

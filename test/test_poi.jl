@@ -4,8 +4,20 @@ struct CapDirect <: Link
     from::EMB.Node
     to::EMB.Node
     capacity::TimeProfile
+    part_dur::PartitionProfile
+    part_mult::PartitionProfile
 end
+
+# Add methods to required functions
+EMB.capacity(l::CapDirect) = l.capacity
+EMB.capacity(l::CapDirect, t) = l.capacity[t]
+EMB.has_capacity(l::CapDirect) = true
+EMRH.partition_periods(l::CapDirect) = l.part_dur
+
 function EMB.create_link(m, l::CapDirect, 𝒯, 𝒫, modeltype::EnergyModel)
+
+    # Declaration of the required subsets
+    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.partition_periods(l))
 
     # Generic link in which each output corresponds to the input
     @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
@@ -13,18 +25,17 @@ function EMB.create_link(m, l::CapDirect, 𝒯, 𝒫, modeltype::EnergyModel)
     )
 
     # Capacity constraint
-    @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
-        m[:link_out][l, t, p] ≤ m[:link_cap_inst][l, t]
+    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ, t ∈ t_pd, p ∈ EMB.link_res(l)],
+        m[:link_out][l, t, p] ≤ m[:link_cap_inst][l, t] * l.part_mult[t_pd]
     )
     constraints_capacity_installed(m, l, 𝒯, modeltype)
 end
-EMB.capacity(l::CapDirect) = l.capacity
-EMB.capacity(l::CapDirect, t) = l.capacity[t]
-EMB.has_capacity(l::CapDirect) = true
 
 # Introduction of different profiles
 price_profile = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
 cap_profile = [20, 30, 40, 30, 10, 50, 35, 20]
+part_profile = [2, 2, 2, 2]
+mult_profile = [2, 1, 1.5, 1]
 demand_profile = [20, 15, 20, 15, 10, 10, 20, 20]
 em_co2 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 
@@ -61,7 +72,7 @@ function create_poi_case(;
             Data[EmissionsProcess(Dict(co2 => OperationalProfile(em_co2)))]),
         RefStorage{RecedingAccumulating}(
             "electricity storage",
-            StorCapOpexVar(FixedProfile(20), FixedProfile(10)),
+            StorCapOpexVar(FixedProfile(30), FixedProfile(10)),
             StorCapOpexFixed(FixedProfile(150), FixedProfile(0)),
             power,
             Dict(power => 1),
@@ -78,7 +89,14 @@ function create_poi_case(;
 
     #connect the nodes with links
     ℒ = [
-        CapDirect("source-storage", 𝒩[1], 𝒩[2], OperationalProfile(cap_profile)),
+        CapDirect(
+            "source-storage",
+            𝒩[1],
+            𝒩[2],
+            OperationalProfile(cap_profile),
+            PartitionProfile(part_profile),
+            PartitionProfile(mult_profile),
+        ),
         Direct("source-demand", 𝒩[1], 𝒩[3], Linear()),
         Direct("storage-demand", 𝒩[2], 𝒩[3], Linear()),
     ]
@@ -102,11 +120,7 @@ end
     𝒽₀ = first(ℋ)
 
     # Create the lenses
-    𝒰 = EMRH._create_updatetype(modeltype)
-    EMRH._add_elements!(𝒰, 𝒫)
-    for 𝒳 ∈ 𝒳ᵛᵉᶜ
-        EMRH._add_elements!(𝒰, 𝒳)
-    end
+    𝒰 = EMRH._create_updatetype(case, modeltype)
     𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
 
     # Test that the UpdateCase is correctly created with all types
@@ -129,29 +143,29 @@ end
     modelᵣₕ = EMRH.updated(EMRH.get_sub_model(𝒰))
 
     # Test that no variables are created for models
-    # 4*4 for operational profiles and 1 for initial data
-    @test length(all_variables(m)) == 17
+    # 4*4 for operational profiles, 2 for partition profiles, and 1 for initial data
+    @test length(all_variables(m)) == 19
 
     # Extract the data from the receding horizon model
-    𝒩ᵣₕ = get_nodes(caseᵣₕ)
-    ℒᵣₕ = get_links(caseᵣₕ)
-    source = 𝒩ᵣₕ[1]
-    stor = 𝒩ᵣₕ[2]
-    sink = 𝒩ᵣₕ[3]
+    src, stor, snk = get_nodes(caseᵣₕ)
+    cap_link = get_links(caseᵣₕ)[1]
     co2 = get_products(caseᵣₕ)[2]
-    cap_link = ℒᵣₕ[1]
 
     # Test that all references are replaced correctly with the variables
-    @test isa(opex_var(source), OperationalProfile{VariableRef})
-    @test length(opex_var(source).vals) == length(𝒽₀)
-    @test isa(process_emissions(node_data(source)[1], co2), OperationalProfile{VariableRef})
-    @test length(process_emissions(node_data(source)[1], co2).vals) == length(𝒽₀)
+    @test isa(opex_var(src), OperationalProfile{VariableRef})
+    @test length(opex_var(src).vals) == length(𝒽₀)
+    @test isa(process_emissions(node_data(src)[1], co2), OperationalProfile{VariableRef})
+    @test length(process_emissions(node_data(src)[1], co2).vals) == length(𝒽₀)
     @test isa(node_data(stor)[1].init_val_dict[:stor_level], AffExpr)
     @test length(node_data(stor)[1].init_val_dict) == 1
-    @test isa(capacity(sink), OperationalProfile{VariableRef})
-    @test length(capacity(sink).vals) == length(𝒽₀)
+    @test isa(capacity(snk), OperationalProfile{VariableRef})
+    @test length(capacity(snk).vals) == length(𝒽₀)
     @test isa(capacity(cap_link), OperationalProfile{VariableRef})
     @test length(capacity(cap_link).vals) == length(𝒽₀)
+    @test isa(cap_link.part_mult, PartitionProfile{VariableRef})
+    @test isa(cap_link.part_dur, PartitionProfile{Int64})
+    @test length(cap_link.part_dur.vals) == 4
+    @test length(cap_link.part_mult.vals) == 2
 end
 
 @testset "Full model run" begin
@@ -171,12 +185,8 @@ end
     results = run_model_rh(case, modeltype, optimizer)
 
     # Extract data
-    𝒩 = get_nodes(case)
-    ℒ = get_links(case)
-    source = 𝒩[1]
-    stor = 𝒩[2]
-    sink = 𝒩[3]
-    cap_link = ℒ[1]
+    src, stor, snk = get_nodes(case)
+    cap_link = get_links(case)[1]
     co2 = get_products(case)[2]
     ops = collect(get_time_struct(case))
 
@@ -196,33 +206,36 @@ end
         filter(r -> r.x1 == stor && r.x2 == last_ops[k], results[:stor_level])[!, :y] ≈
         filter(r -> r.x1 == stor && r.x2 == first_ops[k], results[:stor_level])[!, :y] -
         filter(r -> r.x1 == stor && r.x2 == first_ops[k], results[:stor_level_Δ_op])[!, :y]
-        for k ∈ 1:3)
+    for k ∈ 1:3)
 
     # Test that the demand is equal to the profile and satisfied in all periods
     @test all(
-        filter(r -> r.x1 == sink && r.x2 == ops[k], results[:cap_use])[1, :y] ≈
-        demand_profile[k] for k ∈ 1:8
-    )
+        filter(r -> r.x1 == snk && r.x2 == ops[k], results[:cap_use])[1, :y] ≈
+            demand_profile[k]
+    for k ∈ 1:8)
     @test all(
-        filter(r -> r.x1 == sink && r.x2 == ops[k], results[:sink_deficit])[1, :y] ≈ 0 for
-        k ∈ 1:8
-    )
+        filter(r -> r.x1 == snk && r.x2 == ops[k], results[:sink_deficit])[1, :y] ≈ 0
+    for k ∈ 1:8)
 
     # Test that the link capacity is equal to the profile
     @test all(
         filter(r -> r.x1 == cap_link && r.x2 == ops[k], results[:link_cap_inst])[1, :y] ≈
-        cap_profile[k] for k ∈ 1:8
-    )
+            cap_profile[k]
+    for k ∈ 1:8)
+
+    # Test that the link capacity is equal to the profile
+    @test all(
+        filter(r -> r.x1 == cap_link && r.x2 == ops[k], results[:link_out])[1, :y] ≤
+            cap_profile[k] * mult_profile[pd]
+    for (k, pd) ∈ zip(1:8, [1, 1, 2, 2, 3, 3, 4, 4]))
+
 
     # Test that the co2 process emissions are correctly updated
     @test all(
         filter(
-            r -> r.x1 == source && r.x2 == ops[k] && r.x3 == co2,
+            r -> r.x1 == src && r.x2 == ops[k] && r.x3 == co2,
             results[:emissions_node],
-        )[
-            1,
-            :y,
-        ] ≈
-        filter(r -> r.x1 == source && r.x2 == ops[k], results[:cap_use])[1, :y] * em_co2[k]
-        for k ∈ 1:8)
+        )[1, :y] ≈
+            filter(r -> r.x1 == src && r.x2 == ops[k], results[:cap_use])[1, :y] * em_co2[k]
+    for k ∈ 1:8)
 end

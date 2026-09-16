@@ -328,8 +328,6 @@ end
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
-        𝒽 = first(ℋ)
-        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
         𝒯ᵖᵈ = partition_duration(𝒯, pps)
 
         # Create the update type
@@ -376,6 +374,7 @@ end
 
         # Create all time related parameters for the first horizon
         𝒽 = first(ℋ)
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
         ind_impl = indices_implementation(𝒽)
         opers_opt = opers[indices_optimization(𝒽)]
         opers_impl = opers[ind_impl]
@@ -404,9 +403,6 @@ end
         @test data_init(𝒩ʳ[4]).init_val_dict[:stor_level] == 5.0
         @test surplus_penalty(𝒩ʳ[5]).vals == surplus_penalty(𝒩[5])[opers_opt]
         @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[parts_opt]
-
-        # Delete the created method
-        Base.delete_method(@which EMRH.partition_periods(sink))
     end
 end
 
@@ -417,10 +413,13 @@ end
     el = ResourceCarrier("el", 0.2)
     𝒫 = [co2, el]
 
-    # Create the profile
+    # Create the profiles
     n_op = 15
+    n_part = 8
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
+    part_profile = PartitionProfile(rand(n_part))
+    part_dur = PartitionProfile(vcat(fill(2,7), [1]))
 
     # Create the individual nodes
     src = RefSource(
@@ -444,8 +443,34 @@ end
         from::EMB.Node
         to::EMB.Node
         formulation::EMB.Formulation
-        profile::TimeProfile
+        capacity::TimeProfile
+        part_dur::PartitionProfile
+        part_mult::PartitionProfile
     end
+
+    # Add methods to required functions
+    EMB.capacity(l::ProfDirect) = l.capacity
+    EMB.capacity(l::ProfDirect, t) = l.capacity[t]
+    EMB.has_capacity(l::ProfDirect) = true
+    EMRH.partition_periods(l::ProfDirect) = l.part_dur
+
+    function EMB.create_link(m, l::ProfDirect, 𝒯, 𝒫, modeltype::EnergyModel)
+
+        # Declaration of the required subsets
+        𝒯ᵖᵈ = partition_duration(𝒯, EMRH.partition_periods(l))
+
+        # Generic link in which each output corresponds to the input
+        @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
+            m[:link_out][l, t, p] == m[:link_in][l, t, p]
+        )
+
+        # Capacity constraint
+        @constraint(m, [t_pd ∈ 𝒯ᵖᵈ, t ∈ t_pd, p ∈ EMB.link_res(l)],
+            m[:link_out][l, t, p] ≤ m[:link_cap_inst][l, t] * l.part_mult[t_pd]
+        )
+        constraints_capacity_installed(m, l, 𝒯, modeltype)
+    end
+
 
     link = ProfDirect(
         "prof_link",
@@ -453,6 +478,8 @@ end
         sink,
         Linear(),
         profile,
+        part_dur,
+        part_profile,
     )
     ℒ = Link[link]
 
@@ -465,9 +492,16 @@ end
         # Test of a link with operational profile
         # - _find_update_paths(field::AbstractElement, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::PartitionProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         @test issetequal(
             EMRH._find_update_paths(link),
-            [[:from, EMRH.ElementPath()], [:to, EMRH.ElementPath()], [:profile, EMRH.OperPath()]],
+            [
+                [:from, EMRH.ElementPath()],
+                [:to, EMRH.ElementPath()],
+                [:capacity, EMRH.OperPath()],
+                [:part_dur, EMRH.PartitionPath()],
+                [:part_mult, EMRH.PartitionPath()],
+            ],
         )
     end
 
@@ -485,7 +519,9 @@ end
         l = link
         @test lens_dict[l][[:from, EMRH.ElementPath()]](l) == src
         @test lens_dict[l][[:to, EMRH.ElementPath()]](l) == sink
-        @test lens_dict[l][[:profile, EMRH.OperPath()]](l) == profile
+        @test lens_dict[l][[:capacity, EMRH.OperPath()]](l) == profile
+        @test lens_dict[l][[:part_dur, EMRH.PartitionPath()]](l) == part_dur
+        @test lens_dict[l][[:part_mult, EMRH.PartitionPath()]](l) == part_profile
     end
 
     @testset "Reset functionality" begin
@@ -512,6 +548,8 @@ end
         @test isa(𝒮ᵛᵉᶜ[2], Vector{EMRH.LinkSub})
         @test EMRH.get_sub_ele(𝒰, EMB.Link) == 𝒰.elements[2]
         @test EMRH.get_sub_ele(𝒮ᵛᵉᶜ, EMB.Link) == 𝒰.elements[2]
+        @test isa(EMRH.resets(𝒮ᵛᵉᶜ[2][1])[4], EMRH.EmptyReset)
+        @test isa(EMRH.resets(𝒮ᵛᵉᶜ[2][1])[5], EMRH.PartitionReset)
 
         # Test the resets (ElementReset)
         reset_link = EMRH.resets(𝒮ᵛᵉᶜ[2][1])
@@ -550,7 +588,9 @@ end
         # Test the individual resets of the link
         @test ℒʳ[1].from == 𝒩ʳ[1]
         @test ℒʳ[1].to == 𝒩ʳ[2]
-        @test ℒʳ[1].profile.vals == ℒ[1].profile[opers_opt]
+        @test capacity(ℒʳ[1]).vals == capacity(ℒ[1])[opers_opt]
+        @test EMRH.partition_periods(ℒʳ[1]) == EMRH.partition_periods(ℒ[1])
+        @test ℒʳ[1].part_mult.vals == ℒ[1].part_mult.vals[1:2]
     end
 end
 
@@ -558,6 +598,7 @@ end
     # Create the individual resources
     el = ResourceCarrier("el", 0.2)
     co2 = ResourceEmit("co2", 1.0)
+    𝒫 = [el, co2]
 
     # Create the profile
     n_op = 15
@@ -641,6 +682,7 @@ end
     # Create the individual resources
     el = ResourceCarrier("el", 0.2)
     co2 = ResourceEmit("co2", 1.0)
+    𝒫 = [el, co2]
 
     # Create the profile
     n_op = 15

@@ -56,6 +56,7 @@ end
     _reset_field(x_rh, res_type::Union{InitReset, TimeWeightReset}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
     _reset_field(x_rh, res_type::OperReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
     _reset_field(x_rh, res_type::PartitionReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _reset_field(x_rh, res_type::EmptyReset, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
 of the new value is depending on the specified `res_type`:
@@ -66,6 +67,8 @@ of the new value is depending on the specified `res_type`:
    operational profile in `res_type` and the set of operational periods `opers`.
 4. `res_type::PartitionReset` creates a new partition profile based on the original
    partition profile in `res_type` and the set of operational periods `opers`.
+5. `restype::EmptyReset` does not reset any field and is used to avoid problems with
+   partition profile resetting.
 """
 function _reset_field(
     x_rh,
@@ -111,6 +114,14 @@ function _reset_field(
     # Reset the partition profile of the receding horizon problem based on the relevant
     # partitions
     @reset res_type.lens(x_rh) = PartitionProfile(res_type.val[parts])
+    return x_rh
+end
+function _reset_field(
+    x_rh,
+    res_type::EmptyReset,
+    𝒰::UpdateCase,
+    opers::Vector{<:TS.TimePeriod},
+)
     return x_rh
 end
 

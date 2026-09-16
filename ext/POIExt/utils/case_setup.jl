@@ -26,10 +26,10 @@ In addition, the [`UpdateCase`](@ref) `𝒰` is updated with the new mapping bet
 periods of the optimization (through `𝒯ᵣₕ`) and the original (through `opers`) problem.
 """
 function update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
-    _update_parameter_values!(m, get_sub_model(𝒰), opers)
-    _update_parameter_values!(m, get_sub_products(𝒰), opers)
+    _update_parameter_values!(m, 𝒰, get_sub_model(𝒰), opers)
+    _update_parameter_values!(m, 𝒰, get_sub_products(𝒰), opers)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
-        _update_parameter_values!(m, 𝒮, opers)
+        _update_parameter_values!(m, 𝒰, 𝒮, opers)
     end
     𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
     𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
@@ -75,6 +75,7 @@ end
     EMRH._reset_field(m, x_rh, res_type::ElementReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::Union{InitReset,TimeWeightReset}, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::OperReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::PartitionReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 
 Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
 of the new value is depending on the specified `res_type`:
@@ -85,6 +86,10 @@ of the new value is depending on the specified `res_type`:
    and resets the field with it,
 3. `res_type::OperReset` creates multiple MOI parameters and a new operational profile based
    on the original operational profile, and resets the field with it.
+4. `res_type::PartitionReset` creates multiple MOI parameters and a new partition profile
+   based on the original partition profile, and resets the field with it.
+5. `restype::EmptyReset` does not reset any field or introduce variables. It is used to
+  avoid problems with partition profile resetting.
 """
 function EMRH._reset_field(
     m,
@@ -120,10 +125,37 @@ function EMRH._reset_field(
     @reset res_type.lens(x_rh) = OperationalProfile([res_type.var[t] for t ∈ 𝒯ᴿᴴ])
     return x_rh
 end
+function EMRH._reset_field(
+    m,
+    x_rh,
+    res_type::PartitionReset,
+    𝒰::UpdateCase,
+    𝒯ᴿᴴ::TimeStructure,
+)
+    # Identify the partitions of the original problem that are used within the current
+    # receding horizon 𝒯ᴿᴴ
+    𝒯ᵖᵈ = EMRH.partition_periods(res_type, 𝒯ᴿᴴ)
+
+    # Reset the partition profile of the receding horizon problem based on the relevant
+    # partitions
+    val_par = PartitionProfile(MOI.Parameter.(res_type.val[𝒯ᵖᵈ]))
+    res_type.var = @variable(m, [𝒯ᵖᵈ] ∈ val_par[collect(𝒯ᵖᵈ)])
+    @reset res_type.lens(x_rh) = PartitionProfile([res_type.var[t_pd] for t_pd ∈ 𝒯ᵖᵈ])
+    return x_rh
+end
+function EMRH._reset_field(
+    m,
+    x_rh,
+    res_type::EmptyReset,
+    𝒰::UpdateCase,
+    𝒯ᴿᴴ::TimeStructure,
+)
+    return x_rh
+end
 
 """
-    _update_parameter_values!(m, 𝒮::Vector{<:AbstractSub}, opers::Vector{<:TS.TimePeriod})
-    _update_parameter_values!(m, s:::AbstractSub, opers::Vector{<:TS.TimePeriod})
+    _update_parameter_values!(m, 𝒰::UpdateCase, 𝒮::Vector{<:AbstractSub}, opers::Vector{<:TS.TimePeriod})
+    _update_parameter_values!(m, 𝒰::UpdateCase, s::AbstractSub, opers::Vector{<:TS.TimePeriod})
 
 Updates the parameters from `m` with the values within the `Vector{<:AbstractSub}` or
 `AbstractSub` indexed by `opers`.
@@ -133,28 +165,32 @@ new value.
 """
 function _update_parameter_values!(
     m,
+    𝒰::UpdateCase,
     𝒮::EMRH.Vector{<:AbstractSub},
     opers::Vector{<:TS.TimePeriod},
 )
     for s ∈ 𝒮
-        _update_parameter_values!(m, s, opers)
+        _update_parameter_values!(m, 𝒰, s, opers)
     end
 end
 function _update_parameter_values!(
     m,
+    𝒰::UpdateCase,
     s::AbstractSub,
     opers::Vector{<:TS.TimePeriod},
 )
     for res_type ∈ s.resets
-        _update_parameter!(m, res_type, opers)
+        _update_parameter!(m, 𝒰, res_type, opers)
     end
 end
 
 """
-    _update_parameter!(m, res_type::ElementReset, opers::Vector)
-    _update_parameter!(m, res_type::OperReset, opers::Vector)
-    _update_parameter!(m, res_type::InitReset{EMRH.InitDataPath}, opers::Vector)
-    _update_parameter!(m, res_type::TimeWeightReset, opers::Vector)
+    _update_parameter!(m, 𝒰::UpdateCase, res_type::ElementReset, opers::Vector)
+    _update_parameter!(m, 𝒰::UpdateCase, res_type::OperReset, opers::Vector)
+    _update_parameter!(m, 𝒰::UpdateCase, res_type::InitReset{EMRH.InitDataPath}, opers::Vector)
+    _update_parameter!(m, 𝒰::UpdateCase, res_type::TimeWeightReset, opers::Vector)
+    _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset, opers::Vector)
+    _update_parameter!(m, 𝒰::UpdateCase, res_type::EmptyReset, opers::Vector)
 
 Set the parameter value in `m` for a given `res_type`:
 
@@ -164,15 +200,35 @@ Set the parameter value in `m` for a given `res_type`:
 4. `res_type::OperReset` creates a new operational profile based on the original
    operational profile and the set of operational periods in `opers`, updating each
    parameter with it.
+5. `res_type::PartitionReset` creates a new partition profile based on the original
+   partition profile and the set of partition periods, identified through `opers`, updating
+   each parameter with it.
+6. `res_type::EmptyReset` results in no update,
 """
-_update_parameter!(m, res_type::ElementReset, opers::Vector) = nothing
-_update_parameter!(m, res_type::InitReset{EMRH.InitDataPath}, opers::Vector) =
+_update_parameter!(m, 𝒰::UpdateCase, res_type::ElementReset, opers::Vector) = nothing
+_update_parameter!(m, 𝒰::UpdateCase, res_type::InitReset{EMRH.InitDataPath}, opers::Vector) =
     MOI.set(m, POI.ParameterValue(), res_type.var, res_type.val)
-_update_parameter!(m, res_type::TimeWeightReset, opers::Vector) =
+_update_parameter!(m, 𝒰::UpdateCase, res_type::TimeWeightReset, opers::Vector) =
     MOI.set(m, POI.ParameterValue(), res_type.var, res_type.val)
-function _update_parameter!(m, res_type::OperReset, opers::Vector)
+function _update_parameter!(m, 𝒰::UpdateCase, res_type::OperReset, opers::Vector)
     val = res_type.val[opers]
     for (i, var) ∈ enumerate(res_type.var)
         MOI.set(m, POI.ParameterValue(), var, val[i])
     end
 end
+function _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset, opers::Vector)
+    # Extract the required variables from the UpdateCase
+    𝒯 = get_time_struct(𝒰)
+
+    # Identify the partitions of the original problem that are used within the current
+    # receding horizon problem
+    𝒯ᵖᵈ = EMRH.partition_periods(res_type, 𝒯)
+    parts = filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
+
+    # Update the parameters
+    val = res_type.val[parts]
+    for (i, var) ∈ enumerate(res_type.var)
+        MOI.set(m, POI.ParameterValue(), var, val[i])
+    end
+end
+_update_parameter!(m, 𝒰::UpdateCase, res_type::EmptyReset, opers::Vector) = nothing
