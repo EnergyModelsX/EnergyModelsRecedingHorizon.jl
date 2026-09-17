@@ -3,6 +3,7 @@
     co2 = ResourceEmit("co2", 1.0)
     el = ResourceCarrier("el", 0.2)
     𝒫 = [el, co2]
+
     init_data = StorageInitData(10)
     src = RefSource(
         "electricity source",
@@ -55,11 +56,15 @@
         co2,
     )
 
+    # Create all time related parameters
+    dur_op = ones(8)
+    𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+    opers = collect(𝒯)
+    ℋ = PeriodHorizons(dur_op, 4, 2)
+
     # Create the update type
-    𝒰 = EMRH._create_updatetype(modeltype)
-    EMRH._add_elements!(𝒰, 𝒫)
-    EMRH._add_elements!(𝒰, 𝒩)
-    EMRH._add_elements!(𝒰, ℒ)
+    case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
+    𝒰 = EMRH._create_updatetype(case, modeltype)
     𝒮ᵛᵉᶜ = EMRH.get_sub_elements_vec(𝒰)
     𝒮ᵛᵉᶜᵢₙ = [filter(has_init, 𝒮) for 𝒮 ∈ 𝒮ᵛᵉᶜ]
 
@@ -70,10 +75,7 @@
     @test 𝒮ᵛᵉᶜᵢₙ == [[𝒮ⁿ[2]], EMRH.LinkSub[]]
     @test all(!has_init(s_n) for s_n ∈ 𝒮ⁿ[[1, 3]])
 
-    # Create all time related parameters
-    𝒯 = TwoLevel(1, 1, SimpleTimes(8, 1))
-    opers = collect(𝒯)
-    ℋ = PeriodHorizons(ones(8), 4, 2)
+    # Create all time related parameters for the first horizon
     𝒽 = first(ℋ)
     𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
     ind_impl = indices_implementation(𝒽)
