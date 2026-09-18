@@ -147,7 +147,9 @@ end
     mutable struct PartitionReset <: AbstractReset
 
 [`AbstractReset`](@ref) for resetting partition profiles within an element. The inner
-constructor is utilized for automatically creating the lens to the field path.
+constructor is utilized for automatically creating the lens to the field path and to decide
+whether an `EmptyReset` should be returned if it is called for the profile representing the
+`period_duration` of the node..
 
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
@@ -164,7 +166,7 @@ constructor is utilized for automatically creating the lens to the field path.
   framework.
 
 !!! warning "PartitionReset"
-    The `PartitionReset` type requires the user to declare a new method `partition_periods`
+    The `PartitionReset` type requires the user to declare a new method `period_duration`
     for the type `x` which utilizes the concept of partitions. An error is provided if no
     method is declared.
 """
@@ -176,7 +178,7 @@ mutable struct PartitionReset <: AbstractReset
     function PartitionReset(field_path::Vector, x)
         lens = _create_lens_for_field(field_path)
         val = lens(x)
-        pps = partition_periods(x)
+        pps = period_duration(x)
         if val ≠ pps
             new(lens, nothing, val, pps)
         else
@@ -274,22 +276,22 @@ is_init_reset(rt::AbstractReset) = false
 is_init_reset(rt::InitReset) = true
 
 """
-    partition_periods(x)
-    partition_periods(res_type::PartitionReset, 𝒯::TS.TimeStructure)
+    period_duration(x)
+    period_duration(res_type::PartitionReset, 𝒯::TS.TimeStructure)
 
 """
-function partition_periods(x)
+function period_duration(x)
     x_type = typeof(x)
     throw(
         ErrorException(
-            "No method for `partition_periods` is defined for $(x_type).\n" *
+            "No method for `period_duration` is defined for $(x_type).\n" *
             "This error is caused by including a `PartitionProfile` in $(x_type) which " *
             "requires a method for the `EnergyModelsRecedingHorizon` function " *
-            "`partition_periods(x)` to be defined."
+            "`period_duration(x)` to be defined."
         )
     )
 end
-function partition_periods(res_type::PartitionReset, 𝒯::TS.TimeStructure)
+function period_duration(res_type::PartitionReset, 𝒯::TS.TimeStructure)
     return partition_duration(𝒯, res_type.pps)
 end
 

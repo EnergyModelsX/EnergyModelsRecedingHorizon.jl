@@ -108,7 +108,7 @@ function _reset_field(
 
     # Identify the partitions of the original problem that are used within the current
     # receding horizon problem
-    𝒯ᵖᵈ = partition_periods(res_type, 𝒯)
+    𝒯ᵖᵈ = period_duration(res_type, 𝒯)
     parts = filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
 
     # Reset the partition profile of the receding horizon problem based on the relevant

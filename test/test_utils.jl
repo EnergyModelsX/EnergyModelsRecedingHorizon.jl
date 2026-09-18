@@ -313,9 +313,9 @@ end
 
     @testset "Reset functionality" begin
         # Test that the error throwing functionality is working
-        @test_throws ErrorException EMRH.partition_periods(sink)
+        @test_throws ErrorException EMRH.period_duration(sink)
         pps = PartitionProfile(vcat(fill(2,7), [1]))
-        EMRH.partition_periods(n::Sink) = pps
+        EMRH.period_duration(n::Sink) = pps
 
         # Create an operational modeltype and the time structure
         modeltype = RecHorOperationalModel(
@@ -360,7 +360,7 @@ end
         @test reset_snk.val == deficit_penalty(sink)
         @test isnothing(reset_snk.var)
         @test all(
-            [reset_snk.pps.vals[k] == EMRH.partition_periods(sink).vals[k] for k ∈ 1:n_part]
+            [reset_snk.pps.vals[k] == EMRH.period_duration(sink).vals[k] for k ∈ 1:n_part]
         )
 
         # Test the storages resets (InitReset)
@@ -452,12 +452,12 @@ end
     EMB.capacity(l::ProfDirect) = l.capacity
     EMB.capacity(l::ProfDirect, t) = l.capacity[t]
     EMB.has_capacity(l::ProfDirect) = true
-    EMRH.partition_periods(l::ProfDirect) = l.part_dur
+    EMRH.period_duration(l::ProfDirect) = l.part_dur
 
     function EMB.create_link(m, l::ProfDirect, 𝒯, 𝒫, modeltype::EnergyModel)
 
         # Declaration of the required subsets
-        𝒯ᵖᵈ = partition_duration(𝒯, EMRH.partition_periods(l))
+        𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(l))
 
         # Generic link in which each output corresponds to the input
         @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
@@ -589,7 +589,7 @@ end
         @test ℒʳ[1].from == 𝒩ʳ[1]
         @test ℒʳ[1].to == 𝒩ʳ[2]
         @test capacity(ℒʳ[1]).vals == capacity(ℒ[1])[opers_opt]
-        @test EMRH.partition_periods(ℒʳ[1]) == EMRH.partition_periods(ℒ[1])
+        @test EMRH.period_duration(ℒʳ[1]) == EMRH.period_duration(ℒ[1])
         @test ℒʳ[1].part_mult.vals == ℒ[1].part_mult.vals[1:2]
     end
 end

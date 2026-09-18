@@ -12,12 +12,12 @@ end
 EMB.capacity(l::CapDirect) = l.capacity
 EMB.capacity(l::CapDirect, t) = l.capacity[t]
 EMB.has_capacity(l::CapDirect) = true
-EMRH.partition_periods(l::CapDirect) = l.part_dur
+EMRH.period_duration(l::CapDirect) = l.part_dur
 
 function EMB.create_link(m, l::CapDirect, 𝒯, 𝒫, modeltype::EnergyModel)
 
     # Declaration of the required subsets
-    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.partition_periods(l))
+    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(l))
 
     # Generic link in which each output corresponds to the input
     @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],

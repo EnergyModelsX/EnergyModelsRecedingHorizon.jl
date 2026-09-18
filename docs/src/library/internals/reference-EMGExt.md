@@ -69,5 +69,5 @@ EMG.get_transmissions
 ## [ParametricOptInterface](@id lib-int-EMGExt-POI)
 
 ```@docs
-POIExt._update_parameter!(m, res_type::EMRH.InitReset{EMGExt.TransInitDataPath}, opers::Vector)
+POIExt._update_parameter!(m, 𝒰::EMRH.UpdateCase, res_type::EMRH.InitReset{EMGExt.TransInitDataPath}, opers::Vector)
 ```

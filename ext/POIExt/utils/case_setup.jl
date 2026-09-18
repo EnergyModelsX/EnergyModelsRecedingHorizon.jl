@@ -134,7 +134,7 @@ function EMRH._reset_field(
 )
     # Identify the partitions of the original problem that are used within the current
     # receding horizon 𝒯ᴿᴴ
-    𝒯ᵖᵈ = EMRH.partition_periods(res_type, 𝒯ᴿᴴ)
+    𝒯ᵖᵈ = EMRH.period_duration(res_type, 𝒯ᴿᴴ)
 
     # Reset the partition profile of the receding horizon problem based on the relevant
     # partitions
@@ -222,7 +222,7 @@ function _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset, opers
 
     # Identify the partitions of the original problem that are used within the current
     # receding horizon problem
-    𝒯ᵖᵈ = EMRH.partition_periods(res_type, 𝒯)
+    𝒯ᵖᵈ = EMRH.period_duration(res_type, 𝒯)
     parts = filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
 
     # Update the parameters

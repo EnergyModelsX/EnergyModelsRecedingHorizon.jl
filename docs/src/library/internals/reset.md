@@ -43,6 +43,7 @@ They are used internally for dispatch.
 
 ```@docs
 EMRH.AbstractReset
+EMRH.EmptyReset
 EMRH.OperReset
 EMRH.PartitionReset
 EMRH.ElementReset
@@ -60,31 +61,8 @@ EMRH.is_init_reset
 The following function is included to identify the individual partitions when creating a `PartitionReset`.
 
 ```@docs
-EMRH.partition_periods
+EMRH.period_duration
 ```
-
-!!! warning "Reset of partition periods"
-    The introduction of `PartitionProfile`s requires the user to create a new method for the function `partition_periods`.
-    This function should extract the `PartitionProfile` in which the durations of the individual partitions are specified.
-    It is **not** possible to specify a `FixedProfile` due to the way the horizons are calculated.
-
-    Using partitions is experimental.
-    You must be careful that the structure of the chosen partitions are in line with the horizon as outlined below:
-
-    ```julia
-    # Time structure and chosen horizon
-    𝒯 = TwoLevel(1, 1, SimpleTimes(15, 1))
-    ℋ = PeriodHorizons(15, 1, 4, 2)
-
-    # Consistent profile (the last partition can only be of duration 1)
-    pprof = PartitionProfile([2, 2, 2, 2, 2, 2, 2, 1])
-
-    # Inconsistent profile
-    pprof = PartitionProfile([3, 3, 3, 3, 3])
-    ```
-
-    The profile is inconsistent for the receding horizon framework as the individual partitions are not fully included in both the implementation and optimization horizon.
-    It would be however consistent for a standard perfect foresight model.
 
 ## [Substitution types](@id lib-int-reset-sub)
 
