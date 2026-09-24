@@ -149,7 +149,7 @@ end
 [`AbstractReset`](@ref) for resetting partition profiles within an element. The inner
 constructor is utilized for automatically creating the lens to the field path and to decide
 whether an `EmptyReset` should be returned if it is called for the profile representing the
-`period_duration` of the node..
+`period_duration` of the node.
 
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function

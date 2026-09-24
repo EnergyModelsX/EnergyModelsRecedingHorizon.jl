@@ -47,20 +47,6 @@ EMRH.period_duration(n::EMF.AbstractPeriodDemandSink) = EMF.period_duration(n)
     It is **not** possible to specify a `FixedProfile` for the duration of the partition periods due to the way the horizons are calculated.
 
     Using partitions is experimental.
-    You must be careful that the structure of the chosen partitions are in line with both the optimization and implementation horizon as outlined below:
+    You must be careful that the structure of the chosen partitions are in line with both the optimization and implementation horizon such that partitions are not split in the receding horizon optimization problems. See the examples below:
 
-    ```julia
-    # Time structure and chosen horizon
-    𝒯 = TwoLevel(1, 1, SimpleTimes(15, 1))
-    ℋ = PeriodHorizons(15, 1, 8, 4)
-
-    # Consistent profile (the last partition can only be of duration 1)
-    pprof_1 = PartitionProfile([2, 2, 2, 2, 2, 2, 2, 1])
-    pprof_2 = PartitionProfile([4, 4, 4, 3])
-
-    # Inconsistent profile
-    pprof = PartitionProfile([3, 3, 3, 3, 3])
-    ```
-
-    The profile is inconsistent for the receding horizon framework as the individual partitions are not fully included in both the implementation and optimization horizon.
-    It would be however consistent for a standard perfect foresight model.
+    
