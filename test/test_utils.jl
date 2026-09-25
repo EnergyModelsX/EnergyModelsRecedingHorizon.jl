@@ -51,11 +51,7 @@
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
     hor_test = first(ℋ)
 
-    𝒰 = EMRH._create_updatetype(modeltype)
-    EMRH._add_elements!(𝒰, 𝒫)
-    for 𝒳 ∈ get_elements_vec(case)
-        EMRH._add_elements!(𝒰, 𝒳)
-    end
+    𝒰 = EMRH._create_updatetype(case, modeltype)
     𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(hor_test)))
     opers_opt = collect(𝒯)[indices_optimization(hor_test)]
     EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
@@ -125,18 +121,20 @@ end
     el = ResourceCarrier("el", 0.2)
     heat = ResourceCarrier("heat", 0.0)
     co2 = ResourceEmit("co2", 1.0)
-    resources = [el, heat, co2]
+    𝒫 = [el, heat, co2]
 
     # Create the profiles
     n_op = 15
+    n_part = 8
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
+    part_profile = PartitionProfile(rand(n_part))
     em_data = [EmissionsProcess(Dict(co2 => profile))]
 
     struct TestInitData <: AbstractInitData end
 
     # Create the individual nodes
-    av = GenAvailability("Availability", resources)
+    av = GenAvailability("Availability", 𝒫)
     source_initdata = RefSource(
         "source",
         FixedProfile(1e12),
@@ -181,8 +179,8 @@ end
         "demand",
         profile,
         Dict(
-            :surplus => FixedProfile(0),
-            :deficit => profile,
+            :surplus => profile,
+            :deficit => part_profile,
         ),
         Dict(heat => 1)
     )
@@ -255,11 +253,16 @@ end
 
         # Test of a node with operational profile and symbol dictionary
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::PartitionProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _dict_key(key::Symbol)
         @test issetequal(
             EMRH._find_update_paths(sink),
-            [[:cap, EMRH.OperPath()], [:penalty, "[:deficit]", EMRH.OperPath()]],
+            [
+                [:cap, EMRH.OperPath()],
+                [:penalty, "[:surplus]", EMRH.OperPath()],
+                [:penalty, "[:deficit]", EMRH.PartitionPath()]
+            ],
         )
 
         # Test of the new node with string dictionary
@@ -298,12 +301,22 @@ end
         for n ∈ 𝒩)
         @test all(
             all(
+                lens(n) == part_profile
+            for (field, lens) ∈ lens_dict[n] if isa(typeof(field[end]), EMRH.PartitionPath))
+        for n ∈ 𝒩)
+        @test all(
+            all(
                 lens(n) == 0.5
             for (field, lens) ∈ lens_dict[n] if isa(typeof(field[end]), EMRH.InitDataPath))
         for n ∈ 𝒩)
     end
 
     @testset "Reset functionality" begin
+        # Test that the error throwing functionality is working
+        @test_throws ErrorException EMRH.period_duration(sink)
+        pps = PartitionProfile(vcat(fill(2,7), [1]))
+        EMRH.period_duration(n::Sink) = pps
+
         # Create an operational modeltype and the time structure
         modeltype = RecHorOperationalModel(
             Dict(co2 => FixedProfile(100)),
@@ -311,20 +324,16 @@ end
             co2,
         )
 
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
-        𝒽 = first(ℋ)
-        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
-        opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+        𝒯ᵖᵈ = partition_duration(𝒯, pps)
+
+        # Create the update type
+        ℒ = Link[]
+        case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
 
         # Test that the individual reset functions are working for all types
         # All functions are located within the file src/structures/reset.jl
@@ -343,6 +352,17 @@ end
         @test reset_src.val == opex_var(source_oper)
         @test isnothing(reset_src.var)
 
+        # Test the sink resets (PartitionReset)
+        reset_snk = EMRH.resets(𝒮ᵛᵉᶜ[1][5])[2]
+        @test isa(reset_snk, EMRH.PartitionReset)
+        @test !EMRH.is_init_reset(reset_snk)
+        @test reset_snk.lens(sink) == deficit_penalty(sink)
+        @test reset_snk.val == deficit_penalty(sink)
+        @test isnothing(reset_snk.var)
+        @test all(
+            [reset_snk.pps.vals[k] == EMRH.period_duration(sink).vals[k] for k ∈ 1:n_part]
+        )
+
         # Test the storages resets (InitReset)
         reset_storage = EMRH.resets(𝒮ᵛᵉᶜ[1][4])[3]
         @test isa(reset_storage, EMRH.InitReset{EMRH.InitDataPath})
@@ -351,6 +371,15 @@ end
         @test reset_storage.val == data_init(storage).init_val_dict[:stor_level]
         @test isnothing(reset_storage.var)
         @test reset_storage.path == EMRH.InitDataPath(:stor_level)
+
+        # Create all time related parameters for the first horizon
+        𝒽 = first(ℋ)
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+        parts_opt = filter(t_pd -> isempty(setdiff(t_pd, opers_opt)), 𝒯ᵖᵈ)
 
         # Test that the reset functionality is working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
@@ -372,7 +401,8 @@ end
         # Test the individual resets
         @test all(opex_var(𝒩ʳ[k]).vals == opex_var(𝒩[k])[opers_opt] for k ∈ [2,3])
         @test data_init(𝒩ʳ[4]).init_val_dict[:stor_level] == 5.0
-        @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[opers_opt]
+        @test surplus_penalty(𝒩ʳ[5]).vals == surplus_penalty(𝒩[5])[opers_opt]
+        @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[parts_opt]
     end
 end
 
@@ -381,11 +411,15 @@ end
     # Create the individual resources
     co2 = ResourceEmit("co2", 1.0)
     el = ResourceCarrier("el", 0.2)
+    𝒫 = [co2, el]
 
-    # Create the profile
+    # Create the profiles
     n_op = 15
+    n_part = 8
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
+    part_profile = PartitionProfile(rand(n_part))
+    part_dur = PartitionProfile(vcat(fill(2,7), [1]))
 
     # Create the individual nodes
     src = RefSource(
@@ -409,8 +443,34 @@ end
         from::EMB.Node
         to::EMB.Node
         formulation::EMB.Formulation
-        profile::TimeProfile
+        capacity::TimeProfile
+        part_dur::PartitionProfile
+        part_mult::PartitionProfile
     end
+
+    # Add methods to required functions
+    EMB.capacity(l::ProfDirect) = l.capacity
+    EMB.capacity(l::ProfDirect, t) = l.capacity[t]
+    EMB.has_capacity(l::ProfDirect) = true
+    EMRH.period_duration(l::ProfDirect) = l.part_dur
+
+    function EMB.create_link(m, l::ProfDirect, 𝒯, 𝒫, modeltype::EnergyModel)
+
+        # Declaration of the required subsets
+        𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(l))
+
+        # Generic link in which each output corresponds to the input
+        @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
+            m[:link_out][l, t, p] == m[:link_in][l, t, p]
+        )
+
+        # Capacity constraint
+        @constraint(m, [t_pd ∈ 𝒯ᵖᵈ, t ∈ t_pd, p ∈ EMB.link_res(l)],
+            m[:link_out][l, t, p] ≤ m[:link_cap_inst][l, t] * l.part_mult[t_pd]
+        )
+        constraints_capacity_installed(m, l, 𝒯, modeltype)
+    end
+
 
     link = ProfDirect(
         "prof_link",
@@ -418,6 +478,8 @@ end
         sink,
         Linear(),
         profile,
+        part_dur,
+        part_profile,
     )
     ℒ = Link[link]
 
@@ -430,9 +492,16 @@ end
         # Test of a link with operational profile
         # - _find_update_paths(field::AbstractElement, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::PartitionProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         @test issetequal(
             EMRH._find_update_paths(link),
-            [[:from, EMRH.ElementPath()], [:to, EMRH.ElementPath()], [:profile, EMRH.OperPath()]],
+            [
+                [:from, EMRH.ElementPath()],
+                [:to, EMRH.ElementPath()],
+                [:capacity, EMRH.OperPath()],
+                [:part_dur, EMRH.PartitionPath()],
+                [:part_mult, EMRH.PartitionPath()],
+            ],
         )
     end
 
@@ -450,7 +519,9 @@ end
         l = link
         @test lens_dict[l][[:from, EMRH.ElementPath()]](l) == src
         @test lens_dict[l][[:to, EMRH.ElementPath()]](l) == sink
-        @test lens_dict[l][[:profile, EMRH.OperPath()]](l) == profile
+        @test lens_dict[l][[:capacity, EMRH.OperPath()]](l) == profile
+        @test lens_dict[l][[:part_dur, EMRH.PartitionPath()]](l) == part_dur
+        @test lens_dict[l][[:part_mult, EMRH.PartitionPath()]](l) == part_profile
     end
 
     @testset "Reset functionality" begin
@@ -461,21 +532,14 @@ end
             co2,
         )
 
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-        EMRH._add_elements!(𝒰, ℒ)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
-        𝒽 = first(ℋ)
-        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
-        opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+
+        # Create the update type
+        case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
 
         # Test that the individual reset functions are working for all types
         # All functions are located within the file src/structures/reset.jl
@@ -484,6 +548,8 @@ end
         @test isa(𝒮ᵛᵉᶜ[2], Vector{EMRH.LinkSub})
         @test EMRH.get_sub_ele(𝒰, EMB.Link) == 𝒰.elements[2]
         @test EMRH.get_sub_ele(𝒮ᵛᵉᶜ, EMB.Link) == 𝒰.elements[2]
+        @test isa(EMRH.resets(𝒮ᵛᵉᶜ[2][1])[4], EMRH.PartitionReset)
+        @test isa(EMRH.resets(𝒮ᵛᵉᶜ[2][1])[5], EMRH.PartitionReset)
 
         # Test the resets (ElementReset)
         reset_link = EMRH.resets(𝒮ᵛᵉᶜ[2][1])
@@ -493,28 +559,78 @@ end
         @test reset_link[2].lens(link) == sink
         @test reset_link[2].val == sink
 
-        # Test that the reset functionality is working
-        # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
-        # - _update_case_types!
-        # - reset_field
-        EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+        # Create all time related parameters for the first and second last horizon
+        # The latter is required as `partition_duration` should return a different value
+        part_vec = [[1, 2], [n_part-1, n_part]]
+        for (k, 𝒽) ∈ enumerate(collect(ℋ)[[1, end-1]])
+            𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+            ind_impl = indices_implementation(𝒽)
+            opers_opt = opers[indices_optimization(𝒽)]
+            opers_impl = opers[ind_impl]
+            opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
-        # Extract the resetted nodes and links
-        𝒩ʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[1]]
-        ℒʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[2]]
-        @test get_elements_vec(𝒰) == Vector[𝒩ʳ, ℒʳ]
-        @test get_links(𝒰) == ℒʳ
-        @test 𝒩ʳ ≠ 𝒩
-        @test ℒʳ ≠ ℒ
+            # Test that the reset functionality is working
+            # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+            # - _update_case_types!
+            # - reset_field
+            EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
 
-        # Test that the nodes are reset
-        @test opex_var(𝒩ʳ[1]).vals == opex_var(𝒩[1])[opers_opt]
-        @test capacity(𝒩ʳ[2]).vals == capacity(𝒩[2])[opers_opt]
+            # Extract the resetted nodes and links
+            𝒩ʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[1]]
+            ℒʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[2]]
+            @test get_elements_vec(𝒰) == Vector[𝒩ʳ, ℒʳ]
+            @test get_links(𝒰) == ℒʳ
+            @test 𝒩ʳ ≠ 𝒩
+            @test ℒʳ ≠ ℒ
 
-        # Test the individual resets of the link
-        @test ℒʳ[1].from == 𝒩ʳ[1]
-        @test ℒʳ[1].to == 𝒩ʳ[2]
-        @test ℒʳ[1].profile.vals == ℒ[1].profile[opers_opt]
+            # Test that the nodes are reset
+            @test opex_var(𝒩ʳ[1]).vals == opex_var(𝒩[1])[opers_opt]
+            @test capacity(𝒩ʳ[2]).vals == capacity(𝒩[2])[opers_opt]
+
+            # Test the individual resets of the link
+            @test ℒʳ[1].from == 𝒩ʳ[1]
+            @test ℒʳ[1].to == 𝒩ʳ[2]
+            @test capacity(ℒʳ[1]).vals == capacity(ℒ[1])[opers_opt]
+            @test EMRH.period_duration(ℒʳ[1]).vals == EMRH.period_duration(ℒ[1]).vals[part_vec[k]]
+            @test ℒʳ[1].part_mult.vals == ℒ[1].part_mult.vals[part_vec[k]]
+        end
+    end
+
+    @testset "Check of period partitions" begin
+        # Set the global to true to suppress the error message
+        EMB.TEST_ENV = true
+
+            # Create a node that has an inconsistent partition duration
+        ℒ = [
+            ProfDirect(
+                "prof_link",
+                src,
+                sink,
+                Linear(),
+                profile,
+                PartitionProfile(fill(3, 5)),
+                part_profile,
+            )
+        ]
+
+        # Create an operational modeltype and the time structure
+        modeltype = RecHorOperationalModel(
+            Dict(co2 => FixedProfile(100)),
+            Dict(co2 => FixedProfile(60)),
+            co2,
+        )
+
+        # Create all time related parameters
+        𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+        opers = collect(𝒯)
+        ℋ = PeriodHorizons(dur_op, 4, 2)
+
+        # Create the case
+        case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
+        @test_throws AssertionError run_model_rh(case, modeltype, HiGHS.Optimizer())
+
+        # Set the global to true to suppress the error message
+        EMB.TEST_ENV = true
     end
 end
 
@@ -522,6 +638,7 @@ end
     # Create the individual resources
     el = ResourceCarrier("el", 0.2)
     co2 = ResourceEmit("co2", 1.0)
+    𝒫 = [el, co2]
 
     # Create the profile
     n_op = 15
@@ -567,24 +684,26 @@ end
     end
 
     @testset "Reset functionality" begin
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
+
+        # Create the update type
+        𝒰 = EMRH._create_updatetype(𝒯, modeltype)
+
+        # Test that the individual reset functions are working for all types
+        # All functions are located within the file src/structures/reset.jl
+        sᵐ = EMRH.get_sub_model(𝒰)
+        @test isa(EMRH.resets(sᵐ)[1], EMRH.OperReset)
+
+        # Create all time related parameters for the first horizon
         𝒽 = first(ℋ)
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
         ind_impl = indices_implementation(𝒽)
         opers_opt = opers[indices_optimization(𝒽)]
         opers_impl = opers[ind_impl]
         opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
-
-        # Test that the individual reset functions are working for all types
-        # All functions are located within the file src/structures/reset.jl
-        sᵐ = EMRH.get_sub_model(𝒰)
-        @test isa(EMRH.resets(sᵐ)[1], EMRH.OperReset)
 
         # Test that the reset functionality is working
         # - _update_case_types!
@@ -603,6 +722,7 @@ end
     # Create the individual resources
     el = ResourceCarrier("el", 0.2)
     co2 = ResourceEmit("co2", 1.0)
+    𝒫 = [el, co2]
 
     # Create the profile
     n_op = 15
@@ -689,15 +809,16 @@ end
             co2,
         )
 
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-        EMRH._add_elements!(𝒰, 𝒱)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
+
+        # Create the update type
+        case = Case(𝒯, 𝒫, [𝒩, 𝒱], [[get_nodes, get_future_value]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
+
+        # Create all time related parameters
         𝒽 = first(ℋ)
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
         ind_impl = indices_implementation(𝒽)

@@ -8,12 +8,13 @@ Pages = ["reset.md"]
 
 ## [Paths](@id lib-int-reset-path)
 
-Path are internal types that are used for the identification of a reset.
+Paths are internal types that are used for the identification of a reset.
 They are used internally for dispatch.
 
 ```@docs
 EMRH.AbstractPath
 EMRH.OperPath
+EMRH.PartitionPath
 EMRH.ElementPath
 EMRH.TimeWeightPath
 EMRH.AbstractInitDataPath
@@ -35,10 +36,17 @@ EMRH.model_key(idp::EMRH.InitDataPath)
 Reset types are introduced to differentiate on what must be reset in a given element.
 They are used internally for dispatch.
 
+!!! note "Resetting new values"
+    If you **must** reset a different type of value than outlined below, you must also create a new type.
+
+    In this case, you **must** also create a new method for [`ResetType`](@ref EMRH.ResetType) as this function is used internally.
+
 ```@docs
 EMRH.AbstractReset
-EMRH.ElementReset
+EMRH.EmptyReset
 EMRH.OperReset
+EMRH.PartitionReset
+EMRH.ElementReset
 EMRH.TimeWeightReset
 EMRH.InitReset
 EMRH.ResetType
@@ -50,11 +58,19 @@ The following function is included for identification purposes:
 EMRH.is_init_reset
 ```
 
-!!! note "Resetting new values"
-    If you **must** reset a different type of value than outlined below, you must also create a new type.
-    If you create a new `AbstractPath`, it is not neccesary to create a new type.
+The following function is included to identify the individual partitions when creating a `PartitionReset`.
 
-    In this case, you **must** also create a new method for [`ResetType`](@ref EMRH.ResetType) as this function is used internally.
+```@docs
+EMRH.period_duration
+```
+
+The following types were included to create a parametric type for `PartitionReset` to describe the behavior of the `AbstractReset`:
+
+```@docs
+EMRH.AbstractResetBehavior
+EMRH.StandResBehav
+EMRH.NoResBehav
+```
 
 ## [Substitution types](@id lib-int-reset-sub)
 

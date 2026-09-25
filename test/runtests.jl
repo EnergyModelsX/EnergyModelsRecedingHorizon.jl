@@ -29,13 +29,11 @@ logger_org = global_logger()
 logger_new = ConsoleLogger(Error)
 global_logger(logger_new)
 
+ENV["EMB_TEST"] = true # Set flag for example scripts to check if they are run as part of the testsx
+
 @testset "RecedingHorizon" begin
     @testset "RecedingHorizon | General" begin
         include("test_general.jl")
-    end
-
-    @testset "RecedingHorizon | Examples" begin
-        include("test_examples.jl")
     end
 
     @testset "RecedingHorizon | FutureValue" begin
@@ -61,6 +59,11 @@ global_logger(logger_new)
     @testset "RecedingHorizon | Geography" begin
         include("test_emg.jl")
     end
+
+    @testset "RecedingHorizon | Examples" begin
+        include("test_examples.jl")
+    end
 end
+
 # Reset the loglevel
 global_logger(logger_org)

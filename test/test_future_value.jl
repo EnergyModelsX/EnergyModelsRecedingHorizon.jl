@@ -24,6 +24,7 @@ end
     @testset "Access functions" begin
         # Create the StorageValueCut type
         Power = ResourceCarrier("Power", 0.0)
+        𝒫 = [Power]
         storage = RefStorage{RecedingAccumulating}(
             "storage",  # Node ID
             StorCap(FixedProfile(10)), # Charge
@@ -53,6 +54,7 @@ end
         # Create the StorageValueCuts type
         Power = ResourceCarrier("Power", 0.0)
         CO2 = ResourceEmit("CO2", 1.0)
+        𝒫 = [Power, CO2]
         stor_a = RefStorage{RecedingAccumulating}(
             "stor_a",
             StorCap(FixedProfile(10)),
@@ -87,13 +89,13 @@ end
                 ]
             )
         for (j, k) ∈ enumerate(time_profile)]
-        return 𝒱, 𝒩, modeltype
+        return 𝒫, 𝒱, 𝒩, modeltype
     end
 
     @testset "Resetting of values" begin
         # Create the cuts
         time_vec = [0, 10, 10, 40, 70]
-        𝒱, 𝒩, modeltype = stor_val_cuts(time_vec)
+        𝒫, 𝒱, 𝒩, modeltype = stor_val_cuts(time_vec)
 
         # Test that the path is correctly created
         # - _find_update_paths(x::StorageValueCuts)
@@ -108,10 +110,13 @@ end
             ],
         ) for v ∈ 𝒱)
 
-        # Create the Update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-        EMRH._add_elements!(𝒰, 𝒱)
+        # Create all time related parameters
+        𝒯 = TwoLevel(1, 12, SimpleTimes(12, 1))
+        opers = collect(𝒯)
+
+        # Create the update type
+        case = Case(𝒯, 𝒫, [𝒩, 𝒱], [[get_nodes, get_future_value]])
+        𝒰 = EMRH._create_updatetype(case, modeltype)
         𝒮ⁿ = EMRH.get_sub_elements_vec(𝒰)[1]
         𝒮ᵛ = EMRH.get_sub_elements_vec(𝒰)[2]
 
@@ -141,7 +146,6 @@ end
 
         # Test that the `StorageValueCut`s are correctly reset
         # - _update_case_types!(𝒮ᵛ::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
-        opers = collect(TwoLevel(1, 12, SimpleTimes(12,1)))
         EMRH._update_case_types!(𝒮ⁿ, 𝒰, opers)
         EMRH._update_case_types!(𝒮ᵛ, 𝒰, opers)
         𝒱ᵣₕ = EMRH.get_future_value(𝒰)
@@ -161,19 +165,22 @@ end
     @testset "Resetting of values - POI" begin
         # Create the cuts
         time_vec = [0, 10, 10, 40, 70]
-        𝒱, 𝒩, modeltype = stor_val_cuts(time_vec)
+        𝒫, 𝒱, 𝒩, modeltype = stor_val_cuts(time_vec)
 
-        # Create the Update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-        EMRH._add_elements!(𝒰, 𝒱)
+        # Create all time related parameters
+        𝒯 = TwoLevel(1, 12, SimpleTimes(12,1))
+        opers = collect(𝒯)
+
+        # Create the update type
+        case = Case(𝒯, 𝒫, [𝒩, 𝒱], [[get_nodes, get_future_value]])
+        𝒰 = EMRH._create_updatetype(case, modeltype)
         𝒮ⁿ = EMRH.get_sub_elements_vec(𝒰)[1]
         𝒮ᵛ = EMRH.get_sub_elements_vec(𝒰)[2]
         𝒮ᵛ = convert(Vector{EMRH.FutureValueSub{EMRH.StorageValueCuts}}, 𝒮ᵛ)
 
         # Test that the `StorageValueCut`s are correctly reset
         # - _update_case_types!(m, 𝒮ᵛ::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
-        𝒯ᵣₕ = TwoLevel(1,12, SimpleTimes(12,1))
+        𝒯ᵣₕ = TwoLevel(1,12, SimpleTimes(12, 1))
         m = Model(() -> POI.Optimizer(HiGHS.Optimizer()))
         set_optimizer_attribute(m, MOI.Silent(), true)
         EMRH._update_case_types!(m, EMRH.get_sub_model(𝒰), 𝒰, 𝒯ᵣₕ)
@@ -185,7 +192,7 @@ end
 
         # - _update_parameter!(m, res_type::TimeWeightReset, opers::Vector)
         EMRH.update_future_value!(𝒮ᵛ, 3)
-        POIExt._update_parameter_values!(m, 𝒮ᵛ, collect(𝒯ᵣₕ))
+        POIExt._update_parameter_values!(m, 𝒰, 𝒮ᵛ, collect(𝒯ᵣₕ))
         @test all(iszero(parameter_value(EMRH.time_weight(v))) for v ∈ 𝒱ᵣₕ if v.id ∉ [1,2,3])
         @test parameter_value(EMRH.time_weight(𝒱ᵣₕ[1])) ≈ 0.7
         @test parameter_value(EMRH.time_weight(𝒱ᵣₕ[2])) ≈ 0.3

@@ -1,6 +1,11 @@
 # Release notes
 
-## Version 0.2.3 (2026-07-xx)
+## Version 0.2.3 (2026-09-xx) (Not yet registered)
+
+### Included support for `PartitionProfile`
+
+* Support for `PartitionProfile` required significant structural rework.
+* It requires the user to create a new method to an existing function to extract the durations of the individual partitions.
 
 ### Improved results saving
 

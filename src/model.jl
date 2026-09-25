@@ -65,6 +65,9 @@ function run_model_rh(
     # Initialize loop variables
     𝒮ᵛ⁻ᵛᵉᶜ, 𝒮ᵛᵉᶜᵢₙ, results, vars = _initialize_loop_variables(𝒰)
 
+    # Identify problems with potential `period_duration`s in the time structure
+    _check_period_partitions(𝒰, ℋ, optimizer)
+
     # Iterate through the different horizons and solve the problem
     for 𝒽 ∈ ℋ
         @info "Solving for horizon $(𝒽.id) of $n_𝒽"
