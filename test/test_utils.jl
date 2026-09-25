@@ -559,38 +559,78 @@ end
         @test reset_link[2].lens(link) == sink
         @test reset_link[2].val == sink
 
-        # Create all time related parameters for the first horizon
-        𝒽 = first(ℋ)
-        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
-        opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+        # Create all time related parameters for the first and second last horizon
+        # The latter is required as `partition_duration` should return a different value
+        part_vec = [[1, 2], [n_part-1, n_part]]
+        for (k, 𝒽) ∈ enumerate(collect(ℋ)[[1, end-1]])
+            𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+            ind_impl = indices_implementation(𝒽)
+            opers_opt = opers[indices_optimization(𝒽)]
+            opers_impl = opers[ind_impl]
+            opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
-        # Test that the reset functionality is working
-        # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
-        # - _update_case_types!
-        # - reset_field
-        EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+            # Test that the reset functionality is working
+            # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+            # - _update_case_types!
+            # - reset_field
+            EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
 
-        # Extract the resetted nodes and links
-        𝒩ʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[1]]
-        ℒʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[2]]
-        @test get_elements_vec(𝒰) == Vector[𝒩ʳ, ℒʳ]
-        @test get_links(𝒰) == ℒʳ
-        @test 𝒩ʳ ≠ 𝒩
-        @test ℒʳ ≠ ℒ
+            # Extract the resetted nodes and links
+            𝒩ʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[1]]
+            ℒʳ = [s.new for s ∈ 𝒮ᵛᵉᶜ[2]]
+            @test get_elements_vec(𝒰) == Vector[𝒩ʳ, ℒʳ]
+            @test get_links(𝒰) == ℒʳ
+            @test 𝒩ʳ ≠ 𝒩
+            @test ℒʳ ≠ ℒ
 
-        # Test that the nodes are reset
-        @test opex_var(𝒩ʳ[1]).vals == opex_var(𝒩[1])[opers_opt]
-        @test capacity(𝒩ʳ[2]).vals == capacity(𝒩[2])[opers_opt]
+            # Test that the nodes are reset
+            @test opex_var(𝒩ʳ[1]).vals == opex_var(𝒩[1])[opers_opt]
+            @test capacity(𝒩ʳ[2]).vals == capacity(𝒩[2])[opers_opt]
 
-        # Test the individual resets of the link
-        @test ℒʳ[1].from == 𝒩ʳ[1]
-        @test ℒʳ[1].to == 𝒩ʳ[2]
-        @test capacity(ℒʳ[1]).vals == capacity(ℒ[1])[opers_opt]
-        @test EMRH.period_duration(ℒʳ[1]).vals == EMRH.period_duration(ℒ[1]).vals[1:2]
-        @test ℒʳ[1].part_mult.vals == ℒ[1].part_mult.vals[1:2]
+            # Test the individual resets of the link
+            @test ℒʳ[1].from == 𝒩ʳ[1]
+            @test ℒʳ[1].to == 𝒩ʳ[2]
+            @test capacity(ℒʳ[1]).vals == capacity(ℒ[1])[opers_opt]
+            @test EMRH.period_duration(ℒʳ[1]).vals == EMRH.period_duration(ℒ[1]).vals[part_vec[k]]
+            @test ℒʳ[1].part_mult.vals == ℒ[1].part_mult.vals[part_vec[k]]
+        end
+    end
+
+    @testset "Check of period partitions" begin
+        # Set the global to true to suppress the error message
+        EMB.TEST_ENV = true
+
+            # Create a node that has an inconsistent partition duration
+        ℒ = [
+            ProfDirect(
+                "prof_link",
+                src,
+                sink,
+                Linear(),
+                profile,
+                PartitionProfile(fill(3, 5)),
+                part_profile,
+            )
+        ]
+
+        # Create an operational modeltype and the time structure
+        modeltype = RecHorOperationalModel(
+            Dict(co2 => FixedProfile(100)),
+            Dict(co2 => FixedProfile(60)),
+            co2,
+        )
+
+        # Create all time related parameters
+        𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+        opers = collect(𝒯)
+        ℋ = PeriodHorizons(dur_op, 4, 2)
+
+        # Create the case
+        case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
+        @test_throws AssertionError run_model_rh(case, modeltype, HiGHS.Optimizer())
+
+        # Set the global to true to suppress the error message
+        EMB.TEST_ENV = true
     end
 end
 

@@ -34,7 +34,6 @@ end
 # Introduction of different profiles
 price_profile = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
 cap_profile = [20, 30, 40, 30, 10, 50, 35, 20]
-part_profile = [2, 2, 2, 2]
 mult_profile = [2, 1, 1.5, 1]
 demand_profile = [20, 15, 20, 15, 10, 10, 20, 20]
 em_co2 = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
@@ -44,6 +43,7 @@ function create_poi_case(;
     dur_op = [1, 1, 1, 1, 1, 1, 1, 1],
     init_state = 10,
     HorizonType = PeriodHorizons,
+    part_profile = [2, 2, 2, 2]
 )
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)
@@ -170,6 +170,7 @@ end
 
 @testset "Full model run" begin
     optimizer = POI.Optimizer(HiGHS.Optimizer())
+
     # Test that the wrong horizon type is caught
     case, modeltype = create_poi_case(; HorizonType = DurationHorizons)
     @test_throws AssertionError run_model_rh(case, modeltype, optimizer)
@@ -178,6 +179,14 @@ end
     dur_op = [1, 2, 1, 4, 1, 3, 1, 3]
     case, modeltype = create_poi_case(; dur_op)
     @test_throws AssertionError run_model_rh(case, modeltype, optimizer)
+
+    # Test that a wrong partition profile is caught
+    EMB.TEST_ENV = true
+    optimizer = POI.Optimizer(HiGHS.Optimizer())
+    part_profile = [2, 1, 1, 2, 1, 1]
+    case, modeltype = create_poi_case(; part_profile)
+    @test_throws AssertionError run_model_rh(case, modeltype, optimizer)
+    EMB.TEST_ENV = false
 
     # Run a working model
     case, modeltype = create_poi_case()

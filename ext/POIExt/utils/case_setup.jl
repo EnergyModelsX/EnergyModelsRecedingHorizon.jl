@@ -253,3 +253,11 @@ function _update_parameter!(
 end
 _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset{NoResBehav}, opers::Vector) = nothing
 _update_parameter!(m, 𝒰::UpdateCase, res_type::EmptyReset, opers::Vector) = nothing
+
+function EMRH._check_number_op(n::Vector{Int}, n_ref::Vector{Int}, msg::String, _::POI.Optimizer)
+    if n ≠ n_ref
+        return "  The $(msg) horizon differs from the first horizon.\n"
+    else
+        return ""
+    end
+end

@@ -64,6 +64,14 @@ The following function is included to identify the individual partitions when cr
 EMRH.period_duration
 ```
 
+The following types were included to create a parametric type for `PartitionReset` to describe the behavior of the `AbstractReset`:
+
+```@docs
+EMRH.AbstractResetBehavior
+EMRH.StandResBehav
+EMRH.NoResBehav
+```
+
 ## [Substitution types](@id lib-int-reset-sub)
 
 `Substitution` types correspond to types that store information of the individual original instance, the updated instance, and all required resets of an object:
