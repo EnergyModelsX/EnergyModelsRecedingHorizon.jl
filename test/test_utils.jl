@@ -548,7 +548,7 @@ end
         @test isa(𝒮ᵛᵉᶜ[2], Vector{EMRH.LinkSub})
         @test EMRH.get_sub_ele(𝒰, EMB.Link) == 𝒰.elements[2]
         @test EMRH.get_sub_ele(𝒮ᵛᵉᶜ, EMB.Link) == 𝒰.elements[2]
-        @test isa(EMRH.resets(𝒮ᵛᵉᶜ[2][1])[4], EMRH.EmptyReset)
+        @test isa(EMRH.resets(𝒮ᵛᵉᶜ[2][1])[4], EMRH.PartitionReset)
         @test isa(EMRH.resets(𝒮ᵛᵉᶜ[2][1])[5], EMRH.PartitionReset)
 
         # Test the resets (ElementReset)
@@ -589,7 +589,7 @@ end
         @test ℒʳ[1].from == 𝒩ʳ[1]
         @test ℒʳ[1].to == 𝒩ʳ[2]
         @test capacity(ℒʳ[1]).vals == capacity(ℒ[1])[opers_opt]
-        @test EMRH.period_duration(ℒʳ[1]) == EMRH.period_duration(ℒ[1])
+        @test EMRH.period_duration(ℒʳ[1]).vals == EMRH.period_duration(ℒ[1]).vals[1:2]
         @test ℒʳ[1].part_mult.vals == ℒ[1].part_mult.vals[1:2]
     end
 end

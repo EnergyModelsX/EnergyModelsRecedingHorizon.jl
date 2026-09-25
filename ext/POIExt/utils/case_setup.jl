@@ -75,7 +75,9 @@ end
     EMRH._reset_field(m, x_rh, res_type::ElementReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::Union{InitReset,TimeWeightReset}, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
     EMRH._reset_field(m, x_rh, res_type::OperReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
-    EMRH._reset_field(m, x_rh, res_type::PartitionReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::PartitionReset{StandResBehav}, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::PartitionReset{NoResBehav}, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
+    EMRH._reset_field(m, x_rh, res_type::EmptyReset, 𝒰::UpdateCase, 𝒯ᴿᴴ::TimeStructure)
 
 Resets the field expressed through `res_type` of element `x_rh` with the new value. The type
 of the new value is depending on the specified `res_type`:
@@ -86,10 +88,12 @@ of the new value is depending on the specified `res_type`:
    and resets the field with it,
 3. `res_type::OperReset` creates multiple MOI parameters and a new operational profile based
    on the original operational profile, and resets the field with it.
-4. `res_type::PartitionReset` creates multiple MOI parameters and a new partition profile
-   based on the original partition profile, and resets the field with it.
-5. `restype::EmptyReset` does not reset any field or introduce variables. It is used to
-  avoid problems with partition profile resetting.
+4. `res_type::PartitionReset{StandResBehav}` creates multiple MOI parameters and a new
+   partition profile based on the original partition profile, and resets the field with it.
+5. `restype::PartitionReset{NoResBehav}` does not reset any field or introduce variables.
+    It is used to avoid problems with partition profile resetting. It will however check,
+    that the specified `period_duration` is consistent with the time structure.
+6. `restype::EmptyReset` does not reset any field or introduce variables.
 """
 function EMRH._reset_field(
     m,
@@ -128,7 +132,7 @@ end
 function EMRH._reset_field(
     m,
     x_rh,
-    res_type::PartitionReset,
+    res_type::PartitionReset{StandResBehav},
     𝒰::UpdateCase,
     𝒯ᴿᴴ::TimeStructure,
 )
@@ -146,7 +150,16 @@ end
 function EMRH._reset_field(
     m,
     x_rh,
-    res_type::EmptyReset,
+    res_type::PartitionReset{NoResBehav},
+    𝒰::UpdateCase,
+    𝒯ᴿᴴ::TimeStructure,
+)
+    return x_rh
+end
+function EMRH._reset_field(
+    m,
+    x_rh,
+    res_type::Union{EmptyReset, PartitionReset{NoResBehav}},
     𝒰::UpdateCase,
     𝒯ᴿᴴ::TimeStructure,
 )
@@ -189,7 +202,8 @@ end
     _update_parameter!(m, 𝒰::UpdateCase, res_type::OperReset, opers::Vector)
     _update_parameter!(m, 𝒰::UpdateCase, res_type::InitReset{EMRH.InitDataPath}, opers::Vector)
     _update_parameter!(m, 𝒰::UpdateCase, res_type::TimeWeightReset, opers::Vector)
-    _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset, opers::Vector)
+    _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset{StandResBehav}, opers::Vector)
+    _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset{NoResBehav}, opers::Vector)
     _update_parameter!(m, 𝒰::UpdateCase, res_type::EmptyReset, opers::Vector)
 
 Set the parameter value in `m` for a given `res_type`:
@@ -200,10 +214,11 @@ Set the parameter value in `m` for a given `res_type`:
 4. `res_type::OperReset` creates a new operational profile based on the original
    operational profile and the set of operational periods in `opers`, updating each
    parameter with it.
-5. `res_type::PartitionReset` creates a new partition profile based on the original
-   partition profile and the set of partition periods, identified through `opers`, updating
-   each parameter with it.
-6. `res_type::EmptyReset` results in no update,
+5. `res_type::PartitionReset{StandResBehav}` creates a new partition profile based on
+   the original partition profile and the set of partition periods, identified through
+   `opers`, updating each parameter with it.
+6. `res_type::PartitionReset{NoResBehav}` results in no update,
+7. `res_type::EmptyReset` results in no update,
 """
 _update_parameter!(m, 𝒰::UpdateCase, res_type::ElementReset, opers::Vector) = nothing
 _update_parameter!(m, 𝒰::UpdateCase, res_type::InitReset{EMRH.InitDataPath}, opers::Vector) =
@@ -216,7 +231,12 @@ function _update_parameter!(m, 𝒰::UpdateCase, res_type::OperReset, opers::Vec
         MOI.set(m, POI.ParameterValue(), var, val[i])
     end
 end
-function _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset, opers::Vector)
+function _update_parameter!(
+    m,
+    𝒰::UpdateCase,
+    res_type::PartitionReset{StandResBehav},
+    opers::Vector
+)
     # Extract the required variables from the UpdateCase
     𝒯 = get_time_struct(𝒰)
 
@@ -231,4 +251,5 @@ function _update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset, opers
         MOI.set(m, POI.ParameterValue(), var, val[i])
     end
 end
+_update_parameter!(m, 𝒰::UpdateCase, res_type::PartitionReset{NoResBehav}, opers::Vector) = nothing
 _update_parameter!(m, 𝒰::UpdateCase, res_type::EmptyReset, opers::Vector) = nothing

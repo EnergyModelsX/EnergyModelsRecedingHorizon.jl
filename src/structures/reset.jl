@@ -63,6 +63,31 @@ Returns the model key (field `key`) of InitDataPath `idp`.
 model_key(idp::InitDataPath) = idp.key
 
 """
+    abstract type AbstractResetBehavior
+
+Supertype for behaviors of resets, that is how the reset or if the reset should take place.
+The behavior is only utilized for the `ParametricOptInterface` extension as some profiles
+should never be substituted with a variable.
+"""
+abstract type AbstractResetBehavior end
+
+"""
+    struct NormResBehav <: AbstractResetBehavior
+
+`AbstractResetBehavior` in which the reset should operate as standardized, *i.e.*, the
+`AbstractReset` subtype will allow for the standard reset.
+"""
+struct StandResBehav <: AbstractResetBehavior end
+
+"""
+    struct NormResBehav <: AbstractResetBehavior
+
+`AbstractResetBehavior` in which the reset should not occur in the `ParametricOptInterface`
+extension.
+"""
+struct NoResBehav <: AbstractResetBehavior end
+
+"""
     abstract type AbstractReset
 
 Supertype for types resetting values in fields in the individual
@@ -144,12 +169,19 @@ mutable struct OperReset <: AbstractReset
 end
 
 """
-    mutable struct PartitionReset <: AbstractReset
+    mutable struct PartitionReset{AbstractResetBehavior} <: AbstractReset
 
 [`AbstractReset`](@ref) for resetting partition profiles within an element. The inner
-constructor is utilized for automatically creating the lens to the field path and to decide
-whether an `EmptyReset` should be returned if it is called for the profile representing the
-`period_duration` of the node.
+constructor is utilized for
+
+- automatically creating the lens to the field path and
+- to decide whether the reset behaviour is
+  - [`StandResBehav`](@ref) for the standard behavior with reset or
+  - [`NoResBehav`](@ref) if it is called for the profile representing the `period_duration`
+    of the node.
+
+This differentiation only affects the `ParametricOptInterface` extension. The core structure
+will always apply the reset.
 
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
@@ -170,7 +202,7 @@ whether an `EmptyReset` should be returned if it is called for the profile repre
     for the type `x` which utilizes the concept of partitions. An error is provided if no
     method is declared.
 """
-mutable struct PartitionReset <: AbstractReset
+mutable struct PartitionReset{AbstractResetBehavior} <: AbstractReset
     lens::Union{PropertyLens,ComposedFunction}
     var
     val::PartitionProfile
@@ -180,9 +212,9 @@ mutable struct PartitionReset <: AbstractReset
         val = lens(x)
         pps = period_duration(x)
         if val ≠ pps
-            new(lens, nothing, val, pps)
+            new{StandResBehav}(lens, nothing, val, pps)
         else
-            EmptyReset()
+            new{NoResBehav}(lens, nothing, val, pps)
         end
     end
 end
