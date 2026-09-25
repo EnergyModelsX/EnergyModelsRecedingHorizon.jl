@@ -50,7 +50,7 @@ EMRH.period_duration(n::EMF.AbstractPeriodDemandSink) = EMF.period_duration(n)
 
     1. You must be careful that the structure of the chosen partitions are in line with both the optimization and implementation horizon such that partitions are not split in the receding horizon optimization problems.
     2. Partitions must be of the same length in all horizons if you utilize the `ParametricOptInterface` extension.
-       This is checked in the
+       This is checked in the receding horizon validation routines.
 
     See the examples below:
 

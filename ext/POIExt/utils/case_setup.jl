@@ -2,7 +2,7 @@
     _init_update_case!(m, 𝒰, opers, 𝒯ᵣₕ)
 
 Initialize the JuMP model `m` and the [`UpdateCase`](@ref) `𝒰` with the anonymous variables
-corresponding to the inidividual fields of all types whose value(s) change(s).
+corresponding to the individual fields of all types whose value(s) change(s).
 
 In addition, the [`UpdateCase`](@ref) `𝒰` is updated with the mapping between the operational
 periods of the optimization (through `𝒯ᵣₕ`) and the original (through `opers`) problem.
@@ -90,10 +90,10 @@ of the new value is depending on the specified `res_type`:
    on the original operational profile, and resets the field with it.
 4. `res_type::PartitionReset{StandResBehav}` creates multiple MOI parameters and a new
    partition profile based on the original partition profile, and resets the field with it.
-5. `restype::PartitionReset{NoResBehav}` does not reset any field or introduce variables.
+5. `res_type::PartitionReset{NoResBehav}` does not reset any field or introduce variables.
     It is used to avoid problems with partition profile resetting. It will however check,
     that the specified `period_duration` is consistent with the time structure.
-6. `restype::EmptyReset` does not reset any field or introduce variables.
+6. `res_type::EmptyReset` does not reset any field or introduce variables.
 """
 function EMRH._reset_field(
     m,

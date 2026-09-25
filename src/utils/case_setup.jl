@@ -67,7 +67,7 @@ of the new value is depending on the specified `res_type`:
    operational profile in `res_type` and the set of operational periods `opers`.
 4. `res_type::PartitionReset` creates a new partition profile based on the original
    partition profile in `res_type` and the set of operational periods `opers`.
-5. `restype::EmptyReset` does not reset any field and is used to avoid problems with
+5. `res_type::EmptyReset` does not reset any field and is used to avoid problems with
    partition profile resetting.
 """
 function _reset_field(
@@ -354,7 +354,7 @@ end
 """
     _check_horizon(n_ref::Union{Nothing, Vector{Int}}, 𝒯ᵖᵈ, opersᵣₕ, name::String, optimizer)
 
-Function for identifying any potential inconsistenceies between the operational periods of a
+Function for identifying any potential inconsistencies between the operational periods of a
 horizon `opersᵣₕ` and the period partitions `𝒯ᵖᵈ` for a given horizon `name`.
 
 Returns a log, a boolean indicating whether there are inconsistencies and the reference

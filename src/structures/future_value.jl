@@ -167,7 +167,7 @@ element_type(v::TypeFutureValue) = v.element_type
 """
     coefficients(v::TypeFutureValue)
 
-Returns the the cofficients dictionary of of the future value `v`.
+Returns the coefficients dictionary of the future value `v`.
 """
 coefficients(v::TypeFutureValue) = v.val_dict
 

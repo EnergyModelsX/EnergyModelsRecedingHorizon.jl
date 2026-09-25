@@ -72,7 +72,7 @@ should never be substituted with a variable.
 abstract type AbstractResetBehavior end
 
 """
-    struct NormResBehav <: AbstractResetBehavior
+    struct StandResBehav <: AbstractResetBehavior
 
 `AbstractResetBehavior` in which the reset should operate as standardized, *i.e.*, the
 `AbstractReset` subtype will allow for the standard reset.
@@ -80,7 +80,7 @@ abstract type AbstractResetBehavior end
 struct StandResBehav <: AbstractResetBehavior end
 
 """
-    struct NormResBehav <: AbstractResetBehavior
+    struct NoResBehav <: AbstractResetBehavior
 
 `AbstractResetBehavior` in which the reset should not occur in the `ParametricOptInterface`
 extension.
@@ -101,7 +101,7 @@ related to the chosen [`AbstractPath`](@ref) as outlined above.
 
     If you require resetting different fields than the provided, you must include a new
     [`AbstractPath`](@ref) subtype, a new mutable composite type as subtype of `AbstractReset`,
-    and a new method for the the constructor [`ResetType`](@ref).
+    and a new method for the constructor [`ResetType`](@ref).
 """
 abstract type AbstractReset end
 
