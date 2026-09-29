@@ -4,7 +4,7 @@
     H2_lp = ResourceCarrier("H2_lp", 0.0)
     el = ResourceCarrier("Power", 0.0)
     co2 = ResourceEmit("co2", 1.0)
-    resources = [H2_hp, H2_lp, el, co2]
+    𝒫 = [H2_hp, H2_lp, el, co2]
 
     # Create the profiles
     n_op = 15
@@ -13,7 +13,7 @@
     prof_2 = OperationalProfile(rand(n_op))
 
     # Create the Transmission corridors
-    av = GeoAvailability(1, resources)
+    av = GeoAvailability(1, 𝒫)
     𝒩 = EMB.Node[av]
     a_1 = RefArea(2, "RefArea", 1, 1, av)
     a_2 = LimitedExchangeArea(1, "LEArea", 1, 1, av, Dict(H2_hp => prof_1, el => prof_2))
@@ -27,7 +27,6 @@
         # - data_init(a::Area)
         @test isnothing(data_init(a_1))
     end
-
 
     @testset "Path creation" begin
         # Test of all potential node input from EMRH as called through the function
@@ -85,21 +84,17 @@
             co2,
         )
 
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-        EMRH._add_elements!(𝒰, 𝒜)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
         𝒽 = first(ℋ)
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
-        opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+
+        # Create the update type
+        ℒ = Link[]
+        case = Case(𝒯, 𝒫, [𝒩, 𝒜], [[get_nodes, get_areas]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
 
         # Test that the individual reset types functions are working
         # All functions are located within the file src/structures/reset.jl
@@ -116,6 +111,13 @@
         @test isa(reset_area[1], EMRH.ElementReset)
         @test reset_area[1].lens(a_2) == av
         @test reset_area[1].val == av
+
+        # Create all time related parameters for the first horizon
+        𝒽 = first(ℋ)
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
         # Test that the reset are working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
@@ -145,7 +147,7 @@ end
     H2_lp = ResourceCarrier("H2_lp", 0.0)
     el = ResourceCarrier("Power", 0.0)
     co2 = ResourceEmit("co2", 1.0)
-    resources = [H2_hp, H2_lp, el, co2]
+    𝒫 = [H2_hp, H2_lp, el, co2]
 
     # Create the profiles
     n_op = 15
@@ -199,7 +201,7 @@ end
     )
 
     # Create the Transmission corridors
-    av = GeoAvailability(1, resources)
+    av = GeoAvailability(1, 𝒫)
     𝒩 = EMB.Node[av]
     a_1 = RefArea(2, "RefArea", 1, 1, av)
     a_2 = LimitedExchangeArea(1, "LEArea", 1, 1, av, Dict(H2_hp => prof_1, el => prof_2))
@@ -302,22 +304,17 @@ end
             co2,
         )
 
-        # Create the update type
-        𝒰 = EMRH._create_updatetype(modeltype)
-        EMRH._add_elements!(𝒰, 𝒩)
-        EMRH._add_elements!(𝒰, 𝒜)
-        EMRH._add_elements!(𝒰, ℒᵗʳᵃⁿˢ)
-
         # Create all time related parameters
         𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
         opers = collect(𝒯)
         ℋ = PeriodHorizons(dur_op, 4, 2)
         𝒽 = first(ℋ)
         𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
-        ind_impl = indices_implementation(𝒽)
-        opers_opt = opers[indices_optimization(𝒽)]
-        opers_impl = opers[ind_impl]
-        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
+
+        # Create the update type
+        ℒ = Link[]
+        case = Case(𝒯, 𝒫, [𝒩, 𝒜, ℒᵗʳᵃⁿˢ], [[get_nodes, get_areas]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
 
         # Test that the individual reset types functions are working
         # All functions are located within the file src/structures/reset.jl and
@@ -342,6 +339,13 @@ end
         reset_trans = EMRH.resets(𝒮ᵛᵉᶜ[3][2])
         l = l_pipe
         @test isa(reset_trans[5], EMRH.InitReset)
+
+        # Create all time related parameters for the first horizon
+        𝒽 = first(ℋ)
+        ind_impl = indices_implementation(𝒽)
+        opers_opt = opers[indices_optimization(𝒽)]
+        opers_impl = opers[ind_impl]
+        opers_implᵣₕ = collect(𝒯ᵣₕ)[1:length(ind_impl)]
 
         # Test that the reset are working
         # - _update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
@@ -382,15 +386,15 @@ end
 
 @testset "Full model run" begin
     # Introduction of profiles
-    demand_profile = [20, 10, 5, 25, 20, 10, 5, 25]
-    pipe_profile = [10, 10, 10, 10, 0, 10, 10, 10]
+    demand_profile = OperationalProfile([20, 10, 5, 25, 20, 10, 5, 25])
+    pipe_profile = OperationalProfile([10, 10, 10, 10, 0, 10, 10, 10])
 
     # Create the individual resources
     H2_hp = ResourceCarrier("H2_hp", 0.0)
     H2_lp = ResourceCarrier("H2_lp", 0.0)
     el = ResourceCarrier("Power", 0.0)
     co2 = ResourceEmit("co2", 1.0)
-    resources = [H2_hp, H2_lp, el, co2]
+    𝒫 = [H2_hp, H2_lp, el, co2]
 
     # Creation of the source and sink module as well as the arrays used for nodes and links
     h2_src = RefSource(
@@ -409,19 +413,19 @@ end
     )
     sink = RefSink(
         "snk",
-        OperationalProfile(demand_profile),
+        demand_profile,
         Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(100)),
         Dict(H2_lp => 1),
     )
 
-    nodes = [
-        GeoAvailability(1, resources), h2_src, el_src,
-        GeoAvailability(2, resources), sink
+    𝒩 = [
+        GeoAvailability(1, 𝒫), h2_src, el_src,
+        GeoAvailability(2, 𝒫), sink
     ]
-    links = [
-        Direct(31, nodes[2], nodes[1], Linear())
-        Direct(31, nodes[3], nodes[1], Linear())
-        Direct(24, nodes[4], nodes[5], Linear())
+    ℒ = [
+        Direct(31, 𝒩[2], 𝒩[1], Linear())
+        Direct(31, 𝒩[3], 𝒩[1], Linear())
+        Direct(24, 𝒩[4], 𝒩[5], Linear())
     ]
 
     init_lp = TransInitData(Dict(:linepack_stor_level => 1.0))
@@ -432,7 +436,7 @@ end
         H2_lp,
         el,
         FixedProfile(0.01),
-        OperationalProfile(pipe_profile),
+        pipe_profile,
         FixedProfile(0.0),
         FixedProfile(0),
         FixedProfile(0),
@@ -450,20 +454,22 @@ end
         0.2,
         [init_lp],
     )
-    modes = [pipe, pipe_lp]
+    ℳ = [pipe, pipe_lp]
 
     # Creation of the two areas and potential transmission lines
-    areas = [
-        RefArea(1, "Oslo", 10.751, 59.921, nodes[1]),
-        RefArea(2, "Trondheim", 10.398, 63.4366, nodes[4])
+    𝒜 = [
+        RefArea(1, "Oslo", 10.751, 59.921, 𝒩[1]),
+        RefArea(2, "Trondheim", 10.398, 63.4366, 𝒩[4])
     ]
 
-    transmissions = [Transmission(areas[1], areas[2], modes)]
+    ℒᵗʳᵃⁿˢ = [Transmission(𝒜[1], 𝒜[2], ℳ)]
 
     # Creation of the time structure and the used global data
-    T = TwoLevel(1, 1, SimpleTimes(8, 1);)
-    ops = collect(T)
-    ℋ = PeriodHorizons([duration(t) for t ∈ T], 4, 2)
+    n_op = 8
+    dur_op = ones(n_op)
+    𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op);)
+    ops = collect(𝒯)
+    ℋ = PeriodHorizons(dur_op, 4, 2)
     modeltype = RecHorOperationalModel(
                                 Dict(co2 => FixedProfile(100)),
                                 Dict(co2 => FixedProfile(0)),
@@ -472,9 +478,9 @@ end
 
     # Input data structure
     case = Case(
-        T,
-        resources,
-        [nodes, links, areas, transmissions],
+        𝒯,
+        𝒫,
+        [𝒩, ℒ, 𝒜, ℒᵗʳᵃⁿˢ],
         [[get_nodes, get_links], [get_areas, get_transmissions]],
         Dict(:horizons => ℋ)
     )
@@ -484,14 +490,14 @@ end
     results = run_model_rh(case, modeltype, optimizer)
 
     # Test that all results were saved (* 2 as we have two TransmissionModes)
-    @test length(results[:trans_in][!, :y]) == length(ops) * 2
+    @test length(results[:trans_in][!, :y]) == n_op * 2
 
     # Test that the first period in the first horizon is correctly used
     @test mode_data(pipe_lp)[1].init_val_dict[:linepack_stor_level] ≈
-          filter(r -> r.x1 == pipe_lp && r.x2 == ops[1], results[:linepack_stor_level])[1, :y] -
-          filter(r -> r.x1 == pipe_lp && r.x2 == ops[1], results[:trans_in])[1, :y] +
-          filter(r -> r.x1 == pipe_lp && r.x2 == ops[1], results[:trans_out])[1, :y] +
-          filter(r -> r.x1 == pipe_lp && r.x2 == ops[1], results[:trans_loss])[1, :y]
+          filter(r -> r.x1 == pipe_lp && r.x2 == first(𝒯), results[:linepack_stor_level])[1, :y] -
+          filter(r -> r.x1 == pipe_lp && r.x2 == first(𝒯), results[:trans_in])[1, :y] +
+          filter(r -> r.x1 == pipe_lp && r.x2 == first(𝒯), results[:trans_out])[1, :y] +
+          filter(r -> r.x1 == pipe_lp && r.x2 == first(𝒯), results[:trans_loss])[1, :y]
 
     # Test that the subsequent first periods are used correctly
     first_ops = [ops[3], ops[5], ops[7]]
@@ -506,22 +512,21 @@ end
 
     # Test that the demand is equal to the profile and satisfied in all periods
     @test all(
-        filter(r -> r.x1 == sink && r.x2 == ops[k], results[:cap_use])[1, :y] ≈
-        demand_profile[k] for k ∈ 1:8
-    )
+        filter(r -> r.x1 == sink && r.x2 == t, results[:cap_use])[1, :y] ≈
+            demand_profile[t]
+    for t ∈ 𝒯)
     @test all(
-        filter(r -> r.x1 == sink && r.x2 == ops[k], results[:sink_deficit])[1, :y] ≈ 0 for
-        k ∈ 1:8
-    )
+        filter(r -> r.x1 == sink && r.x2 == t, results[:sink_deficit])[1, :y] ≈ 0
+    for t ∈ 𝒯)
 
     # Test that the mode capacities are equal to the values
     @test all(
-        filter(r -> r.x1 == pipe && r.x2 == ops[k], results[:trans_cap])[1, :y] ==
-        pipe_profile[k] for k ∈ 1:8
-    )
+        filter(r -> r.x1 == pipe && r.x2 == t, results[:trans_cap])[1, :y] ==
+            pipe_profile[t]
+    for t ∈ 𝒯)
 
     @test all(
-        filter(r -> r.x1 == pipe_lp && r.x2 == ops[k], results[:trans_cap])[1, :y] ==
-        50 for k ∈ 1:8
-    )
+        filter(r -> r.x1 == pipe_lp && r.x2 == t, results[:trans_cap])[1, :y] ==
+            50
+    for t ∈ 𝒯)
 end

@@ -8,6 +8,7 @@ using DocumenterCitations
 
 using TimeStruct
 using EnergyModelsBase
+using EnergyModelsFlex
 using EnergyModelsGeography
 using EnergyModelsRecedingHorizon
 
@@ -31,6 +32,7 @@ links = InterLinks(
     "TimeStruct" => "https://sintefore.github.io/TimeStruct.jl/stable/",
     "EnergyModelsBase" => "https://energymodelsx.github.io/EnergyModelsBase.jl/stable/",
     "EnergyModelsGeography" => "https://energymodelsx.github.io/EnergyModelsGeography.jl/stable/",
+    "EnergyModelsFlex" => "https://energymodelsx.github.io/EnergyModelsFlex.jl/stable/",
 )
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "references.bib"))

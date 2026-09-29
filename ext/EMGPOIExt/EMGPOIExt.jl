@@ -3,7 +3,7 @@ module EMGPOIExt
 using EnergyModelsBase
 using EnergyModelsGeography
 using EnergyModelsRecedingHorizon
-using .EnergyModelsRecedingHorizon: RecHorEnergyModel, InitReset
+using .EnergyModelsRecedingHorizon: RecHorEnergyModel, UpdateCase, InitReset
 
 using JuMP
 using ParametricOptInterface

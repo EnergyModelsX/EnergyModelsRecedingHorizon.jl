@@ -25,7 +25,6 @@ function EMRH.run_model_rh(
     n_𝒽 = length(ℋ)
     op_per_strat = 𝒯.op_per_strat
 
-
     # Assert that the horizon is functioning with the POI implementation.
     horizon_duration = all(
         durations(𝒽) == durations(𝒽₀) for
@@ -43,6 +42,9 @@ function EMRH.run_model_rh(
 
     # Create the `UpdateCase` based on the original `Case` structure
     𝒰 = _create_updatetype(case, modeltype)
+
+    # Identify problems with potential `period_duration`s in the time structure
+    EMRH._check_period_partitions(𝒰, ℋ, optimizer)
 
     # Extract the time structure from the case to identify the used operational periods
     # and the receding horizon time structure

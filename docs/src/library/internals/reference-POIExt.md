@@ -22,7 +22,7 @@ update_model!
 
 ```@docs
 _update_parameter_values!
-_update_parameter!(m, res_type::EMRH.ElementReset, opers::Vector)
+_update_parameter!(m, 𝒰::EMRH.UpdateCase, res_type::EMRH.ElementReset, opers::Vector)
 ```
 
 ## [EnergyModelsRecedingHorizon](@id lib-int-POIExt-EMRH)

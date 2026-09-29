@@ -39,6 +39,13 @@ EMRH._create_lens_for_field
 EMRH._path_type
 ```
 
+### [Horizon consistency check functions](@id lib-int-check)
+
+```@docs
+EMRH._check_period_partitions
+EMRH._check_horizon
+```
+
 ### [Functions for resetting values](@id lib-int-reset)
 
 ```@docs
