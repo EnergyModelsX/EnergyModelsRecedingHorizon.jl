@@ -1,6 +1,6 @@
 # Release notes
 
-## Version 0.2.3 (2026-09-xx) (Not yet registered)
+## Version 0.2.3 (2026-09-29)
 
 ### Included support for `PartitionProfile`
 
