@@ -67,8 +67,7 @@ of the new value is depending on the specified `res_type`:
    operational profile in `res_type` and the set of operational periods `opers`.
 4. `res_type::PartitionReset` creates a new partition profile based on the original
    partition profile in `res_type` and the set of operational periods `opers`.
-5. `res_type::EmptyReset` does not reset any field and is used to avoid problems with
-   partition profile resetting.
+5. `res_type::EmptyReset` does not reset any field.
 """
 function _reset_field(
     x_rh,

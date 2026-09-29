@@ -109,7 +109,7 @@ abstract type AbstractReset end
 """
     struct EmptyReset <: AbstractReset
 
-Empty reset type, introduced to avoid problems with partition profile resetting.
+Empty reset type, introduced for fields not subject to resetting.
 """
 struct EmptyReset <: AbstractReset end
 
