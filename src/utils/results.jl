@@ -2,7 +2,8 @@
     get_results(m::JuMP.Model, vars::Vector{Symbol}, opers::Vector{<:TS.TimePeriod})
 
 Function returning the values of the optimized model `m` of the variables `vars` for the
-operational periods `opers`.
+operational periods `opers`. Variables indexed over period partitions are extracted for the
+partitions that are fully included in `opers`.
 
 If the vector `opers` is empty, it returns the values for the complete horizon.
 Prints a warning message for currently unsupported types without extracting their value.
@@ -27,16 +28,23 @@ function _get_values_from_obj(
     elseif isempty(opers)
         return JuMP.Containers.rowtable(value.(obj))
     else
+        # Extract the individual index sets of the container
         if isa(obj, JuMP.Containers.DenseAxisArray)
             iter = axes(obj)
-            idx_t = findall(col -> isa(col, Vector{<:TS.TimePeriod}), iter)
         else
-            iter = first(keys(obj.data))
-            idx_t = findall(col -> isa(col, TS.TimePeriod), iter)
+            𝒦 = keys(obj.data)
+            iter = Tuple(unique(key[k] for key ∈ 𝒦) for k ∈ eachindex(first(𝒦)))
         end
+
+        # Restrict the index sets over time periods to the periods `opers` and the index sets
+        # over period partitions to the partitions fully included in `opers`
         subset = Any[Colon() for _ ∈ iter]
-        for k ∈ idx_t
-            subset[k] = opers
+        for (k, col) ∈ enumerate(iter)
+            if isa(first(col), TS.TimePeriod)
+                subset[k] = opers
+            elseif isa(first(col), TS.PeriodPartition)
+                subset[k] = _partitions_within(col, opers)
+            end
         end
 
         return JuMP.Containers.rowtable(value.(obj[subset...]))
