@@ -70,6 +70,14 @@ EMRH._delete_mapping!
 EMRH._type_to_key
 ```
 
+The following functions are used for mapping the period partitions of the receding horizon problem to the period partitions of the original problem:
+
+```@docs
+EMRH._update_partition_mapping!
+EMRH._add_partition_mapping!
+EMRH._partitions_within
+```
+
 ### [Future value functions](@id lib-int-fut_val)
 
 ```@docs

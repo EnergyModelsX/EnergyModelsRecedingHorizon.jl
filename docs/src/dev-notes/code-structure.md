@@ -118,7 +118,11 @@ The following section provides the general overview with differentiation between
        !!! note "POI implementation"
            In the `POI` implementation, we only have to update the values of the created parameter variables through the function [`POIExt.update_model!`](@ref).
 
+       In both implementations, the mapping between the operational periods and the period partitions of the receding horizon problem and the original problem is updated in this step.
+       The mapping of the period partitions is created through the function [`EMRH._update_partition_mapping!`](@ref) for all elements with a `PartitionReset`.
+
        Subsequently, the model is optimized.
     3. Once the model is solved, the operational results for the implementation horizon are extracted from the model and saved as a `DataFrame` through the function [`EMRH.update_results!`](@ref).
        Variables that are indexed with strategic periods are **not** extracted.
+       Variables that are indexed with period partitions are extracted for the partitions fully included in the implementation horizon and indexed by the partitions of the original problem.
     4. The value of the reset type for initialization data is updated using the results from the optimization problem using the function [`EMRH.update_init_data!`](@ref).
