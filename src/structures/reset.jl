@@ -607,7 +607,7 @@ EMB.get_links(𝒰::UpdateCase) = Link[𝒮.new for 𝒮 ∈ get_sub_ele(𝒰, E
 get_future_value(𝒰::UpdateCase) = FutureValue[s.new for s ∈ get_sub_ele(𝒰, FutureValue)]
 
 """
-    updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}}
+    updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, TS.PeriodPartition, Resource, AbstractElement}}
     updated(𝒮::Vector{<:AbstractSub}, x_org::AbstractElement)
     updated(s::AbstractSub)
 
@@ -615,15 +615,22 @@ Returns the updated (resetted) instance of the original instance `x_org` for a g
 It is used for mapping and replacing instances of the type in fields.
 
 If the input is an `AbstractSub`, it returns the value of the field `new`.
+
+!!! note "Period partitions"
+    The mapping of period partitions is only available for partitions of elements that
+    utilize a `PartitionProfile`, see [`_update_partition_mapping!`](@ref).
 """
-updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
+updated(
+    𝒰::UpdateCase,
+    x_org::T,
+) where {T<:Union{TS.TimePeriod, TS.PeriodPartition, Resource, AbstractElement}} =
     get_mapping_updated(𝒰, _type_to_key(T))[x_org]
 updated(𝒮::Vector{<:AbstractSub}, x_org::AbstractElement) =
     updated(filter(x -> original(x) == x_org, 𝒮)[1])
 updated(s::AbstractSub) = s.new
 
 """
-    original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}}
+    original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, TS.PeriodPartition, Resource, AbstractElement}}
     original(𝒮::Vector{<:AbstractSub}, x_new::AbstractElement)
     original(s::AbstractSub)
 
@@ -631,8 +638,15 @@ Returns the original instance of the new (resetted) instance `x_new` for a given
 It is used for results extraction.
 
 If the input is an `AbstractSub`, it returns the value of the field `org`.
+
+!!! note "Period partitions"
+    The mapping of period partitions is only available for partitions of elements that
+    utilize a `PartitionProfile`, see [`_update_partition_mapping!`](@ref).
 """
-original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
+original(
+    𝒰::UpdateCase,
+    x_new::T,
+) where {T<:Union{TS.TimePeriod, TS.PeriodPartition, Resource, AbstractElement}} =
     get_mapping_original(𝒰, _type_to_key(T))[x_new]
 original(𝒮::Vector{<:AbstractSub}, x_new::AbstractElement) =
     original(filter(x -> updated(x) == x_new, 𝒮)[1])

@@ -16,7 +16,89 @@ function _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
     end
     𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
     𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
+    _update_partition_mapping!(𝒰, opers, 𝒯ᵣₕ)
 end
+
+"""
+    _update_partition_mapping!(𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod}, 𝒯ᵣₕ::TS.TimeStructure)
+
+Update the mapping between the period partitions of the receding horizon problem (through
+`𝒯ᵣₕ`) and the period partitions of the original problem (through `opers`) in the
+[`UpdateCase`](@ref) `𝒰`.
+
+The mapping is stored under the key `:partitions` and rebuilt in each iteration as the
+partitions of the original problem change with the horizon. It is required for extracting
+the results of variables indexed over period partitions.
+"""
+function _update_partition_mapping!(
+    𝒰::UpdateCase,
+    opers::Vector{<:TS.TimePeriod},
+    𝒯ᵣₕ::TS.TimeStructure,
+)
+    𝒰.map_org[:partitions] = Dict{TS.PeriodPartition,TS.PeriodPartition}()
+    𝒰.map_updated[:partitions] = Dict{TS.PeriodPartition,TS.PeriodPartition}()
+    _add_partition_mapping!(𝒰, get_sub_model(𝒰), opers, 𝒯ᵣₕ)
+    _add_partition_mapping!(𝒰, get_sub_products(𝒰), opers, 𝒯ᵣₕ)
+    for 𝒮 ∈ get_sub_elements_vec(𝒰)
+        _add_partition_mapping!(𝒰, 𝒮, opers, 𝒯ᵣₕ)
+    end
+end
+
+"""
+    _add_partition_mapping!(𝒰::UpdateCase, 𝒮::Vector{<:AbstractSub}, opers::Vector{<:TS.TimePeriod}, 𝒯ᵣₕ::TS.TimeStructure)
+    _add_partition_mapping!(𝒰::UpdateCase, s::AbstractSub, opers::Vector{<:TS.TimePeriod}, 𝒯ᵣₕ::TS.TimeStructure)
+
+Add the mapping between the period partitions of the receding horizon problem and the
+original problem for all [`AbstractSub`](@ref)s in `𝒮` or the `AbstractSub` `s`. Only
+`AbstractSub`s with a [`PartitionReset`](@ref) contribute to the mapping.
+
+The period partitions of the receding horizon problem are calculated from the
+[`period_duration`](@ref) of the updated instance, that is the instance used in the
+optimization problem. The period partitions of the original problem are the partitions that
+are fully included in the operational periods `opers`.
+"""
+function _add_partition_mapping!(
+    𝒰::UpdateCase,
+    𝒮::Vector{<:AbstractSub},
+    opers::Vector{<:TS.TimePeriod},
+    𝒯ᵣₕ::TS.TimeStructure,
+)
+    for s ∈ 𝒮
+        _add_partition_mapping!(𝒰, s, opers, 𝒯ᵣₕ)
+    end
+end
+function _add_partition_mapping!(
+    𝒰::UpdateCase,
+    s::AbstractSub,
+    opers::Vector{<:TS.TimePeriod},
+    𝒯ᵣₕ::TS.TimeStructure,
+)
+    # Identify whether the `Substitution` has `PartitionReset`s. The period duration is the
+    # same for all resets of a given `AbstractSub`
+    part_res = filter(res_type -> isa(res_type, PartitionReset), resets(s))
+    isempty(part_res) && return nothing
+
+    # Identify the partitions of the original problem that are used within the current
+    # receding horizon problem and the corresponding partitions of the receding horizon problem
+    𝒯 = get_time_struct(𝒰)
+    parts = _partitions_within(period_duration(first(part_res), 𝒯), opers)
+    partsᵣₕ = collect(partition_duration(𝒯ᵣₕ, period_duration(updated(s))))
+
+    # Add the mapping in both directions
+    for (t_pdᵣₕ, t_pd) ∈ zip(partsᵣₕ, parts)
+        𝒰.map_org[:partitions][t_pdᵣₕ] = t_pd
+        𝒰.map_updated[:partitions][t_pd] = t_pdᵣₕ
+    end
+end
+
+"""
+    _partitions_within(𝒯ᵖᵈ, opers::Vector{<:TS.TimePeriod})
+
+Returns the period partitions in `𝒯ᵖᵈ` that are fully included in the operational periods
+`opers`.
+"""
+_partitions_within(𝒯ᵖᵈ, opers::Vector{<:TS.TimePeriod}) =
+    filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
 
 """
     _update_case_types!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
@@ -107,8 +189,7 @@ function _reset_field(
 
     # Identify the partitions of the original problem that are used within the current
     # receding horizon problem
-    𝒯ᵖᵈ = period_duration(res_type, 𝒯)
-    parts = filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
+    parts = _partitions_within(period_duration(res_type, 𝒯), opers)
 
     # Reset the partition profile of the receding horizon problem based on the relevant
     # partitions
@@ -244,6 +325,8 @@ function _delete_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
 end
 
 """
+    _type_to_key(::Type{T}) where {T<:TS.TimePeriod}
+    _type_to_key(::Type{T}) where {T<:TS.PeriodPartition}
     _type_to_key(::Type{T}) where {T<:Union{Resource, ProductSub}}
     _type_to_key(::Type{T}) where {T<:Union{EMB.Node, NodeSub}}
     _type_to_key(::Type{T}) where {T<:Union{Link, LinkSub}}
@@ -253,6 +336,7 @@ end
 Returns the symbol used for the type `T` when creating the mapping for the individual elements.
 """
 _type_to_key(::Type{T}) where {T<:TS.TimePeriod} = :periods
+_type_to_key(::Type{T}) where {T<:TS.PeriodPartition} = :partitions
 _type_to_key(::Type{T}) where {T<:Union{Resource, ProductSub}} = :resources
 _type_to_key(::Type{T}) where {T<:Union{EMB.Node, NodeSub}} = :nodes
 _type_to_key(::Type{T}) where {T<:Union{Link, LinkSub}} = :links
@@ -360,7 +444,7 @@ Returns a log, a boolean indicating whether there are inconsistencies and the re
 number of partitions within the horizon.
 """
 function _check_horizon(n_ref::Union{Nothing, Vector{Int}}, 𝒯ᵖᵈ, opersᵣₕ, name::String, optimizer)
-    parts = filter(t_pd -> isempty(setdiff(t_pd, opersᵣₕ)), 𝒯ᵖᵈ)
+    parts = _partitions_within(𝒯ᵖᵈ, opersᵣₕ)
     n_parts = [length(part) for part ∈ parts]
     log = ""
     bool_op = nothing

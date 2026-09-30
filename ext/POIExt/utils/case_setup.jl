@@ -15,6 +15,7 @@ function _init_update_case!(m, 𝒰, opers, 𝒯ᵣₕ)
     end
     𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
     𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
+    _update_partition_mapping!(𝒰, opers, 𝒯ᵣₕ)
 end
 """
     update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
@@ -33,6 +34,7 @@ function update_model!(m, 𝒰, opers, 𝒯ᵣₕ)
     end
     𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
     𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
+    _update_partition_mapping!(𝒰, opers, 𝒯ᵣₕ)
 end
 
 """
@@ -242,8 +244,7 @@ function _update_parameter!(
 
     # Identify the partitions of the original problem that are used within the current
     # receding horizon problem
-    𝒯ᵖᵈ = EMRH.period_duration(res_type, 𝒯)
-    parts = filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
+    parts = _partitions_within(EMRH.period_duration(res_type, 𝒯), opers)
 
     # Update the parameters
     val = res_type.val[parts]
