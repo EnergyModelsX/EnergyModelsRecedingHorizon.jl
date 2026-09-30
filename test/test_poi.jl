@@ -10,7 +10,10 @@ function create_poi_case(;
     dur_op = [1, 1, 1, 1, 1, 1, 1, 1],
     init_state = 10,
     HorizonType = PeriodHorizons,
-    part_profile = [2, 2, 2, 2]
+    hor_opt = 4,
+    hor_impl = 2,
+    part_profile = [2, 2, 2, 2],
+    part_profile_add = nothing,
 )
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)
@@ -19,7 +22,7 @@ function create_poi_case(;
 
     # Define time structure
     𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
-    ℋ = HorizonType(dur_op, 4, 2)
+    ℋ = HorizonType(dur_op, hor_opt, hor_impl)
 
     # Define the model depending on input
     modeltype = RecHorOperationalModel(
@@ -67,6 +70,20 @@ function create_poi_case(;
         Direct("source-demand", 𝒩[1], 𝒩[3], Linear()),
         Direct("storage-demand", 𝒩[2], 𝒩[3], Linear()),
     ]
+
+    # Add a second link with a different partition profile, if specified
+    if !isnothing(part_profile_add)
+        push!(ℒ,
+            CapDirect(
+                "source-demand-part",
+                𝒩[1],
+                𝒩[3],
+                OperationalProfile(cap_profile),
+                PartitionProfile(part_profile_add),
+                PartitionProfile(mult_profile),
+            ),
+        )
+    end
 
     # Create the input case structure
     case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
@@ -223,4 +240,24 @@ end
         )[1, :y] ≈
             filter(r -> r.x1 == src && r.x2 == ops[k], results[:cap_use])[1, :y] * em_co2[k]
     for k ∈ 1:8)
+
+    # Run a model with two links with different partition profiles. The first partition of
+    # both links is `(1)` in each receding horizon problem, while the corresponding
+    # partitions of the original problem differ from the second horizon onwards
+    case, modeltype = create_poi_case(;
+        dur_op = fill(1, 7),
+        hor_impl = 3,
+        part_profile = [1, 2, 1, 2, 1],
+        part_profile_add = fill(1, 7),
+    )
+    optimizer = POI.Optimizer(HiGHS.Optimizer())
+    results = run_model_rh(case, modeltype, optimizer)
+
+    # Test that the variable indexed over period partitions is indexed by the partitions of
+    # the original problem of the respective link
+    # - _add_partition_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+    for l ∈ filter(l -> isa(l, CapDirect), get_links(case))
+        𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), EMRH.period_duration(l)))
+        @test filter(r -> r.x1 == l, results[:part_variable])[!, :x2] == 𝒯ᵖᵈ
+    end
 end
