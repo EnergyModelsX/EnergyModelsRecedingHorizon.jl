@@ -1,36 +1,3 @@
-# Creation of a new link type with associated capacity
-struct CapDirect <: Link
-    id::Any
-    from::EMB.Node
-    to::EMB.Node
-    capacity::TimeProfile
-    part_dur::PartitionProfile
-    part_mult::PartitionProfile
-end
-
-# Add methods to required functions
-EMB.capacity(l::CapDirect) = l.capacity
-EMB.capacity(l::CapDirect, t) = l.capacity[t]
-EMB.has_capacity(l::CapDirect) = true
-EMRH.period_duration(l::CapDirect) = l.part_dur
-
-function EMB.create_link(m, l::CapDirect, 𝒯, 𝒫, modeltype::EnergyModel)
-
-    # Declaration of the required subsets
-    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(l))
-
-    # Generic link in which each output corresponds to the input
-    @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
-        m[:link_out][l, t, p] == m[:link_in][l, t, p]
-    )
-
-    # Capacity constraint
-    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ, t ∈ t_pd, p ∈ EMB.link_res(l)],
-        m[:link_out][l, t, p] ≤ m[:link_cap_inst][l, t] * l.part_mult[t_pd]
-    )
-    constraints_capacity_installed(m, l, 𝒯, modeltype)
-end
-
 # Introduction of different profiles
 price_profile = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
 cap_profile = [20, 30, 40, 30, 10, 50, 35, 20]
@@ -201,6 +168,15 @@ end
 
     # Test that all results were saved
     @test length(results[:stor_level][!, :y]) == length(ops)
+
+    # Test that the variable indexed over period partitions is saved once for each partition
+    # of the original problem
+    # - _get_values_from_obj(obj::SparseAxisArray, opers)
+    # - original(𝒰::UpdateCase, x_new::T) where {T<:TS.PeriodPartition}
+    𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), EMRH.period_duration(cap_link)))
+    @test nrow(results[:part_variable]) == length(𝒯ᵖᵈ)
+    @test results[:part_variable][!, :x1] == fill(cap_link, length(𝒯ᵖᵈ))
+    @test results[:part_variable][!, :x2] == 𝒯ᵖᵈ
 
     # Test that the first period in the first horizon is correctly used
     @test EMRH.init_level(stor) == node_data(stor)[1].init_val_dict[:stor_level]
