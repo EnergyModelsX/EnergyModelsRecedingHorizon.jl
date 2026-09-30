@@ -29,14 +29,20 @@ Update the mapping between the period partitions of the receding horizon problem
 The mapping is stored under the key `:partitions` and rebuilt in each iteration as the
 partitions of the original problem change with the horizon. It is required for extracting
 the results of variables indexed over period partitions.
+
+The mapping is stored separately for each instance as different instances can have the same
+period partitions in the receding horizon problem, while the corresponding period partitions
+of the original problem differ. The mapping to the original partitions is indexed by the
+updated instance while the mapping to the updated partitions is indexed by the original
+instance.
 """
 function _update_partition_mapping!(
     𝒰::UpdateCase,
     opers::Vector{<:TS.TimePeriod},
     𝒯ᵣₕ::TS.TimeStructure,
 )
-    𝒰.map_org[:partitions] = Dict{TS.PeriodPartition,TS.PeriodPartition}()
-    𝒰.map_updated[:partitions] = Dict{TS.PeriodPartition,TS.PeriodPartition}()
+    𝒰.map_org[:partitions] = Dict{Any,Dict{TS.PeriodPartition,TS.PeriodPartition}}()
+    𝒰.map_updated[:partitions] = Dict{Any,Dict{TS.PeriodPartition,TS.PeriodPartition}}()
     _add_partition_mapping!(𝒰, get_sub_model(𝒰), opers, 𝒯ᵣₕ)
     _add_partition_mapping!(𝒰, get_sub_products(𝒰), opers, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
@@ -85,10 +91,10 @@ function _add_partition_mapping!(
     partsᵣₕ = collect(partition_duration(𝒯ᵣₕ, period_duration(updated(s))))
 
     # Add the mapping in both directions
-    for (t_pdᵣₕ, t_pd) ∈ zip(partsᵣₕ, parts)
-        𝒰.map_org[:partitions][t_pdᵣₕ] = t_pd
-        𝒰.map_updated[:partitions][t_pd] = t_pdᵣₕ
-    end
+    𝒰.map_org[:partitions][updated(s)] =
+        Dict{TS.PeriodPartition,TS.PeriodPartition}(zip(partsᵣₕ, parts))
+    𝒰.map_updated[:partitions][original(s)] =
+        Dict{TS.PeriodPartition,TS.PeriodPartition}(zip(parts, partsᵣₕ))
 end
 
 """

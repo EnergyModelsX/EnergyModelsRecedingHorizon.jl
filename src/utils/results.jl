@@ -65,6 +65,8 @@ Updates `results` given the optimization results `m` for the operational periods
 the identified variables `vars`, performed in horizon `𝒽`.
 The results are indexed by the elements in the provided `case` (here accessed using the
 [`UpdateCase`](@ref) `𝒰`).
+
+Period partitions are mapped using the first index of the respective variable as element.
 """
 function update_results!(results, m, vars, 𝒰, opers, 𝒽)
     opers_EMRH = [updated(𝒰, t) for t ∈ opers]
@@ -95,7 +97,16 @@ function update_results!(results, m, vars, 𝒰, opers, 𝒽)
         else
             df = DataFrame(results_rh[k])
             subnames = filter(n -> n ≠ "y", names(df))
-            mapcols!(𝒳 -> [original(𝒰, x) for x ∈ 𝒳], df, cols=subnames)
+            if !isempty(subnames)
+                # The first index is considered as element of the respective row, as the
+                # mapping of period partitions depends on the element
+                𝒳ᵉˡᵉ = df[:, first(subnames)]
+                mapcols!(
+                    𝒳 -> [original(𝒰, x, x_ele) for (x, x_ele) ∈ zip(𝒳, 𝒳ᵉˡᵉ)],
+                    df,
+                    cols = subnames,
+                )
+            end
             append!(container, df)
         end
     end

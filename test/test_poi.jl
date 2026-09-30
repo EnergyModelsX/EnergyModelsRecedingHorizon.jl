@@ -189,7 +189,7 @@ end
     # Test that the variable indexed over period partitions is saved once for each partition
     # of the original problem
     # - _get_values_from_obj(obj::SparseAxisArray, opers)
-    # - original(𝒰::UpdateCase, x_new::T) where {T<:TS.PeriodPartition}
+    # - original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
     𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), EMRH.period_duration(cap_link)))
     @test nrow(results[:part_variable]) == length(𝒯ᵖᵈ)
     @test results[:part_variable][!, :x1] == fill(cap_link, length(𝒯ᵖᵈ))
@@ -256,6 +256,7 @@ end
     # Test that the variable indexed over period partitions is indexed by the partitions of
     # the original problem of the respective link
     # - _add_partition_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+    # - update_results!(results, m, vars, 𝒰, opers, 𝒽)
     for l ∈ filter(l -> isa(l, CapDirect), get_links(case))
         𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), EMRH.period_duration(l)))
         @test filter(r -> r.x1 == l, results[:part_variable])[!, :x2] == 𝒯ᵖᵈ

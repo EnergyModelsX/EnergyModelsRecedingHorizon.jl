@@ -71,17 +71,34 @@
     # the original problem
     # - _update_partition_mapping!(𝒰, opers, 𝒯ᵣₕ)
     # - _add_partition_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
-    # - updated(𝒰::UpdateCase, x_org::T) where {T<:TS.PeriodPartition}
-    # - original(𝒰::UpdateCase, x_new::T) where {T<:TS.PeriodPartition}
+    # - updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition}
+    # - original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
+    l_org = ℒ[1]
+    l_new = get_links(𝒰)[1]
     𝒯ᵖᵈ_opt = EMRH._partitions_within(𝒯ᵖᵈ, opers_opt)
-    𝒯ᵖᵈᵣₕ = collect(partition_duration(𝒯ᵣₕ, EMRH.period_duration(get_links(𝒰)[1])))
+    𝒯ᵖᵈᵣₕ = collect(partition_duration(𝒯ᵣₕ, EMRH.period_duration(l_new)))
     @test length(𝒯ᵖᵈ_opt) == 2
-    @test length(EMRH.get_mapping_original(𝒰, :partitions)) == length(𝒯ᵖᵈ_opt)
-    @test all(EMRH.updated(𝒰, t_pd) == t_pdᵣₕ for (t_pd, t_pdᵣₕ) ∈ zip(𝒯ᵖᵈ_opt, 𝒯ᵖᵈᵣₕ))
-    @test all(EMRH.original(𝒰, t_pdᵣₕ) == t_pd for (t_pd, t_pdᵣₕ) ∈ zip(𝒯ᵖᵈ_opt, 𝒯ᵖᵈᵣₕ))
+    @test collect(keys(EMRH.get_mapping_original(𝒰, :partitions))) == [l_new]
+    @test collect(keys(EMRH.get_mapping_updated(𝒰, :partitions))) == [l_org]
+    @test length(EMRH.get_mapping_original(𝒰, :partitions)[l_new]) == length(𝒯ᵖᵈ_opt)
     @test all(
-        [EMRH.original(𝒰, t) for t ∈ t_pdᵣₕ] == collect(EMRH.original(𝒰, t_pdᵣₕ))
+        EMRH.updated(𝒰, t_pd, l_org) == t_pdᵣₕ for (t_pd, t_pdᵣₕ) ∈ zip(𝒯ᵖᵈ_opt, 𝒯ᵖᵈᵣₕ)
+    )
+    @test all(
+        EMRH.original(𝒰, t_pdᵣₕ, l_new) == t_pd for (t_pd, t_pdᵣₕ) ∈ zip(𝒯ᵖᵈ_opt, 𝒯ᵖᵈᵣₕ)
+    )
+    @test all(
+        [EMRH.original(𝒰, t) for t ∈ t_pdᵣₕ] == collect(EMRH.original(𝒰, t_pdᵣₕ, l_new))
     for t_pdᵣₕ ∈ 𝒯ᵖᵈᵣₕ)
+
+    # Test that the three argument methods fall back to the two argument methods for all
+    # other types
+    # - updated(𝒰::UpdateCase, x_org, _)
+    # - original(𝒰::UpdateCase, x_new, _)
+    @test EMRH.updated(𝒰, l_org, l_org) == l_new
+    @test EMRH.original(𝒰, l_new, l_new) == l_org
+    @test all(EMRH.updated(𝒰, t, l_org) == EMRH.updated(𝒰, t) for t ∈ opers_opt)
+    @test all(EMRH.original(𝒰, t, l_new) == EMRH.original(𝒰, t) for t ∈ 𝒯ᵣₕ)
 
     # Extract the case and the modeltype from the `UpdateCase`
     case_rh = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
@@ -116,7 +133,7 @@
     # Test that the variable indexed over period partitions is only extracted for the
     # partitions within the implementation horizon and indexed by the original partitions
     # - _get_values_from_obj(obj::SparseAxisArray, opers)
-    # - original(𝒰::UpdateCase, x_new::T) where {T<:TS.PeriodPartition}
+    # - original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
     𝒯ᵖᵈ_impl = EMRH._partitions_within(𝒯ᵖᵈ, opers_impl)
     @test length(𝒯ᵖᵈ_impl) == 1
     @test res_EMRH[:part_variable][!, :x1] == [ℒ[1]]
@@ -139,15 +156,19 @@
     # - update_results!(results, m, 𝒰, opers)
     # - get_results(m::JuMP.Model)
     # - _get_values_from_obj
+    # - updated(𝒰::UpdateCase, x_org, _)
+    # - updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition}
     @test all(
         all(
-            value.(m_rh[k][EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2])]) ==
+            value.(m_rh[k][EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2], r[:x1])]) ==
         r[:y] for r ∈ eachrow(val))
     for (k, val) ∈ res_EMRH if ncol(val) == 3)
     @test all(
         all(
             value.(m_rh[k][
-                EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2]), EMRH.updated(𝒰, r[:x3])
+                EMRH.updated(𝒰, r[:x1]),
+                EMRH.updated(𝒰, r[:x2], r[:x1]),
+                EMRH.updated(𝒰, r[:x3], r[:x1]),
             ]) ==
         r[:y] for r ∈ eachrow(val))
     for (k, val) ∈ res_EMRH if ncol(val) == 4)
