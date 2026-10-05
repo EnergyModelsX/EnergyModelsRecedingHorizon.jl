@@ -90,6 +90,7 @@ The extension for `EnergyModelsGeography` adds the following additional reset ty
     It is furthermore necessary to provide new methods to the function [`EMRH._type_to_key`](@ref).
 
     If you create a new unconventional `AbstractElement`, *i.e.*, an `AbstractElement` with fields that are used for variable indexing, you must also create new methods for [`EMRH._init_mapping!`](@ref), [`EMRH._add_mapping!`](@ref), [`EMRH._delete_mapping!`](@ref), as well as [`EMRH.original`](@ref) and [`EMRH.updated`](@ref).
+    It is sufficient to create methods with two arguments for [`EMRH.original`](@ref) and [`EMRH.updated`](@ref), as the methods with three arguments used in the results extraction fall back to the methods with two arguments for all types except for period partitions.
 
 ## [Internal work flow](@id dev-code-int_flow)
 
@@ -120,9 +121,12 @@ The following section provides the general overview with differentiation between
 
        In both implementations, the mapping between the operational periods and the period partitions of the receding horizon problem and the original problem is updated in this step.
        The mapping of the period partitions is created through the function [`EMRH._update_partition_mapping!`](@ref) for all elements with a `PartitionReset`.
+       It is created for each element individually, as identical partitions of the receding horizon problem can correspond to different partitions of the original problem in different elements.
+       Hence, the mapping of a period partition requires the element in which the partition is used as additional argument, *i.e.*, `original(𝒰, t_pd_new, x_new)` and `updated(𝒰, t_pd_org, x_org)`.
 
        Subsequently, the model is optimized.
     3. Once the model is solved, the operational results for the implementation horizon are extracted from the model and saved as a `DataFrame` through the function [`EMRH.update_results!`](@ref).
        Variables that are indexed with strategic periods are **not** extracted.
        Variables that are indexed with period partitions are extracted for the partitions fully included in the implementation horizon and indexed by the partitions of the original problem.
+       The first index of a variable is assumed to be the element using the partition, following the indexing convention of `EnergyModelsX`.
     4. The value of the reset type for initialization data is updated using the results from the optimization problem using the function [`EMRH.update_init_data!`](@ref).

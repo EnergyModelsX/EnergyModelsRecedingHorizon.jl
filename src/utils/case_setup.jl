@@ -91,6 +91,11 @@ function _add_partition_mapping!(
     partsᵣₕ = collect(partition_duration(𝒯ᵣₕ, period_duration(updated(s))))
 
     # Add the mapping in both directions
+    # `zip` truncates silently to the shorter vector. Both vectors have the same length as
+    # neither the optimization nor the implementation horizon may split a partition
+    # (`_check_period_partitions`). In the POI implementation, `partsᵣₕ` is calculated from
+    # the original profile (`NoResBehav`). Hence, it requires in addition the same pattern of
+    # periods per partition in all horizons (`_check_number_op`).
     𝒰.map_org[:partitions][updated(s)] =
         Dict{TS.PeriodPartition,TS.PeriodPartition}(zip(partsᵣₕ, parts))
     𝒰.map_updated[:partitions][original(s)] =

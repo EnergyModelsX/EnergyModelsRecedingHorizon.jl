@@ -46,6 +46,9 @@ EMRH.period_duration(n::EMF.AbstractPeriodDemandSink) = EMF.period_duration(n)
 !!! warning "Caveats of period partitions"
     It is **not** possible to specify a `FixedProfile` for the duration of the period partitions due to the way the horizons are calculated.
 
+    Variables indexed over period partitions must have the element as first index, *e.g.*, `m[:var][n, t_pd]`.
+    The mapping of period partitions between the receding horizon problem and the original problem depends on the element, and the first index is used for identifying the element in the results extraction.
+
     Using partitions is experimental:
 
     1. You must be careful that the structure of the chosen partitions are in line with both the optimization and implementation horizon such that partitions are not split in the receding horizon optimization problems.
