@@ -255,7 +255,7 @@ end
 
     # Test that the variable indexed over period partitions is indexed by the partitions of
     # the original problem of the respective link
-    # - _add_partition_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+    # - _update_periods_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
     # - update_results!(results, m, vars, 𝒰, opers, 𝒽)
     for l ∈ filter(l -> isa(l, CapDirect), get_links(case))
         𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), EMRH.period_duration(l)))

@@ -25,6 +25,7 @@ include(joinpath("structures", "node.jl"))
 include(joinpath("utils", "case_setup.jl"))
 include(joinpath("utils", "horizons.jl"))
 include(joinpath("utils", "identification.jl"))
+include(joinpath("utils", "mapping.jl"))
 include(joinpath("utils", "other.jl"))
 include(joinpath("utils", "results.jl"))
 

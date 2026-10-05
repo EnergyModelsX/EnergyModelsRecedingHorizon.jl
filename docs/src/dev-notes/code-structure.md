@@ -120,7 +120,7 @@ The following section provides the general overview with differentiation between
            In the `POI` implementation, we only have to update the values of the created parameter variables through the function [`POIExt.update_model!`](@ref).
 
        In both implementations, the mapping between the operational periods and the period partitions of the receding horizon problem and the original problem is updated in this step.
-       The mapping of the period partitions is created through the function [`EMRH._update_partition_mapping!`](@ref) for all elements with a `PartitionReset`.
+       The mapping of the period partitions is created through the function [`EMRH._update_periods_mapping!`](@ref) for all elements with a `PartitionReset`.
        It is created for each element individually, as identical partitions of the receding horizon problem can correspond to different partitions of the original problem in different elements.
        Hence, the mapping of a period partition requires the element in which the partition is used as additional argument, *i.e.*, `original(𝒰, t_pd_new, x_new)` and `updated(𝒰, t_pd_org, x_org)`.
 

@@ -69,8 +69,8 @@
 
     # Test that the period partitions are correctly mapped between the receding horizon and
     # the original problem
-    # - _update_partition_mapping!(𝒰, opers, 𝒯ᵣₕ)
-    # - _add_partition_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+    # - _update_periods_mapping!(𝒰, opers, 𝒯ᵣₕ)
+    # - _update_periods_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
     # - updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition}
     # - original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
     l_org = ℒ[1]

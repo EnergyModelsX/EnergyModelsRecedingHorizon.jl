@@ -311,6 +311,8 @@ is_init_reset(rt::InitReset) = true
     period_duration(x)
     period_duration(res_type::PartitionReset, 𝒯::TS.TimeStructure)
 
+Returns the duration of the period partitions of the element `x` or the period partitions of
+the `PartitionReset` `res_type` for a given time structure `𝒯`.
 """
 function period_duration(x)
     x_type = typeof(x)
@@ -326,6 +328,15 @@ end
 function period_duration(res_type::PartitionReset, 𝒯::TS.TimeStructure)
     return partition_duration(𝒯, res_type.pps)
 end
+
+"""
+    _partitions_within(𝒯ᵖᵈ, opers::Vector{<:TS.TimePeriod})
+
+Returns the period partitions in `𝒯ᵖᵈ` that are fully included in the operational periods
+`opers`.
+"""
+_partitions_within(𝒯ᵖᵈ, opers::Vector{<:TS.TimePeriod}) =
+    filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
 
 """
     abstract type AbstractSub
@@ -625,7 +636,7 @@ If the input is an `AbstractSub`, it returns the value of the field `new`.
 
 !!! note "Period partitions"
     The mapping of period partitions is only available for partitions of elements that
-    utilize a `PartitionProfile`, see [`_update_partition_mapping!`](@ref).
+    utilize a `PartitionProfile`, see [`_update_periods_mapping!`](@ref).
 """
 updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
     get_mapping_updated(𝒰, _type_to_key(T))[x_org]
@@ -655,7 +666,7 @@ If the input is an `AbstractSub`, it returns the value of the field `org`.
 
 !!! note "Period partitions"
     The mapping of period partitions is only available for partitions of elements that
-    utilize a `PartitionProfile`, see [`_update_partition_mapping!`](@ref).
+    utilize a `PartitionProfile`, see [`_update_periods_mapping!`](@ref).
 """
 original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
     get_mapping_original(𝒰, _type_to_key(T))[x_new]
