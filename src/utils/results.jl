@@ -32,8 +32,14 @@ function _get_values_from_obj(
         if isa(obj, JuMP.Containers.DenseAxisArray)
             iter = axes(obj)
         else
+            # The type of an index set is identified through the first key. Only the index
+            # sets over period partitions are required in full for identifying the
+            # partitions included in `opers`
             𝒦 = keys(obj.data)
-            iter = Tuple(unique(key[k] for key ∈ 𝒦) for k ∈ eachindex(first(𝒦)))
+            iter = Tuple(
+                isa(idx, TS.PeriodPartition) ? unique(key[k] for key ∈ 𝒦) : [idx]
+                for (k, idx) ∈ enumerate(first(𝒦))
+            )
         end
 
         # Restrict the index sets over time periods to the periods `opers` and the index sets
