@@ -28,6 +28,7 @@ EMRH.get_results_df
 EMRH._initialize_loop_variables
 EMRH.init_level
 EMRH._create_lens_dict
+EMRH._partitions_within
 ```
 
 ### [Identification functions](@id lib-int-ident)
@@ -67,6 +68,7 @@ EMRH.Accessors.ConstructionBase.constructorof
 EMRH._init_mapping!
 EMRH._add_mapping!
 EMRH._delete_mapping!
+EMRH._update_periods_mapping!
 EMRH._type_to_key
 ```
 

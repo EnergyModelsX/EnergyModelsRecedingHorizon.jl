@@ -1,5 +1,13 @@
 # Release notes
 
+## Version 0.2.4 (2026-10-06)
+
+### Bugfix: Mapping of period partitions
+
+* Fixed a bug for saving results of variables indexed over period partitions:
+  * Added a mapping between the `PeriodPartition`s of the receding horizon problem and the original problem to the `UpdateCase`.
+  * Variables indexed over period partitions are now extracted for the partitions within the implementation horizon and indexed by the partitions of the original problem.
+
 ## Version 0.2.3 (2026-09-29)
 
 ### Included support for `PartitionProfile`

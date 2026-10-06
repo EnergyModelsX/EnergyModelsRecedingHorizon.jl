@@ -1,36 +1,3 @@
-# Creation of a new link type with associated capacity
-struct CapDirect <: Link
-    id::Any
-    from::EMB.Node
-    to::EMB.Node
-    capacity::TimeProfile
-    part_dur::PartitionProfile
-    part_mult::PartitionProfile
-end
-
-# Add methods to required functions
-EMB.capacity(l::CapDirect) = l.capacity
-EMB.capacity(l::CapDirect, t) = l.capacity[t]
-EMB.has_capacity(l::CapDirect) = true
-EMRH.period_duration(l::CapDirect) = l.part_dur
-
-function EMB.create_link(m, l::CapDirect, 𝒯, 𝒫, modeltype::EnergyModel)
-
-    # Declaration of the required subsets
-    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(l))
-
-    # Generic link in which each output corresponds to the input
-    @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
-        m[:link_out][l, t, p] == m[:link_in][l, t, p]
-    )
-
-    # Capacity constraint
-    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ, t ∈ t_pd, p ∈ EMB.link_res(l)],
-        m[:link_out][l, t, p] ≤ m[:link_cap_inst][l, t] * l.part_mult[t_pd]
-    )
-    constraints_capacity_installed(m, l, 𝒯, modeltype)
-end
-
 # Introduction of different profiles
 price_profile = [10, 10, 10, 10, 1000, 1000, 1000, 1000]
 cap_profile = [20, 30, 40, 30, 10, 50, 35, 20]
@@ -43,7 +10,10 @@ function create_poi_case(;
     dur_op = [1, 1, 1, 1, 1, 1, 1, 1],
     init_state = 10,
     HorizonType = PeriodHorizons,
-    part_profile = [2, 2, 2, 2]
+    hor_opt = 4,
+    hor_impl = 2,
+    part_profile = [2, 2, 2, 2],
+    part_profile_add = nothing,
 )
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)
@@ -52,7 +22,7 @@ function create_poi_case(;
 
     # Define time structure
     𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
-    ℋ = HorizonType(dur_op, 4, 2)
+    ℋ = HorizonType(dur_op, hor_opt, hor_impl)
 
     # Define the model depending on input
     modeltype = RecHorOperationalModel(
@@ -100,6 +70,20 @@ function create_poi_case(;
         Direct("source-demand", 𝒩[1], 𝒩[3], Linear()),
         Direct("storage-demand", 𝒩[2], 𝒩[3], Linear()),
     ]
+
+    # Add a second link with a different partition profile, if specified
+    if !isnothing(part_profile_add)
+        push!(ℒ,
+            CapDirect(
+                "source-demand-part",
+                𝒩[1],
+                𝒩[3],
+                OperationalProfile(cap_profile),
+                PartitionProfile(part_profile_add),
+                PartitionProfile(mult_profile),
+            ),
+        )
+    end
 
     # Create the input case structure
     case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
@@ -202,6 +186,15 @@ end
     # Test that all results were saved
     @test length(results[:stor_level][!, :y]) == length(ops)
 
+    # Test that the variable indexed over period partitions is saved once for each partition
+    # of the original problem
+    # - _get_values_from_obj(obj::SparseAxisArray, opers)
+    # - original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
+    𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), EMRH.period_duration(cap_link)))
+    @test nrow(results[:part_variable]) == length(𝒯ᵖᵈ)
+    @test results[:part_variable][!, :x1] == fill(cap_link, length(𝒯ᵖᵈ))
+    @test results[:part_variable][!, :x2] == 𝒯ᵖᵈ
+
     # Test that the first period in the first horizon is correctly used
     @test EMRH.init_level(stor) == node_data(stor)[1].init_val_dict[:stor_level]
     @test node_data(stor)[1].init_val_dict[:stor_level] ≈
@@ -247,4 +240,25 @@ end
         )[1, :y] ≈
             filter(r -> r.x1 == src && r.x2 == ops[k], results[:cap_use])[1, :y] * em_co2[k]
     for k ∈ 1:8)
+
+    # Run a model with two links with different partition profiles. The first partition of
+    # both links is `(1)` in each receding horizon problem, while the corresponding
+    # partitions of the original problem differ from the second horizon onwards
+    case, modeltype = create_poi_case(;
+        dur_op = fill(1, 7),
+        hor_impl = 3,
+        part_profile = [1, 2, 1, 2, 1],
+        part_profile_add = fill(1, 7),
+    )
+    optimizer = POI.Optimizer(HiGHS.Optimizer())
+    results = run_model_rh(case, modeltype, optimizer)
+
+    # Test that the variable indexed over period partitions is indexed by the partitions of
+    # the original problem of the respective link
+    # - _update_periods_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+    # - update_results!(results, m, vars, 𝒰, opers, 𝒽)
+    for l ∈ filter(l -> isa(l, CapDirect), get_links(case))
+        𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), EMRH.period_duration(l)))
+        @test filter(r -> r.x1 == l, results[:part_variable])[!, :x2] == 𝒯ᵖᵈ
+    end
 end

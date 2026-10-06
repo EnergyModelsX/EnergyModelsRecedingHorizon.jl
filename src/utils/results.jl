@@ -2,7 +2,8 @@
     get_results(m::JuMP.Model, vars::Vector{Symbol}, opers::Vector{<:TS.TimePeriod})
 
 Function returning the values of the optimized model `m` of the variables `vars` for the
-operational periods `opers`.
+operational periods `opers`. Variables indexed over period partitions are extracted for the
+partitions that are fully included in `opers`.
 
 If the vector `opers` is empty, it returns the values for the complete horizon.
 Prints a warning message for currently unsupported types without extracting their value.
@@ -27,16 +28,29 @@ function _get_values_from_obj(
     elseif isempty(opers)
         return JuMP.Containers.rowtable(value.(obj))
     else
+        # Extract the individual index sets of the container
         if isa(obj, JuMP.Containers.DenseAxisArray)
             iter = axes(obj)
-            idx_t = findall(col -> isa(col, Vector{<:TS.TimePeriod}), iter)
         else
-            iter = first(keys(obj.data))
-            idx_t = findall(col -> isa(col, TS.TimePeriod), iter)
+            # The type of an index set is identified through the first key. Only the index
+            # sets over period partitions are required in full for identifying the
+            # partitions included in `opers`
+            𝒦 = keys(obj.data)
+            iter = Tuple(
+                isa(idx, TS.PeriodPartition) ? unique(key[k] for key ∈ 𝒦) : [idx]
+                for (k, idx) ∈ enumerate(first(𝒦))
+            )
         end
+
+        # Restrict the index sets over time periods to the periods `opers` and the index sets
+        # over period partitions to the partitions fully included in `opers`
         subset = Any[Colon() for _ ∈ iter]
-        for k ∈ idx_t
-            subset[k] = opers
+        for (k, col) ∈ enumerate(iter)
+            if isa(first(col), TS.TimePeriod)
+                subset[k] = opers
+            elseif isa(first(col), TS.PeriodPartition)
+                subset[k] = _partitions_within(col, opers)
+            end
         end
 
         return JuMP.Containers.rowtable(value.(obj[subset...]))
@@ -57,6 +71,8 @@ Updates `results` given the optimization results `m` for the operational periods
 the identified variables `vars`, performed in horizon `𝒽`.
 The results are indexed by the elements in the provided `case` (here accessed using the
 [`UpdateCase`](@ref) `𝒰`).
+
+Period partitions are mapped using the first index of the respective variable as element.
 """
 function update_results!(results, m, vars, 𝒰, opers, 𝒽)
     opers_EMRH = [updated(𝒰, t) for t ∈ opers]
@@ -87,7 +103,16 @@ function update_results!(results, m, vars, 𝒰, opers, 𝒽)
         else
             df = DataFrame(results_rh[k])
             subnames = filter(n -> n ≠ "y", names(df))
-            mapcols!(𝒳 -> [original(𝒰, x) for x ∈ 𝒳], df, cols=subnames)
+            if !isempty(subnames)
+                # The first index is considered as element of the respective row, as the
+                # mapping of period partitions depends on the element
+                𝒳ᵉˡᵉ = df[:, first(subnames)]
+                mapcols!(
+                    𝒳 -> [original(𝒰, x, x_ele) for (x, x_ele) ∈ zip(𝒳, 𝒳ᵉˡᵉ)],
+                    df,
+                    cols = subnames,
+                )
+            end
             append!(container, df)
         end
     end

@@ -14,13 +14,12 @@ function _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
     for 𝒮 ∈ get_sub_elements_vec(𝒰)
         _update_case_types!(𝒮, 𝒰, opers)
     end
-    𝒰.map_org[:periods] = Dict(zip(𝒯ᵣₕ, opers))
-    𝒰.map_updated[:periods] = Dict(zip(opers, 𝒯ᵣₕ))
+    _update_periods_mapping!(𝒰, opers, 𝒯ᵣₕ)
 end
 
 """
     _update_case_types!(𝒮::Vector{<:AbstractSub}, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
-    _update_case_types!(s:::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
+    _update_case_types!(s::AbstractSub, 𝒰::UpdateCase, opers::Vector{<:TS.TimePeriod})
 
 Updates the elements within the `Vector{<:AbstractSub}` or `AbstractSub` with the new values,
 The update only takes place when the field `reset` of a given `AbstractSub` is not empty.
@@ -107,8 +106,7 @@ function _reset_field(
 
     # Identify the partitions of the original problem that are used within the current
     # receding horizon problem
-    𝒯ᵖᵈ = period_duration(res_type, 𝒯)
-    parts = filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
+    parts = _partitions_within(period_duration(res_type, 𝒯), opers)
 
     # Reset the partition profile of the receding horizon problem based on the relevant
     # partitions
@@ -186,64 +184,8 @@ function _add_elements!(𝒰::UpdateCase, 𝒳::Vector{T}) where {T<:AbstractEle
 end
 
 """
-    _init_mapping!(𝒰::UpdateCase, ::Vector{T}) where {T<:Union{Resource, AbstractElement}}
-    _init_mapping!(𝒰::UpdateCase, modeltype::T) where {T<:EnergyModel}
-
-Initialize the mapping dictionary used for mapping the original to the receding horizon
-problem and *vice versa*.
-
-!!! note "New, unconventional `AbstractElement`s"
-    If you create a new unconventional `AbstractElement`, *i.e.*, an `AbstractElement` with
-    fields that are used for variable indexing, you must create a new method for this
-    function.
-"""
-function _init_mapping!(𝒰::UpdateCase, ::Vector{T}) where {T<:Union{Resource, AbstractElement}}
-    𝒰.map_org[_type_to_key(T)] = Dict{T,T}()
-    𝒰.map_updated[_type_to_key(T)] = Dict{T,T}()
-end
-function _init_mapping!(𝒰::UpdateCase, modeltype::T) where {T<:EnergyModel}
-    𝒰.map_org[_type_to_key(T)] = Dict{T,T}(modeltype => modeltype)
-    𝒰.map_updated[_type_to_key(T)] = Dict{T,T}(modeltype => modeltype)
-end
-
-"""
-    _add_mapping!(𝒰::UpdateCase, x::T) where {T}
-    _add_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
-
-Add the mapping for `x` or `AbstractSub` `s` both from the original to the receding horizon
-problem and *vice versa*.
-
-!!! note "New, unconventional `AbstractElement`s"
-    If you create a new unconventional `AbstractElement`, *i.e.*, an `AbstractElement` with
-    fields that are used for variable indexing, you must create a new method for this
-    function.
-"""
-function _add_mapping!(𝒰::UpdateCase, x::T) where {T}
-    𝒰.map_org[_type_to_key(T)][x] = x
-    𝒰.map_updated[_type_to_key(T)][x] = x
-end
-function _add_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
-    𝒰.map_org[_type_to_key(T)][updated(s)] = original(s)
-    𝒰.map_updated[_type_to_key(T)][original(s)] = updated(s)
-end
-
-"""
-    _delete_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
-
-Delete the mapping for `AbstractSub` `s` both from the original to the receding horizon
-problem and *vice versa*.
-
-!!! note "New, unconventional `AbstractElement`s"
-    If you create a new unconventional `AbstractElement`, *i.e.*, an `AbstractElement` with
-    fields that are used for variable indexing, you must create a new method for this
-    function.
-"""
-function _delete_mapping!(𝒰::UpdateCase, s::T) where {T<:AbstractSub}
-    delete!(𝒰.map_org[_type_to_key(T)], updated(s))
-    delete!(𝒰.map_updated[_type_to_key(T)], original(s))
-end
-
-"""
+    _type_to_key(::Type{T}) where {T<:TS.TimePeriod}
+    _type_to_key(::Type{T}) where {T<:TS.PeriodPartition}
     _type_to_key(::Type{T}) where {T<:Union{Resource, ProductSub}}
     _type_to_key(::Type{T}) where {T<:Union{EMB.Node, NodeSub}}
     _type_to_key(::Type{T}) where {T<:Union{Link, LinkSub}}
@@ -253,6 +195,7 @@ end
 Returns the symbol used for the type `T` when creating the mapping for the individual elements.
 """
 _type_to_key(::Type{T}) where {T<:TS.TimePeriod} = :periods
+_type_to_key(::Type{T}) where {T<:TS.PeriodPartition} = :partitions
 _type_to_key(::Type{T}) where {T<:Union{Resource, ProductSub}} = :resources
 _type_to_key(::Type{T}) where {T<:Union{EMB.Node, NodeSub}} = :nodes
 _type_to_key(::Type{T}) where {T<:Union{Link, LinkSub}} = :links
@@ -360,7 +303,7 @@ Returns a log, a boolean indicating whether there are inconsistencies and the re
 number of partitions within the horizon.
 """
 function _check_horizon(n_ref::Union{Nothing, Vector{Int}}, 𝒯ᵖᵈ, opersᵣₕ, name::String, optimizer)
-    parts = filter(t_pd -> isempty(setdiff(t_pd, opersᵣₕ)), 𝒯ᵖᵈ)
+    parts = _partitions_within(𝒯ᵖᵈ, opersᵣₕ)
     n_parts = [length(part) for part ∈ parts]
     log = ""
     bool_op = nothing

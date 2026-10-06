@@ -311,6 +311,8 @@ is_init_reset(rt::InitReset) = true
     period_duration(x)
     period_duration(res_type::PartitionReset, 𝒯::TS.TimeStructure)
 
+Returns the duration of the period partitions of the element `x` or the period partitions of
+the `PartitionReset` `res_type` for a given time structure `𝒯`.
 """
 function period_duration(x)
     x_type = typeof(x)
@@ -326,6 +328,15 @@ end
 function period_duration(res_type::PartitionReset, 𝒯::TS.TimeStructure)
     return partition_duration(𝒯, res_type.pps)
 end
+
+"""
+    _partitions_within(𝒯ᵖᵈ, opers::Vector{<:TS.TimePeriod})
+
+Returns the period partitions in `𝒯ᵖᵈ` that are fully included in the operational periods
+`opers`.
+"""
+_partitions_within(𝒯ᵖᵈ, opers::Vector{<:TS.TimePeriod}) =
+    filter(t_pd -> isempty(setdiff(t_pd, opers)), 𝒯ᵖᵈ)
 
 """
     abstract type AbstractSub
@@ -608,32 +619,60 @@ get_future_value(𝒰::UpdateCase) = FutureValue[s.new for s ∈ get_sub_ele(�
 
 """
     updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}}
+    updated(𝒰::UpdateCase, x_org, x_ele)
+    updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition}
     updated(𝒮::Vector{<:AbstractSub}, x_org::AbstractElement)
     updated(s::AbstractSub)
 
 Returns the updated (resetted) instance of the original instance `x_org` for a given [`UpdateCase`](@ref).
 It is used for mapping and replacing instances of the type in fields.
 
+If a third argument is provided, it returns the updated instance of the original instance
+`x_org` through the two argument method, except for period partitions. The updated period
+partition of the original period partition `t_pd_org` depends on the original instance
+`x_org` in which the partition is used.
+
 If the input is an `AbstractSub`, it returns the value of the field `new`.
+
+!!! note "Period partitions"
+    The mapping of period partitions is only available for partitions of elements that
+    utilize a `PartitionProfile`, see [`_update_periods_mapping!`](@ref).
 """
 updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
     get_mapping_updated(𝒰, _type_to_key(T))[x_org]
+updated(𝒰::UpdateCase, x_org, _) = updated(𝒰, x_org)
+updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition} =
+    get_mapping_updated(𝒰, _type_to_key(T))[x_org][t_pd_org]
 updated(𝒮::Vector{<:AbstractSub}, x_org::AbstractElement) =
     updated(filter(x -> original(x) == x_org, 𝒮)[1])
 updated(s::AbstractSub) = s.new
 
 """
     original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}}
+    original(𝒰::UpdateCase, x_new, x_ele)
+    original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
     original(𝒮::Vector{<:AbstractSub}, x_new::AbstractElement)
     original(s::AbstractSub)
 
 Returns the original instance of the new (resetted) instance `x_new` for a given [`UpdateCase`](@ref).
 It is used for results extraction.
 
+If a third argument is provided, it returns the original instance of the new instance
+`x_new` through the two argument method, except for period partitions. The original period
+partition of the new period partition `t_pd_new` depends on the new instance `x_new` in
+which the partition is used.
+
 If the input is an `AbstractSub`, it returns the value of the field `org`.
+
+!!! note "Period partitions"
+    The mapping of period partitions is only available for partitions of elements that
+    utilize a `PartitionProfile`, see [`_update_periods_mapping!`](@ref).
 """
 original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
     get_mapping_original(𝒰, _type_to_key(T))[x_new]
+original(𝒰::UpdateCase, x_new, _) = original(𝒰, x_new)
+original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition} =
+    get_mapping_original(𝒰, _type_to_key(T))[x_new][t_pd_new]
 original(𝒮::Vector{<:AbstractSub}, x_new::AbstractElement) =
     original(filter(x -> updated(x) == x_new, 𝒮)[1])
 original(s::AbstractSub) = s.org

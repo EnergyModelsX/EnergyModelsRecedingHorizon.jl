@@ -3,8 +3,12 @@
     co2 = ResourceEmit("co2", 1.0)
     𝒫 = [power, co2]
 
-    𝒯 = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1]))
-    ℋ = PeriodHorizons([duration(t) for t ∈ 𝒯], 2, 1)
+    # Time structure with period partitions of two operational periods each, in line with
+    # the optimization and implementation horizon
+    𝒯 = TwoLevel(1, 1, SimpleTimes([2, 3, 4, 2, 1, 3, 2, 1]))
+    ℋ = PeriodHorizons([duration(t) for t ∈ 𝒯], 4, 2)
+    part_dur = PartitionProfile([5, 6, 4, 3])
+    𝒯ᵖᵈ = collect(partition_duration(𝒯, part_dur))
 
     modeltype = RecHorOperationalModel(
         Dict(co2 => FixedProfile(10)), Dict(co2 => FixedProfile(0)), co2,
@@ -15,7 +19,7 @@
         RefSource(
             "electricity source",
             FixedProfile(1e12),
-            OperationalProfile([1, 10, 1, 10, 1]),
+            OperationalProfile([1, 10, 1, 10, 1, 10, 1, 10]),
             FixedProfile(0),
             Dict(power => 1),
         ),
@@ -33,14 +37,21 @@
         ),
         RefSink(
             "electricity demand",
-            OperationalProfile([3, 4, 5, 6, 3]),
+            OperationalProfile([3, 4, 5, 6, 3, 4, 5, 6]),
             Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e6)),
             Dict(power => 1),
         ),
     ]
 
     ℒ = [
-        Direct("av-storage", 𝒩[1], 𝒩[3], Linear()),
+        CapDirect(
+            "av-storage",
+            𝒩[1],
+            𝒩[3],
+            OperationalProfile([3, 4, 5, 6, 3, 4, 5, 6]),
+            part_dur,
+            PartitionProfile([1, 0.5, 1, 0.5]),
+        ),
         Direct("av-demand", 𝒩[1], 𝒩[4], Linear()),
         Direct("source-av", 𝒩[2], 𝒩[1], Linear()),
         Direct("storage-av", 𝒩[3], 𝒩[1], Linear()),
@@ -55,6 +66,39 @@
     𝒯ᵣₕ = TwoLevel(1, 1, SimpleTimes(durations(hor_test)))
     opers_opt = collect(𝒯)[indices_optimization(hor_test)]
     EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+
+    # Test that the period partitions are correctly mapped between the receding horizon and
+    # the original problem
+    # - _update_periods_mapping!(𝒰, opers, 𝒯ᵣₕ)
+    # - _update_periods_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+    # - updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition}
+    # - original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
+    l_org = ℒ[1]
+    l_new = get_links(𝒰)[1]
+    𝒯ᵖᵈ_opt = EMRH._partitions_within(𝒯ᵖᵈ, opers_opt)
+    𝒯ᵖᵈᵣₕ = collect(partition_duration(𝒯ᵣₕ, EMRH.period_duration(l_new)))
+    @test length(𝒯ᵖᵈ_opt) == 2
+    @test collect(keys(EMRH.get_mapping_original(𝒰, :partitions))) == [l_new]
+    @test collect(keys(EMRH.get_mapping_updated(𝒰, :partitions))) == [l_org]
+    @test length(EMRH.get_mapping_original(𝒰, :partitions)[l_new]) == length(𝒯ᵖᵈ_opt)
+    @test all(
+        EMRH.updated(𝒰, t_pd, l_org) == t_pdᵣₕ for (t_pd, t_pdᵣₕ) ∈ zip(𝒯ᵖᵈ_opt, 𝒯ᵖᵈᵣₕ)
+    )
+    @test all(
+        EMRH.original(𝒰, t_pdᵣₕ, l_new) == t_pd for (t_pd, t_pdᵣₕ) ∈ zip(𝒯ᵖᵈ_opt, 𝒯ᵖᵈᵣₕ)
+    )
+    @test all(
+        [EMRH.original(𝒰, t) for t ∈ t_pdᵣₕ] == collect(EMRH.original(𝒰, t_pdᵣₕ, l_new))
+    for t_pdᵣₕ ∈ 𝒯ᵖᵈᵣₕ)
+
+    # Test that the three argument methods fall back to the two argument methods for all
+    # other types
+    # - updated(𝒰::UpdateCase, x_org, _)
+    # - original(𝒰::UpdateCase, x_new, _)
+    @test EMRH.updated(𝒰, l_org, l_org) == l_new
+    @test EMRH.original(𝒰, l_new, l_new) == l_org
+    @test all(EMRH.updated(𝒰, t, l_org) == EMRH.updated(𝒰, t) for t ∈ opers_opt)
+    @test all(EMRH.original(𝒰, t, l_new) == EMRH.original(𝒰, t) for t ∈ 𝒯ᵣₕ)
 
     # Extract the case and the modeltype from the `UpdateCase`
     case_rh = Case(𝒯ᵣₕ, get_products(𝒰), get_elements_vec(𝒰), get_couplings(case))
@@ -76,7 +120,7 @@
         # Strategic index variables
         :emissions_strategic,
         # Empty variables
-        :emissions_node, :emissions_link, :stor_discharge_inst, :link_cap_inst,
+        :emissions_node, :emissions_link, :stor_discharge_inst,
     ]
     # Test that we have the correct keys when we extract the values
     # - If loop in update_results!(results, m, 𝒰, opers)
@@ -85,6 +129,16 @@
     @test union(keys(res_EMB), [:opt_status]) == union(keys(res_EMRH), excl_var)
     res_EMB_df = EMRH.get_results_df(m_EMB)
     @test union(keys(res_EMB_df), [:opt_status]) == union(keys(res_EMRH), excl_var)
+
+    # Test that the variable indexed over period partitions is only extracted for the
+    # partitions within the implementation horizon and indexed by the original partitions
+    # - _get_values_from_obj(obj::SparseAxisArray, opers)
+    # - original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
+    𝒯ᵖᵈ_impl = EMRH._partitions_within(𝒯ᵖᵈ, opers_impl)
+    @test length(𝒯ᵖᵈ_impl) == 1
+    @test res_EMRH[:part_variable][!, :x1] == [ℒ[1]]
+    @test res_EMRH[:part_variable][!, :x2] == 𝒯ᵖᵈ_impl
+    @test length(res_EMB[:part_variable]) == length(𝒯ᵖᵈ)
 
     # Extract the empty keys from the EMB dictionary
     res_EMB_red = Dict(k => val for (k, val) ∈ res_EMB if !isempty(val))
@@ -102,15 +156,19 @@
     # - update_results!(results, m, 𝒰, opers)
     # - get_results(m::JuMP.Model)
     # - _get_values_from_obj
+    # - updated(𝒰::UpdateCase, x_org, _)
+    # - updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition}
     @test all(
         all(
-            value.(m_rh[k][EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2])]) ==
+            value.(m_rh[k][EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2], r[:x1])]) ==
         r[:y] for r ∈ eachrow(val))
     for (k, val) ∈ res_EMRH if ncol(val) == 3)
     @test all(
         all(
             value.(m_rh[k][
-                EMRH.updated(𝒰, r[:x1]), EMRH.updated(𝒰, r[:x2]), EMRH.updated(𝒰, r[:x3])
+                EMRH.updated(𝒰, r[:x1]),
+                EMRH.updated(𝒰, r[:x2], r[:x1]),
+                EMRH.updated(𝒰, r[:x3], r[:x1]),
             ]) ==
         r[:y] for r ∈ eachrow(val))
     for (k, val) ∈ res_EMRH if ncol(val) == 4)
