@@ -1,6 +1,6 @@
 # Release notes
 
-## Version 0.2.4 (2026-10-XX)
+## Version 0.2.4 (2026-10-06)
 
 ### Bugfix: Mapping of period partitions
 
