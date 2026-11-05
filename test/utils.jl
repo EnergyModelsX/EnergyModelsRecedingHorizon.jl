@@ -39,4 +39,7 @@ end
 function EMB.variables_link(m, ℒˢᵘᵇ::Vector{CapDirect}, 𝒯, modeltype::EnergyModel)
     # Add a test variable indexed over the period partitions of the individual links
     @variable(m, part_variable[l ∈ ℒˢᵘᵇ, partition_duration(𝒯, EMRH.period_duration(l))])
+
+    # Add a test variable with an integer index set
+    @variable(m, int_variable[ℒˢᵘᵇ, 𝒯, 1:2] ≥ 0)
 end

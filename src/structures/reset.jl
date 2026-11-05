@@ -619,13 +619,15 @@ get_future_value(𝒰::UpdateCase) = FutureValue[s.new for s ∈ get_sub_ele(�
 
 """
     updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}}
+    updated(𝒰::UpdateCase, x_org::Integer)
     updated(𝒰::UpdateCase, x_org, x_ele)
     updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition}
     updated(𝒮::Vector{<:AbstractSub}, x_org::AbstractElement)
     updated(s::AbstractSub)
 
 Returns the updated (resetted) instance of the original instance `x_org` for a given [`UpdateCase`](@ref).
-It is used for mapping and replacing instances of the type in fields.
+It is used for mapping and replacing instances of the type in fields. Integers, *e.g.*,
+used as index of a variable, are not changed.
 
 If a third argument is provided, it returns the updated instance of the original instance
 `x_org` through the two argument method, except for period partitions. The updated period
@@ -640,6 +642,7 @@ If the input is an `AbstractSub`, it returns the value of the field `new`.
 """
 updated(𝒰::UpdateCase, x_org::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
     get_mapping_updated(𝒰, _type_to_key(T))[x_org]
+updated(::UpdateCase, x_org::Integer) = x_org
 updated(𝒰::UpdateCase, x_org, _) = updated(𝒰, x_org)
 updated(𝒰::UpdateCase, t_pd_org::T, x_org) where {T<:TS.PeriodPartition} =
     get_mapping_updated(𝒰, _type_to_key(T))[x_org][t_pd_org]
@@ -649,13 +652,15 @@ updated(s::AbstractSub) = s.new
 
 """
     original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}}
+    original(𝒰::UpdateCase, x_new::Integer)
     original(𝒰::UpdateCase, x_new, x_ele)
     original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition}
     original(𝒮::Vector{<:AbstractSub}, x_new::AbstractElement)
     original(s::AbstractSub)
 
 Returns the original instance of the new (resetted) instance `x_new` for a given [`UpdateCase`](@ref).
-It is used for results extraction.
+It is used for results extraction. Integers, *e.g.*, used as index of a variable, are not
+changed.
 
 If a third argument is provided, it returns the original instance of the new instance
 `x_new` through the two argument method, except for period partitions. The original period
@@ -670,6 +675,7 @@ If the input is an `AbstractSub`, it returns the value of the field `org`.
 """
 original(𝒰::UpdateCase, x_new::T) where {T<:Union{TS.TimePeriod, Resource, AbstractElement}} =
     get_mapping_original(𝒰, _type_to_key(T))[x_new]
+original(::UpdateCase, x_new::Integer) = x_new
 original(𝒰::UpdateCase, x_new, _) = original(𝒰, x_new)
 original(𝒰::UpdateCase, t_pd_new::T, x_new) where {T<:TS.PeriodPartition} =
     get_mapping_original(𝒰, _type_to_key(T))[x_new][t_pd_new]

@@ -140,6 +140,17 @@
     @test res_EMRH[:part_variable][!, :x2] == 𝒯ᵖᵈ_impl
     @test length(res_EMB[:part_variable]) == length(𝒯ᵖᵈ)
 
+    # Test that the variable with an integer index set is extracted for the periods within
+    # the implementation horizon and keeps the integer indices
+    # - updated(𝒰::UpdateCase, x_org::Integer)
+    # - original(𝒰::UpdateCase, x_new::Integer)
+    @test EMRH.updated(𝒰, 2) == EMRH.original(𝒰, 2) == 2
+    @test EMRH.updated(𝒰, 2, l_org) == EMRH.original(𝒰, 2, l_new) == 2
+    @test nrow(res_EMRH[:int_variable]) == 2 * length(opers_impl)
+    @test all(res_EMRH[:int_variable][!, :x1] .== Ref(ℒ[1]))
+    @test issetequal(res_EMRH[:int_variable][!, :x2], opers_impl)
+    @test sort(res_EMRH[:int_variable][!, :x3]) == repeat([1, 2]; inner = length(opers_impl))
+
     # Extract the empty keys from the EMB dictionary
     res_EMB_red = Dict(k => val for (k, val) ∈ res_EMB if !isempty(val))
 
