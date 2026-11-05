@@ -1,5 +1,11 @@
 # Release notes
 
+## Unversioned
+
+### Tests
+
+* The examples are run in a separate process using only the environment of the `examples` folder, so that a missing dependency of an example fails the tests and the active environment of the test session is not changed.
+
 ## Version 0.2.4 (2026-10-06)
 
 ### Bugfix: Mapping of period partitions
