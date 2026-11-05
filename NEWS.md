@@ -1,6 +1,10 @@
 # Release notes
 
-## Unversioned
+## Version 0.2.5 (2026-11-05)
+
+### Bugfix
+
+* Fixed the extraction of results of variables with an integer index set, *e.g.*, `discharge_segment` of *[`HydroUnit` nodes](https://energymodelsx.github.io/EnergyModelsRenewableProducers.jl/stable/nodes/det_hydropower/generator/#nodes-det_hydro_power-generator-math-add)* in `EnergyModelsRenewableProducers`, through methods of `original` and `updated` for `Integer`s.
 
 ### Tests
 

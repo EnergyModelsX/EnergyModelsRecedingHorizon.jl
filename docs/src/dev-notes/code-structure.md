@@ -129,4 +129,5 @@ The following section provides the general overview with differentiation between
        Variables that are indexed with strategic periods are **not** extracted.
        Variables that are indexed with period partitions are extracted for the partitions fully included in the implementation horizon and indexed by the partitions of the original problem.
        The first index of a variable is assumed to be the element using the partition, following the indexing convention of `EnergyModelsX`.
+       Integer indices, *e.g.*, the *[discharge segments of a hydropower unit](https://energymodelsx.github.io/EnergyModelsRenewableProducers.jl/stable/nodes/det_hydropower/generator/#nodes-det_hydro_power-generator-math-add)* in `EnergyModelsRenewableProducers`, are identical in both problems and hence not mapped.
     4. The value of the reset type for initialization data is updated using the results from the optimization problem using the function [`EMRH.update_init_data!`](@ref).
