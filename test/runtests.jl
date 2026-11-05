@@ -34,7 +34,7 @@ ENV["EMB_TEST"] = true # Set flag for example scripts to check if they are run a
 # Load types and functions shared by the individual test files
 include("utils.jl")
 
-@testset "RecedingHorizon" begin
+@testset "RecedingHorizon" verbose=true begin
     @testset "RecedingHorizon | General" begin
         include("test_general.jl")
     end
