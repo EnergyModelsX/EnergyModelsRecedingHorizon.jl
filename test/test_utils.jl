@@ -703,6 +703,207 @@ end
     end
 end
 
+# Creation of an `ExtensionData` type with period partitions without a method for
+# `period_duration` and a sink type with period partitions. The types are used in the tests
+# for partitions in `ExtensionData`
+struct PartLimData <: ExtensionData
+    part_lim::PartitionProfile
+end
+struct PartSink <: EMB.Sink
+    id::Any
+    cap::TimeProfile
+    penalty::Dict{Symbol,<:TimeProfile}
+    input::Dict{<:Resource,<:Real}
+    part_dur::PartitionProfile
+    data::Vector{<:ExtensionData}
+end
+EMRH.period_duration(n::PartSink) = n.part_dur
+
+@testset "Identification - Partitions in ExtensionData" begin
+    # Create the individual resources
+    co2 = ResourceEmit("co2", 1.0)
+    el = ResourceCarrier("el", 0.2)
+    𝒫 = [co2, el]
+
+    # Create the profiles
+    n_op = 8
+    dur_op = ones(n_op)
+    part_dur = PartitionProfile(fill(2, 4))
+    part_lim = PartitionProfile([40, 30, 30, 35])
+
+    # Create the individual nodes. The source has partitions only in its data while the data
+    # of the sink uses the partitions of the sink
+    src = RefSource(
+        "source",
+        FixedProfile(50),
+        FixedProfile(10),
+        FixedProfile(0),
+        Dict(el => 1),
+        [PartData(part_dur, part_lim)],
+    )
+    snk = PartSink(
+        "sink",
+        FixedProfile(10),
+        Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e3)),
+        Dict(el => 1),
+        part_dur,
+        [PartLimData(part_lim)],
+    )
+    𝒩 = EMB.Node[src, snk]
+    ℒ = Link[Direct("src-snk", src, snk, Linear())]
+
+    # Create an operational modeltype and the time structure
+    modeltype = RecHorOperationalModel(
+        Dict(co2 => FixedProfile(100)),
+        Dict(co2 => FixedProfile(60)),
+        co2,
+    )
+    𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+    opers = collect(𝒯)
+    ℋ = PeriodHorizons(dur_op, 4, 2)
+
+    @testset "Path creation" begin
+        # Test that the partition profiles in `ExtensionData` are identified
+        # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
+        # - _find_update_paths(field::Vector{<:Data}, current_path, all_paths)
+        # - _find_update_paths(field::PartitionProfile, current_path, all_paths)
+        @test issetequal(
+            EMRH._find_update_paths(src),
+            Any[
+                [:data, "[1]", :part_dur, EMRH.PartitionPath()],
+                [:data, "[1]", :part_lim, EMRH.PartitionPath()],
+            ],
+        )
+        @test issetequal(
+            EMRH._find_update_paths(snk),
+            Any[
+                [:part_dur, EMRH.PartitionPath()],
+                [:data, "[1]", :part_lim, EMRH.PartitionPath()],
+            ],
+        )
+    end
+
+    @testset "Reset functionality" begin
+        # Create the update type
+        case = Case(𝒯, 𝒫, [𝒩, ℒ], [[get_nodes, get_links]], Dict(:horizons => ℋ))
+        𝒰 = EMRH._create_updatetype(case, modeltype)
+        s_src, s_snk = EMRH.get_sub_ele(𝒰, EMB.Node)
+
+        # Test that the data provides the partition durations of the source
+        # - PartitionReset(field_path::Vector, x)
+        # - _period_duration_lens(x, field_path::Vector, idx_path::Vector)
+        # - _has_period_duration(x)
+        # - _index_path(x, field_path::Vector)
+        # - _pps_lens(res_type::PartitionReset, x)
+        # - _idx_lens(res_type::PartitionReset, x)
+        res_src = EMRH.resets(s_src)
+        @test length(res_src) == 2
+        @test all(isa(rt, EMRH.PartitionReset) for rt ∈ res_src)
+        @test all(EMRH._pps_lens(rt, src) === node_data(src)[1] for rt ∈ res_src)
+        @test all(EMRH._idx_lens(rt) === identity for rt ∈ res_src)
+        @test all(rt.pps == part_dur for rt ∈ res_src)
+        rt_dur = only(filter(rt -> rt.lens(src) == part_dur, res_src))
+        rt_lim = only(filter(rt -> rt.lens(src) == part_lim, res_src))
+        @test isa(rt_dur, EMRH.PartitionReset{EMRH.NoResBehav})
+        @test isa(rt_lim, EMRH.PartitionReset{EMRH.StandResBehav})
+
+        # Test that data without a method for `period_duration` uses the partitions of the
+        # element
+        res_snk = EMRH.resets(s_snk)
+        @test length(res_snk) == 2
+        @test all(EMRH._pps_lens(rt) === identity for rt ∈ res_snk)
+        @test all(EMRH._pps_lens(rt, snk) === snk for rt ∈ res_snk)
+        @test all(rt.pps == part_dur for rt ∈ res_snk)
+
+        # Test that the resets are grouped by the element as index object
+        # - _partition_groups(s::AbstractSub)
+        @test length(EMRH._partition_groups(s_src)) == 1
+        @test length(only(EMRH._partition_groups(s_src))) == 2
+        @test length(EMRH._partition_groups(s_snk)) == 1
+
+        # Test that the profiles in the data are reset and that the mapping of the partitions
+        # uses the element for the second horizon
+        # - _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
+        # - _update_periods_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+        𝒽 = collect(ℋ)[2]
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        opers_opt = opers[indices_optimization(𝒽)]
+        EMRH._update_update_case!(𝒰, opers_opt, 𝒯ᵣₕ)
+        src_new = EMRH.updated(s_src)
+        snk_new = EMRH.updated(s_snk)
+        @test part_data(src_new).part_dur.vals == part_dur.vals[2:3]
+        @test part_data(src_new).part_lim.vals == part_lim.vals[2:3]
+        @test node_data(snk_new)[1].part_lim.vals == part_lim.vals[2:3]
+
+        𝒯ᵖᵈ = collect(partition_duration(𝒯, part_dur))
+        𝒯ᵖᵈᵣₕ = collect(partition_duration(𝒯ᵣₕ, EMRH.period_duration(part_data(src_new))))
+        @test haskey(EMRH.get_mapping_updated(𝒰, :partitions), src)
+        @test haskey(EMRH.get_mapping_original(𝒰, :partitions), snk_new)
+        @test [EMRH.updated(𝒰, t_pd, src) for t_pd ∈ 𝒯ᵖᵈ[2:3]] == 𝒯ᵖᵈᵣₕ
+        @test [EMRH.original(𝒰, t_pd, src_new) for t_pd ∈ 𝒯ᵖᵈᵣₕ] == 𝒯ᵖᵈ[2:3]
+    end
+
+    @testset "Check of period partitions" begin
+        # Test that an error is thrown if no object on the path has a method for
+        # `period_duration`
+        # - _period_duration_lens(x, field_path::Vector, idx_path::Vector)
+        src_err = RefSource(
+            "source",
+            FixedProfile(50),
+            FixedProfile(10),
+            FixedProfile(0),
+            Dict(el => 1),
+            [PartLimData(part_lim)],
+        )
+        case = Case(
+            𝒯, 𝒫, [EMB.Node[src_err], Link[]], [[get_nodes, get_links]],
+            Dict(:horizons => ℋ),
+        )
+        @test_throws ErrorException EMRH._create_updatetype(case, modeltype)
+
+        # Test that different profile instances with the same partitions are allowed for a
+        # single index object
+        # - _check_period_partitions(log, s::AbstractSub, 𝒯, ℋ, optimizer)
+        snk_eq = PartSink(
+            "sink",
+            FixedProfile(10),
+            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e3)),
+            Dict(el => 1),
+            part_dur,
+            [PartData(PartitionProfile(fill(2, 4)), PartitionProfile(fill(50, 4)))],
+        )
+        case = Case(
+            𝒯, 𝒫, [EMB.Node[src, snk_eq], Link[]], [[get_nodes, get_links]],
+            Dict(:horizons => ℋ),
+        )
+        𝒰 = EMRH._create_updatetype(case, modeltype)
+        log = Dict{String, Vector{String}}()
+        EMRH._check_period_partitions(log, EMRH.get_sub_ele(𝒰, EMB.Node)[2], 𝒯, ℋ, nothing)
+        @test isempty(log["$(snk_eq)"])
+
+        # Test that different partitions for a single index object are not allowed
+        EMB.TEST_ENV = true
+        snk_err = PartSink(
+            "sink",
+            FixedProfile(10),
+            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e3)),
+            Dict(el => 1),
+            part_dur,
+            [PartData(PartitionProfile(fill(1, n_op)), PartitionProfile(fill(50, n_op)))],
+        )
+        case = Case(
+            𝒯, 𝒫, [EMB.Node[src, snk_err], Link[]], [[get_nodes, get_links]],
+            Dict(:horizons => ℋ),
+        )
+        𝒰 = EMRH._create_updatetype(case, modeltype)
+        log = Dict{String, Vector{String}}()
+        EMRH._check_period_partitions(log, EMRH.get_sub_ele(𝒰, EMB.Node)[2], 𝒯, ℋ, nothing)
+        @test occursin("partitions of the `PartitionProfile`s", only(log["$(snk_err)"]))
+        @test_throws AssertionError EMRH._check_period_partitions(𝒰, ℋ, nothing)
+        EMB.TEST_ENV = false
+    end
+end
+
 @testset "Identification - modeltype" begin
     # Create the individual resources
     el = ResourceCarrier("el", 0.2)

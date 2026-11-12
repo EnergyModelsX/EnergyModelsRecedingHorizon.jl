@@ -43,3 +43,43 @@ function EMB.variables_link(m, ℒˢᵘᵇ::Vector{CapDirect}, 𝒯, modeltype::
     # Add a test variable with an integer index set
     @variable(m, int_variable[ℒˢᵘᵇ, 𝒯, 1:2] ≥ 0)
 end
+
+# Creation of a new `ExtensionData` type with period partitions. The data is used in the
+# tests for partitions in `ExtensionData`
+struct PartData <: ExtensionData
+    part_dur::PartitionProfile
+    part_lim::PartitionProfile
+end
+EMRH.period_duration(data::PartData) = data.part_dur
+part_data(n::EMB.Node) = first(filter(data -> isa(data, PartData), node_data(n)))
+
+function EMB.variables_ext_data(
+    m,
+    _::Type{PartData},
+    𝒩ˢᵘᵇ::Vector{<:EMB.Node},
+    𝒯,
+    𝒫,
+    modeltype::EnergyModel,
+)
+    # Add a test variable indexed over the period partitions of the data of the nodes
+    @variable(m,
+        part_data_var[n ∈ 𝒩ˢᵘᵇ, partition_duration(𝒯, EMRH.period_duration(part_data(n)))]
+    )
+end
+function EMB.constraints_ext_data(
+    m,
+    n::EMB.Node,
+    𝒯,
+    𝒫,
+    modeltype::EnergyModel,
+    data::PartData,
+)
+    # Declaration of the required subsets
+    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(data))
+
+    # The variable is the capacity usage within a partition and limited by the profile
+    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ],
+        m[:part_data_var][n, t_pd] == sum(m[:cap_use][n, t] * duration(t) for t ∈ t_pd)
+    )
+    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ], m[:part_data_var][n, t_pd] ≤ data.part_lim[t_pd])
+end

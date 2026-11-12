@@ -530,3 +530,163 @@ end
             50
     for t ∈ 𝒯)
 end
+
+# Creation of a new `TransmissionMode` type with period partitions. The mode is used in the
+# tests for partitions in `TransmissionMode`s
+struct PartStatic <: TransmissionMode
+    id::String
+    resource::Resource
+    trans_cap::TimeProfile
+    trans_loss::TimeProfile
+    opex_var::TimeProfile
+    opex_fixed::TimeProfile
+    directions::Int
+    data::Vector{<:ExtensionData}
+    part_dur::PartitionProfile
+    part_lim::PartitionProfile
+end
+EMRH.period_duration(tm::PartStatic) = tm.part_dur
+
+function EMG.variables_trans_mode(m, 𝒯, ℳˢᵘᵇ::Vector{<:PartStatic}, modeltype::EnergyModel)
+    # Add a test variable indexed over the period partitions of the individual modes
+    @variable(m, trans_part[tm ∈ ℳˢᵘᵇ, partition_duration(𝒯, EMRH.period_duration(tm))])
+end
+function EMG.create_transmission_mode(m, tm::PartStatic, 𝒯, modeltype::EnergyModel)
+    # Call the constraints of the fallback method
+    invoke(
+        EMG.create_transmission_mode,
+        Tuple{Any, TransmissionMode, Any, EnergyModel},
+        m, tm, 𝒯, modeltype,
+    )
+
+    # Declaration of the required subsets
+    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(tm))
+
+    # The variable is the transported energy within a partition and limited by the profile
+    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ],
+        m[:trans_part][tm, t_pd] == sum(m[:trans_out][tm, t] * duration(t) for t ∈ t_pd)
+    )
+    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ], m[:trans_part][tm, t_pd] ≤ tm.part_lim[t_pd])
+end
+
+@testset "Partitions in TransmissionModes" begin
+    # Create the individual resources
+    el = ResourceCarrier("el", 0.0)
+    co2 = ResourceEmit("co2", 1.0)
+    𝒫 = [el, co2]
+
+    # Create the time structure and the horizons
+    n_op = 7
+    dur_op = ones(n_op)
+    𝒯 = TwoLevel(1, 1, SimpleTimes(dur_op))
+    ℋ = PeriodHorizons(dur_op, 4, 3)
+    modeltype = RecHorOperationalModel(
+        Dict(co2 => FixedProfile(100)),
+        Dict(co2 => FixedProfile(0)),
+        co2,
+    )
+
+    # Create the nodes, links, and areas
+    src = RefSource("src", FixedProfile(100), FixedProfile(1), FixedProfile(0), Dict(el => 1))
+    snk = RefSink(
+        "snk",
+        OperationalProfile([10, 20, 15, 25, 10, 20, 15]),
+        Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e3)),
+        Dict(el => 1),
+    )
+    𝒩 = EMB.Node[GeoAvailability(1, 𝒫), src, GeoAvailability(2, 𝒫), snk]
+    ℒ = Link[
+        Direct("src-av_1", 𝒩[2], 𝒩[1], Linear()),
+        Direct("av_2-snk", 𝒩[3], 𝒩[4], Linear()),
+    ]
+    𝒜 = [RefArea(1, "a_1", 0.0, 0.0, 𝒩[1]), RefArea(2, "a_2", 1.0, 1.0, 𝒩[3])]
+
+    # Create a corridor with two modes. The first partition of both modes is `(1)` in each
+    # receding horizon problem, while the corresponding partitions of the original problem
+    # differ from the second horizon onwards. The cheaper mode `mode_a` is limited in each
+    # partition, resulting in a unique value of its partition variable
+    mode_a = PartStatic(
+        "mode_a", el, FixedProfile(50), FixedProfile(0), FixedProfile(1), FixedProfile(0), 1,
+        ExtensionData[], PartitionProfile([1, 2, 1, 2, 1]), PartitionProfile([5, 20, 5, 20, 5]),
+    )
+    mode_b = PartStatic(
+        "mode_b", el, FixedProfile(50), FixedProfile(0), FixedProfile(2), FixedProfile(0), 1,
+        ExtensionData[], PartitionProfile(fill(1, n_op)), PartitionProfile(fill(50, n_op)),
+    )
+    ℒᵗʳᵃⁿˢ = [Transmission(𝒜[1], 𝒜[2], [mode_a, mode_b])]
+
+    case = Case(
+        𝒯,
+        𝒫,
+        [𝒩, ℒ, 𝒜, ℒᵗʳᵃⁿˢ],
+        [[get_nodes, get_links], [get_areas, get_transmissions]],
+        Dict(:horizons => ℋ),
+    )
+
+    @testset "Reset functionality" begin
+        # Test that the modes are the index objects and provide the partition durations
+        # - PartitionReset(field_path::Vector, x)
+        # - _index_path(x::Transmission, field_path::Vector)
+        # - _partition_groups(s::AbstractSub)
+        𝒰 = EMRH._create_updatetype(case, modeltype)
+        s_trans = only(EMRH.get_sub_ele(𝒰, Transmission))
+        res_trans = filter(rt -> isa(rt, EMRH.PartitionReset), EMRH.resets(s_trans))
+        @test length(res_trans) == 4
+        @test issetequal(
+            [EMRH._idx_lens(rt, ℒᵗʳᵃⁿˢ[1]) for rt ∈ res_trans],
+            [mode_a, mode_b],
+        )
+        @test all(
+            EMRH._pps_lens(rt, ℒᵗʳᵃⁿˢ[1]) === EMRH._idx_lens(rt, ℒᵗʳᵃⁿˢ[1])
+        for rt ∈ res_trans)
+        @test length(EMRH._partition_groups(s_trans)) == 2
+
+        # Test that the mapping of the partitions is stored per mode for the second horizon
+        # - _update_update_case!(𝒰, opers, 𝒯ᵣₕ)
+        # - _update_periods_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+        opers = collect(𝒯)
+        𝒽 = collect(ℋ)[2]
+        𝒯ᵣₕ = TwoLevel(1, sum(durations(𝒽)), SimpleTimes(durations(𝒽)))
+        EMRH._update_update_case!(𝒰, opers[indices_optimization(𝒽)], 𝒯ᵣₕ)
+        for (tm, tm_new) ∈ zip(modes(ℒᵗʳᵃⁿˢ[1]), modes(EMRH.updated(s_trans)))
+            𝒯ᵖᵈ = collect(partition_duration(𝒯, EMRH.period_duration(tm)))
+            𝒯ᵖᵈᵣₕ = collect(partition_duration(𝒯ᵣₕ, EMRH.period_duration(tm_new)))
+            @test haskey(EMRH.get_mapping_updated(𝒰, :partitions), tm)
+            @test haskey(EMRH.get_mapping_original(𝒰, :partitions), tm_new)
+            @test [EMRH.original(𝒰, t_pd, tm_new) for t_pd ∈ 𝒯ᵖᵈᵣₕ] ==
+                𝒯ᵖᵈ[end-length(𝒯ᵖᵈᵣₕ)+1:end]
+        end
+    end
+
+    @testset "Full model run" begin
+        # Run the perfect foresight model as reference
+        optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
+        m_EMB = run_model(case, modeltype, optimizer)
+        𝒯ᵖᵈ_a = collect(partition_duration(𝒯, EMRH.period_duration(mode_a)))
+
+        # Run the model in both the standard and the POI implementation
+        for optimizer ∈ [optimizer, POI.Optimizer(HiGHS.Optimizer())]
+            results = run_model_rh(case, modeltype, optimizer)
+
+            # Test that the variable indexed over period partitions is indexed by the
+            # partitions of the original problem of the respective mode and that the values
+            # correspond to the periods of the original partitions
+            # - update_results!(results, m, vars, 𝒰, opers, 𝒽)
+            for tm ∈ [mode_a, mode_b]
+                𝒯ᵖᵈ = collect(partition_duration(𝒯, EMRH.period_duration(tm)))
+                res_tm = filter(r -> r.x1 == tm, results[:trans_part])
+                @test res_tm[!, :x2] == 𝒯ᵖᵈ
+                @test all(
+                    res_tm[k, :y] ≈ sum(
+                        filter(r -> r.x1 == tm && r.x2 ∈ t_pd, results[:trans_out])[!, :y]
+                    )
+                for (k, t_pd) ∈ enumerate(𝒯ᵖᵈ))
+            end
+
+            # Test that the unique values of `mode_a` correspond to the perfect foresight
+            # model
+            @test filter(r -> r.x1 == mode_a, results[:trans_part])[!, :y] ≈
+                [value(m_EMB[:trans_part][mode_a, t_pd]) for t_pd ∈ 𝒯ᵖᵈ_a]
+        end
+    end
+end
