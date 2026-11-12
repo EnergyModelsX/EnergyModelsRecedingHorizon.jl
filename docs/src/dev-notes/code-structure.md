@@ -33,6 +33,12 @@ The reset types have as individual fields
 
 - **`OperReset`** with `OperPath`: A reset type pointing towards a field with `OperationalProfile`.\
   The field `val` corresponds to the operational profile of the full time structure, **not** the profile of the individual horizon.
+- **`PartitionReset`** with `PartitionPath`: A reset type pointing towards a field with `PartitionProfile`.\
+  The field `val` corresponds to the partition profile of the full time structure while the field `pps` is the profile of the durations of the partitions.
+  The latter is provided by the deepest object on the field path with a method for [`EMRH.period_duration`](@ref), *e.g.*, an `ExtensionData` or the element itself.
+  The search stops at the index object of the JuMP variables indexed over the partitions.
+  The index object is identified through the function [`EMRH._index_path`](@ref) and corresponds to the element itself or, in the `EnergyModelsGeography` extension, to the `TransmissionMode`.
+  Both objects are accessible through lenses in the fields `pps_lens` and `idx_lens`.
 - **`ElementReset`** with `ElementPath`: A reset type pointing towards a field with an [`AbstractElement`](@extref EnergyModelsBase.AbstractElement).\
   The field `val` corresponds to the instance of the element of the original case type.
 - **`TimeWeightReset`** with `TimeWeightPath`: A reset type for a time weight of a [`FutureValue`](@ref).\
@@ -121,13 +127,15 @@ The following section provides the general overview with differentiation between
 
        In both implementations, the mapping between the operational periods and the period partitions of the receding horizon problem and the original problem is updated in this step.
        The mapping of the period partitions is created through the function [`EMRH._update_periods_mapping!`](@ref) for all elements with a `PartitionReset`.
-       It is created for each element individually, as identical partitions of the receding horizon problem can correspond to different partitions of the original problem in different elements.
-       Hence, the mapping of a period partition requires the element in which the partition is used as additional argument, *i.e.*, `original(𝒰, t_pd_new, x_new)` and `updated(𝒰, t_pd_org, x_org)`.
+       It is created for each index object individually, *i.e.*, for each element or `TransmissionMode`, as identical partitions of the receding horizon problem can correspond to different partitions of the original problem in different index objects.
+       To this end, the `PartitionReset`s of a substitution type are grouped by their index object through the function [`EMRH._partition_groups`](@ref).
+       All `PartitionProfile`s of an index object must result in the same partitions, which is checked in [`EMRH._check_period_partitions`](@ref).
+       Hence, the mapping of a period partition requires the index object in which the partition is used as additional argument, *i.e.*, `original(𝒰, t_pd_new, x_new)` and `updated(𝒰, t_pd_org, x_org)`.
 
        Subsequently, the model is optimized.
     3. Once the model is solved, the operational results for the implementation horizon are extracted from the model and saved as a `DataFrame` through the function [`EMRH.update_results!`](@ref).
        Variables that are indexed with strategic periods are **not** extracted.
        Variables that are indexed with period partitions are extracted for the partitions fully included in the implementation horizon and indexed by the partitions of the original problem.
-       The first index of a variable is assumed to be the element using the partition, following the indexing convention of `EnergyModelsX`.
+       The first index of a variable is assumed to be the index object using the partition, following the indexing convention of `EnergyModelsX`.
        Integer indices, *e.g.*, the *[discharge segments of a hydropower unit](https://energymodelsx.github.io/EnergyModelsRenewableProducers.jl/stable/nodes/det_hydropower/generator/#nodes-det_hydro_power-generator-math-add)* in `EnergyModelsRenewableProducers`, are identical in both problems and hence not mapped.
     4. The value of the reset type for initialization data is updated using the results from the optimization problem using the function [`EMRH.update_init_data!`](@ref).

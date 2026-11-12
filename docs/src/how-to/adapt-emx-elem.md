@@ -29,7 +29,7 @@ An example of how this can be done is shown in the package for the `Storage` nod
 
 ## [Elements with partitions](@id how_to-adapt_elem-part)
 
-If you have an [`AbstractElement`](@extref EnergyModelsBase.AbstractElement) that utilizes the concept of partitions *via* [`PartitionProfile`](@extref TimeStruct.PartitionProfile), you must create a new method for the function [`period_duration`](@ref EMRH.period_duration) for your type, which identifies the durations of the partitions.
+If you have an [`AbstractElement`](@extref EnergyModelsBase.AbstractElement) or a [`TransmissionMode`](@extref EnergyModelsGeography.TransmissionMode) that utilizes the concept of partitions *via* [`PartitionProfile`](@extref TimeStruct.PartitionProfile), you must create a new method for the function [`period_duration`](@ref EMRH.period_duration) for your type, which identifies the durations of the partitions.
 
 As an example, consider the node [`PeriodDemandSink`](@extref EnergyModelsFlex.PeriodDemandSink), in which we have demand periods based on partitions.
 This node extracts the durations of the partitions using the `EnergyModelsFlex` internal function [`period_duration`](@extref EnergyModelsFlex.period_duration-Tuple{EnergyModelsFlex.AbstractPeriodDemandSink}).
@@ -43,11 +43,36 @@ const EMF = EnergyModelsFlex
 EMRH.period_duration(n::EMF.AbstractPeriodDemandSink) = EMF.period_duration(n)
 ```
 
+### [Partitions in `ExtensionData`](@id how_to-adapt_elem-part-data)
+
+An [`ExtensionData`](@extref EnergyModelsBase.ExtensionData) can include `PartitionProfile`s as well.
+The durations of the partitions are provided by the deepest object on the path towards the profile with a method for [`period_duration`](@ref EMRH.period_duration).
+Hence, you can either
+
+1. declare a method for your `ExtensionData` if it defines its own partitions or
+2. use the partitions of the element (or `TransmissionMode`) to which the data is added if your `ExtensionData` does not have a method.
+
+In the first case, the method is declared as
+
+```julia
+struct MyData <: ExtensionData
+    part_dur::PartitionProfile
+    part_lim::PartitionProfile
+end
+EMRH.period_duration(data::MyData) = data.part_dur
+```
+
+Variables of the `ExtensionData` indexed over period partitions must have the element (or `TransmissionMode`) as first index, *e.g.*, `m[:var][n, t_pd]` when declared in the `EnergyModelsBase` function `variables_ext_data`.
+
 !!! warning "Caveats of period partitions"
     It is **not** possible to specify a `FixedProfile` for the duration of the period partitions due to the way the horizons are calculated.
 
-    Variables indexed over period partitions must have the element as first index, *e.g.*, `m[:var][n, t_pd]`.
-    The mapping of period partitions between the receding horizon problem and the original problem depends on the element, and the first index is used for identifying the element in the results extraction.
+    All `PartitionProfile`s of an element (or `TransmissionMode`), including its `ExtensionData`, must result in the same partitions.
+    If your `ExtensionData` and the element both declare a method for `period_duration`, the returned profiles must hence result in the same partitions.
+    This is checked in the receding horizon validation routines.
+
+    Variables indexed over period partitions must have the element (or `TransmissionMode`) as first index, *e.g.*, `m[:var][n, t_pd]` or `m[:var][tm, t_pd]`.
+    The mapping of period partitions between the receding horizon problem and the original problem depends on the element (or `TransmissionMode`), and the first index is used for its identification in the results extraction.
 
     Using partitions is experimental:
 
