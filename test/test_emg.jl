@@ -538,29 +538,25 @@ struct PartStatic <: TransmissionMode
     resource::Resource
     trans_cap::TimeProfile
     trans_loss::TimeProfile
-    opex_var::TimeProfile
-    opex_fixed::TimeProfile
-    directions::Int
-    data::Vector{<:ExtensionData}
     part_dur::PartitionProfile
     part_lim::PartitionProfile
 end
 EMRH.period_duration(tm::PartStatic) = tm.part_dur
+EMB.has_opex(tm::PartStatic) = false
+EMG.is_bidirectional(tm::PartStatic) = false
 
 function EMG.variables_trans_mode(m, 𝒯, ℳˢᵘᵇ::Vector{<:PartStatic}, modeltype::EnergyModel)
     # Add a test variable indexed over the period partitions of the individual modes
     @variable(m, trans_part[tm ∈ ℳˢᵘᵇ, partition_duration(𝒯, EMRH.period_duration(tm))])
 end
 function EMG.create_transmission_mode(m, tm::PartStatic, 𝒯, modeltype::EnergyModel)
-    # Call the constraints of the fallback method
-    invoke(
-        EMG.create_transmission_mode,
-        Tuple{Any, TransmissionMode, Any, EnergyModel},
-        m, tm, 𝒯, modeltype,
-    )
-
     # Declaration of the required subsets
     𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(tm))
+
+    # Call of the constraint functions of a `TransmissionMode`
+    EMG.constraints_trans_balance(m, tm, 𝒯, modeltype)
+    EMG.constraints_trans_loss(m, tm, 𝒯, modeltype)
+    EMG.constraints_capacity(m, tm, 𝒯, modeltype)
 
     # The variable is the transported energy within a partition and limited by the profile
     @constraint(m, [t_pd ∈ 𝒯ᵖᵈ],
@@ -603,15 +599,15 @@ end
 
     # Create a corridor with two modes. The first partition of both modes is `(1)` in each
     # receding horizon problem, while the corresponding partitions of the original problem
-    # differ from the second horizon onwards. The cheaper mode `mode_a` is limited in each
-    # partition, resulting in a unique value of its partition variable
+    # differ from the second horizon onwards. The lossless mode `mode_a` is cheaper and limited
+    # in each partition, resulting in a unique value of its partition variable
     mode_a = PartStatic(
-        "mode_a", el, FixedProfile(50), FixedProfile(0), FixedProfile(1), FixedProfile(0), 1,
-        ExtensionData[], PartitionProfile([1, 2, 1, 2, 1]), PartitionProfile([5, 20, 5, 20, 5]),
+        "mode_a", el, FixedProfile(50), FixedProfile(0),
+        PartitionProfile([1, 2, 1, 2, 1]), PartitionProfile([5, 20, 5, 20, 5]),
     )
     mode_b = PartStatic(
-        "mode_b", el, FixedProfile(50), FixedProfile(0), FixedProfile(2), FixedProfile(0), 1,
-        ExtensionData[], PartitionProfile(fill(1, n_op)), PartitionProfile(fill(50, n_op)),
+        "mode_b", el, FixedProfile(50), FixedProfile(0.1),
+        PartitionProfile(fill(1, n_op)), PartitionProfile(fill(50, n_op)),
     )
     ℒᵗʳᵃⁿˢ = [Transmission(𝒜[1], 𝒜[2], [mode_a, mode_b])]
 
