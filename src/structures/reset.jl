@@ -183,6 +183,10 @@ constructor is utilized for
 This differentiation only affects the `ParametricOptInterface` extension. The core structure
 will always apply the reset.
 
+The duration of the partitions is provided by the deepest object on the field path with a
+method for [`period_duration`](@ref), *e.g.*, an `ExtensionData` of an element. The search
+stops at the index object of the JuMP variables (see [`_index_path`](@ref)).
+
 # Inner constructor arguments
 - **`field_path::Vector`** is the path towards the field as identified through the function
   [`_find_update_paths`](@ref).
@@ -191,33 +195,63 @@ will always apply the reset.
 # Fields
 - **`lens::Union{PropertyLens,ComposedFunction}`** is the lens for resetting the field.
 - **`var`** is the variable when using `ParametricOptInterface`.
-- **`pps::PartitionProfile`** is the partition profile corresponding to the duration of the
-  individual partition periods.
 - **`val::PartitionProfile`** is the complete partition profile from the original
   element. The individual values are extracted from this profile in the receding horizon
   framework.
+- **`pps::PartitionProfile`** is the partition profile corresponding to the duration of the
+  individual partition periods.
+- **`pps_lens`** is the lens from the element to the object providing the `period_duration`.
+- **`idx_lens`** is the lens from the element to the object used as index of the JuMP
+  variables over the partitions, *e.g.*, the element itself or a `TransmissionMode`.
 
 !!! warning "PartitionReset"
     The `PartitionReset` type requires the user to declare a new method `period_duration`
-    for the type `x` which utilizes the concept of partitions. An error is provided if no
-    method is declared.
+    for the type `x` or a type on the field path which utilizes the concept of partitions.
+    An error is provided if no method is declared.
 """
 mutable struct PartitionReset{AbstractResetBehavior} <: AbstractReset
     lens::Union{PropertyLens,ComposedFunction}
     var
     val::PartitionProfile
     pps::PartitionProfile
+    pps_lens::Union{typeof(identity),PropertyLens,ComposedFunction}
+    idx_lens::Union{typeof(identity),PropertyLens,ComposedFunction}
     function PartitionReset(field_path::Vector, x)
         lens = _create_lens_for_field(field_path)
         val = lens(x)
-        pps = period_duration(x)
+        idx_path = _index_path(x, field_path)
+        idx_lens = _create_prefix_lens(idx_path)
+        pps_lens = _period_duration_lens(x, field_path, idx_path)
+        pps = period_duration(pps_lens(x))
         if val ≠ pps
-            new{StandResBehav}(lens, nothing, val, pps)
+            new{StandResBehav}(lens, nothing, val, pps, pps_lens, idx_lens)
         else
-            new{NoResBehav}(lens, nothing, val, pps)
+            new{NoResBehav}(lens, nothing, val, pps, pps_lens, idx_lens)
         end
     end
 end
+
+"""
+    _pps_lens(res_type::PartitionReset)
+    _pps_lens(res_type::PartitionReset, x)
+
+Returns the lens from the element to the object providing the `period_duration` of the
+[`PartitionReset`](@ref) `res_type`. If the element `x` is provided, it returns the object
+of `x` providing the `period_duration`.
+"""
+_pps_lens(res_type::PartitionReset) = res_type.pps_lens
+_pps_lens(res_type::PartitionReset, x) = res_type.pps_lens(x)
+
+"""
+    _idx_lens(res_type::PartitionReset)
+    _idx_lens(res_type::PartitionReset, x)
+
+Returns the lens from the element to the index object of the JuMP variables over the
+partitions of the [`PartitionReset`](@ref) `res_type`. If the element `x` is provided, it
+returns the index object of `x`.
+"""
+_idx_lens(res_type::PartitionReset) = res_type.idx_lens
+_idx_lens(res_type::PartitionReset, x) = res_type.idx_lens(x)
 
 """
     mutable struct TimeWeightReset <: AbstractReset
@@ -327,6 +361,53 @@ function period_duration(x)
 end
 function period_duration(res_type::PartitionReset, 𝒯::TS.TimeStructure)
     return partition_duration(𝒯, res_type.pps)
+end
+
+"""
+    _has_period_duration(x)
+
+Returns `true` if a method of [`period_duration`](@ref) other than the fallback is declared
+for the type of `x`.
+"""
+_has_period_duration(x) =
+    which(period_duration, Tuple{typeof(x)}) !== which(period_duration, Tuple{Any})
+
+"""
+    _index_path(x, field_path::Vector)
+
+Returns the path from the element `x` to the object which is used as index of the JuMP
+variables over the partitions of the profile at `field_path`. The default is the element
+itself (empty path).
+
+Extensions with nested index objects, *e.g.*, `TransmissionMode`s, require a new method.
+"""
+_index_path(x, field_path::Vector) = Any[]
+
+"""
+    _create_prefix_lens(path::Vector)
+
+Returns the lens for the (sub)path `path`. An empty path returns `identity`.
+"""
+_create_prefix_lens(path::Vector) = isempty(path) ? identity : _create_lens_for_field(path)
+
+"""
+    _period_duration_lens(x, field_path::Vector, idx_path::Vector)
+
+Returns the lens from the element `x` to the deepest object on the path `field_path` with a
+method for [`period_duration`](@ref). The search starts at the object holding the profile
+and stops at the index object at `idx_path`.
+
+Throws the error of the [`period_duration`](@ref) fallback if no such object exists.
+"""
+function _period_duration_lens(x, field_path::Vector, idx_path::Vector)
+    # The last entry is the `AbstractPath` and the second to last the profile itself
+    for k ∈ length(field_path)-2:-1:length(idx_path)
+        lens = _create_prefix_lens(field_path[1:k])
+        _has_period_duration(lens(x)) && return lens
+    end
+
+    # Throw the error of the fallback for the object holding the profile
+    period_duration(_create_prefix_lens(field_path[1:end-2])(x))
 end
 
 """
@@ -458,6 +539,24 @@ Substitution(new::T, org::T, resets::Vector{<:AbstractReset}) where {T<:Abstract
 Returns the `Vector{AbstractReset}` of the AbstractSub `s`.
 """
 resets(s::AbstractSub) = s.resets
+
+"""
+    _partition_groups(s::AbstractSub)
+
+Returns the [`PartitionReset`](@ref)s of the `AbstractSub` `s` grouped by the index object of
+the JuMP variables over the partitions as `Vector{Vector{PartitionReset}}`.
+"""
+function _partition_groups(s::AbstractSub)
+    x_org = original(s)
+    groups = Vector{PartitionReset}[]
+    for res_type ∈ resets(s)
+        isa(res_type, PartitionReset) || continue
+        x_idx = _idx_lens(res_type, x_org)
+        k = findfirst(grp -> _idx_lens(first(grp), x_org) === x_idx, groups)
+        isnothing(k) ? push!(groups, PartitionReset[res_type]) : push!(groups[k], res_type)
+    end
+    return groups
+end
 
 """
     _ele_to_sub(::Type{<:EMB.Node})

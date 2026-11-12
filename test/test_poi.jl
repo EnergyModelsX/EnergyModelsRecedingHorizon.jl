@@ -14,6 +14,7 @@ function create_poi_case(;
     hor_impl = 2,
     part_profile = [2, 2, 2, 2],
     part_profile_add = nothing,
+    part_data = nothing,
 )
     #Define resources with their emission intensities
     power = ResourceCarrier("power", 0.0)
@@ -31,6 +32,10 @@ function create_poi_case(;
         co2,
     )
 
+    # Add the partitioned data to the source, if specified
+    src_data = Data[EmissionsProcess(Dict(co2 => OperationalProfile(em_co2)))]
+    !isnothing(part_data) && push!(src_data, part_data)
+
     #create individual nodes of the system
     𝒩 = [
         RefSource(
@@ -39,7 +44,7 @@ function create_poi_case(;
             OperationalProfile(price_profile),
             FixedProfile(0),
             Dict(power => 1),
-            Data[EmissionsProcess(Dict(co2 => OperationalProfile(em_co2)))]),
+            src_data),
         RefStorage{RecedingAccumulating}(
             "electricity storage",
             StorCapOpexVar(FixedProfile(30), FixedProfile(10)),
@@ -260,5 +265,37 @@ end
     for l ∈ filter(l -> isa(l, CapDirect), get_links(case))
         𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), EMRH.period_duration(l)))
         @test filter(r -> r.x1 == l, results[:part_variable])[!, :x2] == 𝒯ᵖᵈ
+    end
+end
+
+@testset "Partitions in ExtensionData" begin
+    # Run a model with partitions in an `ExtensionData` of the source in both the standard
+    # and the POI implementation
+    part_lim = [40, 30, 30, 35]
+    for optimizer ∈ [
+        optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true),
+        POI.Optimizer(HiGHS.Optimizer()),
+    ]
+        case, modeltype = create_poi_case(;
+            part_data = PartData(PartitionProfile(fill(2, 4)), PartitionProfile(part_lim)),
+        )
+        results = run_model_rh(case, modeltype, optimizer)
+        src = get_nodes(case)[1]
+        𝒯ᵖᵈ = collect(partition_duration(get_time_struct(case), part_data(src).part_dur))
+
+        # Test that the variable indexed over period partitions is indexed by the source and
+        # the partitions of the original problem
+        # - _update_periods_mapping!(𝒰, s::AbstractSub, opers, 𝒯ᵣₕ)
+        # - update_results!(results, m, vars, 𝒰, opers, 𝒽)
+        @test results[:part_data_var][!, :x1] == fill(src, length(𝒯ᵖᵈ))
+        @test results[:part_data_var][!, :x2] == 𝒯ᵖᵈ
+
+        # Test that the values correspond to the periods of the original partitions and that
+        # the limit of the original partitions is used
+        for (k, t_pd) ∈ enumerate(𝒯ᵖᵈ)
+            val = filter(r -> r.x2 == t_pd, results[:part_data_var])[1, :y]
+            @test val ≈ sum(filter(r -> r.x1 == src && r.x2 ∈ t_pd, results[:cap_use])[!, :y])
+            @test val ≤ part_lim[k] + TEST_ATOL
+        end
     end
 end

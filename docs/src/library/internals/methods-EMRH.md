@@ -37,6 +37,7 @@ EMRH._partitions_within
 EMRH._find_update_paths(x::T) where {T <: Union{AbstractElement, Resource, EMRH.RecHorEnergyModel}}
 EMRH._dict_key
 EMRH._create_lens_for_field
+EMRH._create_prefix_lens
 EMRH._path_type
 ```
 

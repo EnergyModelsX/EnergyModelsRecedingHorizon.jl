@@ -210,8 +210,10 @@ _type_to_key(::Type{T}) where {T<:Union{EnergyModel, ModelSub}} = :modeltype
 Function for checking that the individual period partitions are in line with the horizon
 structure `ℋ`.
 
-Returns an `AssertionError` if any period partition is not consistent with `ℋ`. It furthermore
-creates a log which points towards any inconsistent partitions and horizons.
+Returns an `AssertionError` if any period partition is not consistent with `ℋ` or if the
+`PartitionProfile`s of a single index object of the JuMP variables (see
+[`_partition_groups`](@ref)) result in different partitions. It furthermore creates a log
+which points towards any inconsistent partitions and horizons.
 """
 function _check_period_partitions(𝒰::UpdateCase, ℋ::AbstractHorizons, optimizer)
     # Extract the information from the `UpdateCase`
@@ -249,20 +251,26 @@ function _check_period_partitions(
 )
     opers = collect(𝒯)
 
-    # Identify whether the `Substitution` has `PartitionReset`s
-    part_res = filter(res_type -> isa(res_type, PartitionReset), resets(s))
+    # The `PartitionReset`s are grouped by the index object of the JuMP variables
+    for grp ∈ _partition_groups(s)
+        x_idx = _idx_lens(first(grp), original(s))
+        log["$(x_idx)"] = String[]
 
-    if !isempty(part_res)
-        # Extract the period duration for the reset. It must be the same for all resets
-        𝒯ᵖᵈ = period_duration(first(part_res), 𝒯)
-        opers = collect(𝒯)
+        # The partitions of all resets of a given index object must be the same
+        𝒯ᵖᵈ = collect(period_duration(first(grp), 𝒯))
+        if any(collect(period_duration(res_type, 𝒯)) ≠ 𝒯ᵖᵈ for res_type ∈ grp)
+            push!(
+                log["$(x_idx)"],
+                "The partitions of the `PartitionProfile`s of $(x_idx) differ. All " *
+                "`PartitionProfile`s of an index object must have the same partitions.\n",
+            )
+            continue
+        end
 
         # Iterate through all horizons
-        x_org = original(s)
         opers_opt_ref = nothing
         n_opt_ref = nothing
         n_impl_ref = nothing
-        log["$(x_org)"] = String[]
         for 𝒽 ∈ ℋ
             # Extract variables and reassign values
             opers_opt = opers[indices_optimization(𝒽)]
@@ -282,12 +290,12 @@ function _check_period_partitions(
                 _check_horizon(n_impl_ref, 𝒯ᵖᵈ, opers_impl, "implementation", optimizer)
 
             # Add to the logs
-            (bool_opt || bool_impl) && push!(log["$(x_org)"], "Horizon $(𝒽): \n")
+            (bool_opt || bool_impl) && push!(log["$(x_idx)"], "Horizon $(𝒽): \n")
             if bool_opt
-                log["$(x_org)"][end] *= msg_opt
+                log["$(x_idx)"][end] *= msg_opt
             end
             if bool_impl
-                log["$(x_org)"][end] *= msg_impl
+                log["$(x_idx)"][end] *= msg_impl
             end
         end
     end
