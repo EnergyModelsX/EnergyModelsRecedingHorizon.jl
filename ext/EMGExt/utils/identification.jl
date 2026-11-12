@@ -44,3 +44,13 @@ function EMRH._find_update_paths(
         push!(all_paths, new_path)
     end
 end
+
+"""
+    EMRH._index_path(x::Transmission, field_path::Vector)
+
+Returns the path from the `Transmission` corridor `x` to the `TransmissionMode` holding the
+profile at `field_path`, as the JuMP variables are indexed over the `TransmissionMode`s. The
+path is empty for fields of the corridor.
+"""
+EMRH._index_path(x::Transmission, field_path::Vector) =
+    first(field_path) == :modes ? field_path[1:2] : Any[]
