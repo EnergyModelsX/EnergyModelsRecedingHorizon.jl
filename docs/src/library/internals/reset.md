@@ -64,6 +64,17 @@ The following function is included to identify the individual partitions when cr
 EMRH.period_duration
 ```
 
+The following functions identify the object providing the duration of the partitions and the index object of the JuMP variables indexed over the partitions:
+
+```@docs
+EMRH._pps_lens
+EMRH._idx_lens
+EMRH._has_period_duration
+EMRH._period_duration_lens
+EMRH._index_path
+EMRH._partition_groups
+```
+
 The following types were included to create a parametric type for `PartitionReset` to describe the behavior of the `AbstractReset`:
 
 ```@docs

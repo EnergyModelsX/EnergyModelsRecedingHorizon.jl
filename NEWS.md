@@ -1,5 +1,11 @@
 # Release notes
 
+## Unversioned
+
+### Partitions in `ExtensionData` and `TransmissionMode`s
+
+* The duration of the partitions of a `PartitionReset` is provided by the deepest object on the field path with a method for `period_duration`, *e.g.*, an `ExtensionData`, and the mapping of the partitions is stored per index object of the JuMP variables. All `PartitionProfile`s of an index object must result in the same partitions.
+
 ## Version 0.2.5 (2026-11-05)
 
 ### Bugfix

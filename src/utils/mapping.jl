@@ -69,10 +69,11 @@ The mappings are stored under the keys
 - `:periods` for operational periods and
 - `:partitions` for period partitions, if present.
 
-The mapping of the period partitions is stored separately for each element as different
-elements can have the same period partitions in the receding horizon problem while the
-corresponding period partitions of the original problem differ. Only
-[`AbstractSub`](@ref)s with a [`PartitionReset`](@ref) contribute to the partition mapping.
+The mapping of the period partitions is stored separately for each index object of the JuMP
+variables (the element or, *e.g.*, a `TransmissionMode`) as different index objects can have
+the same period partitions in the receding horizon problem while the corresponding period
+partitions of the original problem differ. Only [`AbstractSub`](@ref)s with a
+[`PartitionReset`](@ref) contribute to the partition mapping.
 """
 function _update_periods_mapping!(
     𝒰::UpdateCase,
@@ -108,25 +109,30 @@ function _update_periods_mapping!(
     opers::Vector{<:TS.TimePeriod},
     𝒯ᵣₕ::TS.TimeStructure,
 )
-    # Identify whether the `Substitution` has `PartitionReset`s. The period duration is the
-    # same for all resets of a given `AbstractSub`
-    part_res = filter(res_type -> isa(res_type, PartitionReset), resets(s))
-    isempty(part_res) && return nothing
-
-    # Identify the partitions of the original problem that are used within the current
-    # receding horizon problem and the corresponding partitions of the receding horizon problem
+    # The `PartitionReset`s are grouped by the index object of the JuMP variables. The
+    # period duration is the same for all resets of a group (`_check_period_partitions`)
     𝒯 = get_time_struct(𝒰)
-    parts = _partitions_within(period_duration(first(part_res), 𝒯), opers)
-    partsᵣₕ = collect(partition_duration(𝒯ᵣₕ, period_duration(updated(s))))
+    for grp ∈ _partition_groups(s)
+        res_type = first(grp)
+        x_org = _idx_lens(res_type, original(s))
+        x_new = _idx_lens(res_type, updated(s))
 
-    # Add the mapping in both directions
-    # `zip` truncates silently to the shorter vector. Both vectors have the same length as
-    # neither the optimization nor the implementation horizon may split a partition
-    # (`_check_period_partitions`). In the POI implementation, `partsᵣₕ` is calculated from
-    # the original profile (`NoResBehav`). Hence, it requires in addition the same pattern of
-    # periods per partition in all horizons (`_check_number_op`).
-    𝒰.map_org[:partitions][updated(s)] =
-        Dict{TS.PeriodPartition,TS.PeriodPartition}(zip(partsᵣₕ, parts))
-    𝒰.map_updated[:partitions][original(s)] =
-        Dict{TS.PeriodPartition,TS.PeriodPartition}(zip(parts, partsᵣₕ))
+        # Identify the partitions of the original problem that are used within the current
+        # receding horizon problem and the corresponding partitions of the receding horizon
+        # problem
+        parts = _partitions_within(period_duration(res_type, 𝒯), opers)
+        pps_new = period_duration(_pps_lens(res_type, updated(s)))
+        partsᵣₕ = collect(partition_duration(𝒯ᵣₕ, pps_new))
+
+        # Add the mapping in both directions
+        # `zip` truncates silently to the shorter vector. Both vectors have the same length as
+        # neither the optimization nor the implementation horizon may split a partition
+        # (`_check_period_partitions`). In the POI implementation, `partsᵣₕ` is calculated
+        # from the original profile (`NoResBehav`). Hence, it requires in addition the same
+        # pattern of periods per partition in all horizons (`_check_number_op`).
+        𝒰.map_org[:partitions][x_new] =
+            Dict{TS.PeriodPartition,TS.PeriodPartition}(zip(partsᵣₕ, parts))
+        𝒰.map_updated[:partitions][x_org] =
+            Dict{TS.PeriodPartition,TS.PeriodPartition}(zip(parts, partsᵣₕ))
+    end
 end
