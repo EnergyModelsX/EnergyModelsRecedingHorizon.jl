@@ -11,8 +11,8 @@ The individual subfunctions are given as:
 
     _find_update_paths(field::AbstractElement, current_path::Vector{Any}, all_paths::Vector{Any})
     _find_update_paths(field::StorageValueCut, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_update_paths(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
-    _find_update_paths(field::T, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:Union{Data, EMB.AbstractStorageParameters, ElementValue}}
+    _find_update_paths(field::Vector{<:ExtensionData}, current_path::Vector{Any}, all_paths::Vector{Any})
+    _find_update_paths(field::T, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:Union{ExtensionData, EMB.AbstractStorageParameters, ElementValue}}
     _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
     _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
     _find_update_paths(field::StrategicProfile, current_path::Vector{Any}, all_paths::Vector{Any})
@@ -96,7 +96,7 @@ function _find_update_paths(
     end
 end
 function _find_update_paths(
-    field::Vector{<:Data},
+    field::Vector{<:ExtensionData},
     current_path::Vector{Any},
     all_paths::Vector{Any},
 )
@@ -109,7 +109,7 @@ function _find_update_paths(
     field::T,
     current_path::Vector{Any},
     all_paths::Vector{Any},
-) where {T<:Union{Data, EMB.AbstractStorageParameters, ElementValue}}
+) where {T<:Union{ExtensionData, EMB.AbstractStorageParameters, ElementValue}}
     for f ∈ fieldnames(T)
         new_path = vcat(current_path, f)
         _find_update_paths(getfield(field, f), new_path, all_paths)
@@ -260,7 +260,8 @@ end
     _create_lens_for_field(field_id::Vector{<:Any})
 
 Returns a `lens`, which can be used to inspect or reset variables. The lens is based on the
-`field_id` obtained through the function [`_find_update_paths`](@ref).
+`field_id` obtained through the function [`_find_update_paths`](@ref). An empty `field_id`
+returns `identity`.
 
 Example:
 ```julia

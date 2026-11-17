@@ -236,7 +236,7 @@ end
             :deficit => FixedProfile(1000)
         ),
         Dict(Power => 1),
-        Data[]
+        ExtensionData[]
     )
     src = RefSource(
         "market_buy",
@@ -244,7 +244,7 @@ end
         OperationalProfile(price_profile.+0.01),
         FixedProfile(0),
         Dict(Power => 1),
-        Data[]
+        ExtensionData[]
     )
     𝒩 = [rsv, src, snk]
 

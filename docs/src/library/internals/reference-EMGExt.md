@@ -42,6 +42,7 @@ EMGExt.TransmissionSub
 
 ```@docs
 EMRH._find_update_paths(field::Vector{T}, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:TransmissionMode}
+EMRH._index_path(x::Transmission, field_path::Vector)
 EMRH.update_init_data!(m, ri::EMRH.AbstractReset, l::Transmission, idp::EMGExt.TransInitDataPath, opers_implᵣₕ)
 ```
 
