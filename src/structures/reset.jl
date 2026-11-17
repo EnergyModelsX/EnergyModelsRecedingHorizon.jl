@@ -232,28 +232,6 @@ mutable struct PartitionReset{AbstractResetBehavior} <: AbstractReset
 end
 
 """
-    _pps_lens(res_type::PartitionReset)
-    _pps_lens(res_type::PartitionReset, x)
-
-Returns the lens from the element to the object providing the `period_duration` of the
-[`PartitionReset`](@ref) `res_type`. If the element `x` is provided, it returns the object
-of `x` providing the `period_duration`.
-"""
-_pps_lens(res_type::PartitionReset) = res_type.pps_lens
-_pps_lens(res_type::PartitionReset, x) = res_type.pps_lens(x)
-
-"""
-    _idx_lens(res_type::PartitionReset)
-    _idx_lens(res_type::PartitionReset, x)
-
-Returns the lens from the element to the index object of the JuMP variables over the
-partitions of the [`PartitionReset`](@ref) `res_type`. If the element `x` is provided, it
-returns the index object of `x`.
-"""
-_idx_lens(res_type::PartitionReset) = res_type.idx_lens
-_idx_lens(res_type::PartitionReset, x) = res_type.idx_lens(x)
-
-"""
     mutable struct TimeWeightReset <: AbstractReset
 
 [`AbstractReset`](@ref) for resetting the time weight used in future value calculations.
@@ -544,8 +522,8 @@ function _partition_groups(s::AbstractSub)
     groups = Vector{PartitionReset}[]
     for res_type ∈ resets(s)
         isa(res_type, PartitionReset) || continue
-        x_idx = _idx_lens(res_type, x_org)
-        k = findfirst(grp -> _idx_lens(first(grp), x_org) === x_idx, groups)
+        x_idx = res_type.idx_lens(x_org)
+        k = findfirst(grp -> first(grp).idx_lens(x_org) === x_idx, groups)
         isnothing(k) ? push!(groups, PartitionReset[res_type]) : push!(groups[k], res_type)
     end
     return groups

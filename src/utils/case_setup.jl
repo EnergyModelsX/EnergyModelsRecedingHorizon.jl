@@ -253,7 +253,7 @@ function _check_period_partitions(
 
     # The `PartitionReset`s are grouped by the index object of the JuMP variables
     for grp ∈ _partition_groups(s)
-        x_idx = _idx_lens(first(grp), original(s))
+        x_idx = first(grp).idx_lens(original(s))
         log["$(x_idx)"] = String[]
 
         # The partitions of all resets of a given index object must be the same

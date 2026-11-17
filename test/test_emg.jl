@@ -629,11 +629,11 @@ end
         res_trans = filter(rt -> isa(rt, EMRH.PartitionReset), EMRH.resets(s_trans))
         @test length(res_trans) == 4
         @test issetequal(
-            [EMRH._idx_lens(rt, ℒᵗʳᵃⁿˢ[1]) for rt ∈ res_trans],
+            [rt.idx_lens(ℒᵗʳᵃⁿˢ[1]) for rt ∈ res_trans],
             [mode_a, mode_b],
         )
         @test all(
-            EMRH._pps_lens(rt, ℒᵗʳᵃⁿˢ[1]) === EMRH._idx_lens(rt, ℒᵗʳᵃⁿˢ[1])
+            rt.pps_lens(ℒᵗʳᵃⁿˢ[1]) === rt.idx_lens(ℒᵗʳᵃⁿˢ[1])
         for rt ∈ res_trans)
         @test length(EMRH._partition_groups(s_trans)) == 2
 

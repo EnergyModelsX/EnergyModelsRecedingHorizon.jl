@@ -794,13 +794,11 @@ EMRH.period_duration(n::PartSink) = n.part_dur
         # - _period_duration_lens(x, field_path::Vector, idx_path::Vector)
         # - _has_period_duration(x)
         # - _index_path(x, field_path::Vector)
-        # - _pps_lens(res_type::PartitionReset, x)
-        # - _idx_lens(res_type::PartitionReset, x)
         res_src = EMRH.resets(s_src)
         @test length(res_src) == 2
         @test all(isa(rt, EMRH.PartitionReset) for rt ∈ res_src)
-        @test all(EMRH._pps_lens(rt, src) === node_data(src)[1] for rt ∈ res_src)
-        @test all(EMRH._idx_lens(rt) === identity for rt ∈ res_src)
+        @test all(rt.pps_lens(src) === node_data(src)[1] for rt ∈ res_src)
+        @test all(rt.idx_lens === identity for rt ∈ res_src)
         @test all(rt.pps == part_dur for rt ∈ res_src)
         rt_dur = only(filter(rt -> rt.lens(src) == part_dur, res_src))
         rt_lim = only(filter(rt -> rt.lens(src) == part_lim, res_src))
@@ -811,8 +809,8 @@ EMRH.period_duration(n::PartSink) = n.part_dur
         # element
         res_snk = EMRH.resets(s_snk)
         @test length(res_snk) == 2
-        @test all(EMRH._pps_lens(rt) === identity for rt ∈ res_snk)
-        @test all(EMRH._pps_lens(rt, snk) === snk for rt ∈ res_snk)
+        @test all(rt.pps_lens === identity for rt ∈ res_snk)
+        @test all(rt.pps_lens(snk) === snk for rt ∈ res_snk)
         @test all(rt.pps == part_dur for rt ∈ res_snk)
 
         # Test that the resets are grouped by the element as index object

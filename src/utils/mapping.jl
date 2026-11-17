@@ -114,14 +114,14 @@ function _update_periods_mapping!(
     𝒯 = get_time_struct(𝒰)
     for grp ∈ _partition_groups(s)
         res_type = first(grp)
-        x_org = _idx_lens(res_type, original(s))
-        x_new = _idx_lens(res_type, updated(s))
+        x_org = res_type.idx_lens(original(s))
+        x_new = res_type.idx_lens(updated(s))
 
         # Identify the partitions of the original problem that are used within the current
         # receding horizon problem and the corresponding partitions of the receding horizon
         # problem
         parts = _partitions_within(period_duration(res_type, 𝒯), opers)
-        pps_new = period_duration(_pps_lens(res_type, updated(s)))
+        pps_new = period_duration(res_type.pps_lens(updated(s)))
         partsᵣₕ = collect(partition_duration(𝒯ᵣₕ, pps_new))
 
         # Add the mapping in both directions
