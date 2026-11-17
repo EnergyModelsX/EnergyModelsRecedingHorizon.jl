@@ -220,7 +220,7 @@ mutable struct PartitionReset{AbstractResetBehavior} <: AbstractReset
         lens = _create_lens_for_field(field_path)
         val = lens(x)
         idx_path = _index_path(x, field_path)
-        idx_lens = _create_prefix_lens(idx_path)
+        idx_lens = _create_lens_for_field(idx_path)
         pps_lens = _period_duration_lens(x, field_path, idx_path)
         pps = period_duration(pps_lens(x))
         if val ≠ pps
@@ -384,13 +384,6 @@ Extensions with nested index objects, *e.g.*, `TransmissionMode`s, require a new
 _index_path(x, field_path::Vector) = Any[]
 
 """
-    _create_prefix_lens(path::Vector)
-
-Returns the lens for the (sub)path `path`. An empty path returns `identity`.
-"""
-_create_prefix_lens(path::Vector) = isempty(path) ? identity : _create_lens_for_field(path)
-
-"""
     _period_duration_lens(x, field_path::Vector, idx_path::Vector)
 
 Returns the lens from the element `x` to the deepest object on the path `field_path` with a
@@ -402,12 +395,12 @@ Throws the error of the [`period_duration`](@ref) fallback if no such object exi
 function _period_duration_lens(x, field_path::Vector, idx_path::Vector)
     # The last entry is the `AbstractPath` and the second to last the profile itself
     for k ∈ length(field_path)-2:-1:length(idx_path)
-        lens = _create_prefix_lens(field_path[1:k])
+        lens = _create_lens_for_field(field_path[1:k])
         _has_period_duration(lens(x)) && return lens
     end
 
     # Throw the error of the fallback for the object holding the profile
-    period_duration(_create_prefix_lens(field_path[1:end-2])(x))
+    period_duration(_create_lens_for_field(field_path[1:end-2])(x))
 end
 
 """

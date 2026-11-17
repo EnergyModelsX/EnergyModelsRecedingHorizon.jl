@@ -260,7 +260,8 @@ end
     _create_lens_for_field(field_id::Vector{<:Any})
 
 Returns a `lens`, which can be used to inspect or reset variables. The lens is based on the
-`field_id` obtained through the function [`_find_update_paths`](@ref).
+`field_id` obtained through the function [`_find_update_paths`](@ref). An empty `field_id`
+returns `identity`.
 
 Example:
 ```julia
