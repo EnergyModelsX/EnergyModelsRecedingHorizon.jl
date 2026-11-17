@@ -33,7 +33,7 @@ function create_poi_case(;
     )
 
     # Add the partitioned data to the source, if specified
-    src_data = Data[EmissionsProcess(Dict(co2 => OperationalProfile(em_co2)))]
+    src_data = ExtensionData[EmissionsProcess(Dict(co2 => OperationalProfile(em_co2)))]
     !isnothing(part_data) && push!(src_data, part_data)
 
     #create individual nodes of the system
@@ -52,7 +52,7 @@ function create_poi_case(;
             power,
             Dict(power => 1),
             Dict(power => 1),
-            Data[StorageInitData(init_state)],
+            ExtensionData[StorageInitData(init_state)],
         ),
         RefSink(
             "electricity demand",

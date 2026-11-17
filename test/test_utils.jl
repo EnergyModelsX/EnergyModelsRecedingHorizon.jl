@@ -210,7 +210,7 @@ end
         FixedProfile(100),
         FixedProfile(0),
         Dict(el => 1),
-        Data[TestInitData()]
+        ExtensionData[TestInitData()]
     )
     source_oper = RefSource(
         "source",
@@ -295,7 +295,7 @@ end
 
         # Test of a node with operational profile and resource dictionary
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
-        # - _find_update_paths(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::Vector{<:ExtensionData}, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _dict_key(key::Resource)
         @test issetequal(
@@ -307,9 +307,9 @@ end
         )
 
         # Test of a storage node with both variations and initial data
-        # - _find_update_paths(field::T, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:Union{Data, EMB.AbstractStorageParameters, ElementValue}}
+        # - _find_update_paths(field::T, current_path::Vector{Any}, all_paths::Vector{Any}) where {T<:Union{ExtensionData, EMB.AbstractStorageParameters, ElementValue}}
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
-        # - _find_update_paths(field::Vector{<:Data}, current_path::Vector{Any}, all_paths::Vector{Any})
+        # - _find_update_paths(field::Vector{<:ExtensionData}, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::InitData, current_path::Vector{Any}, all_paths::Vector{Any})
         @test issetequal(
             EMRH._find_update_paths(storage),
@@ -765,7 +765,7 @@ EMRH.period_duration(n::PartSink) = n.part_dur
     @testset "Path creation" begin
         # Test that the partition profiles in `ExtensionData` are identified
         # - _find_update_paths(x::Union{AbstractElement, Resource, RecHorEnergyModel})
-        # - _find_update_paths(field::Vector{<:Data}, current_path, all_paths)
+        # - _find_update_paths(field::Vector{<:ExtensionData}, current_path, all_paths)
         # - _find_update_paths(field::PartitionProfile, current_path, all_paths)
         @test issetequal(
             EMRH._find_update_paths(src),

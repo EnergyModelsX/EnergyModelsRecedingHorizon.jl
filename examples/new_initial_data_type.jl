@@ -31,7 +31,7 @@ struct NodeNewInitData{T<:Real} <: EMB.Node
     id::Any
     increment_1::T
     increment_2::T
-    data::Vector{<:Data}
+    data::Vector{<:ExtensionData}
 end
 
 # Create function dispatches so that corresponding model variables are not created

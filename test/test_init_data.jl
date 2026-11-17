@@ -117,7 +117,7 @@ end
         id::Any
         increment::T
         increment2::T
-        data::Vector{<:Data}
+        data::Vector{<:ExtensionData}
     end
 
     function create_case_newnode(init_data)

@@ -29,7 +29,7 @@ Example node type with initializable state. The node has a single state.
 struct IncrementInitNode{T<:Real} <: EMB.Node
     id::Any
     increment::T
-    data::Vector{<:Data}
+    data::Vector{<:ExtensionData}
 end
 
 # Create function dispatches so that corresponding model variables are not created

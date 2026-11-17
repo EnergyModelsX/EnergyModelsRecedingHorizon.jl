@@ -7,11 +7,11 @@
 struct RecedingAccumulating <: EMB.Accumulating end
 
 """
-    abstract type AbstractInitData <: EMB.Data
+    abstract type AbstractInitData <: EMB.ExtensionData
 
 Abstract type for initialization data.
 """
-abstract type AbstractInitData <: EMB.Data end
+abstract type AbstractInitData <: EMB.ExtensionData end
 
 """
     struct InitData{T} <: AbstractInitData
