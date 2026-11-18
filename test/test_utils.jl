@@ -200,8 +200,6 @@ end
     part_profile = PartitionProfile(rand(n_part))
     em_data = [EmissionsProcess(Dict(co2 => profile))]
 
-    struct TestInitData <: AbstractInitData end
-
     # Create the individual nodes
     av = GenAvailability("Availability", 𝒫)
     source_initdata = RefSource(
@@ -255,12 +253,7 @@ end
     )
     𝒩 = EMB.Node[av, source_oper, network, storage, sink]
 
-    # Creation of new node type to test that the dictionary with string keys is correctly
-    # considered
-    struct StringDict <: EMB.NetworkNode
-        profile::Dict{String,TimeProfile}
-    end
-
+    # Create a node with a dictionary with string keys
     string_dict = StringDict(
         Dict(
             "a" => OperationalProfile([100, 100, 100]),
@@ -268,7 +261,6 @@ end
             "c" => OperationalProfile([100, 100, 100]),
         ),
     )
-    Base.show(io::IO, w::StringDict) = "StringDict"
 
     @testset "Path creation" begin
         # Test of all potential node input from EMRH as called through the function
@@ -666,22 +658,6 @@ end
         EMB.TEST_ENV = true
     end
 end
-
-# Creation of an `ExtensionData` type with period partitions without a method for
-# `period_duration` and a sink type with period partitions. The types are used in the tests
-# for partitions in `ExtensionData`
-struct PartLimData <: ExtensionData
-    part_lim::PartitionProfile
-end
-struct PartSink <: EMB.Sink
-    id::Any
-    cap::TimeProfile
-    penalty::Dict{Symbol,<:TimeProfile}
-    input::Dict{<:Resource,<:Real}
-    part_dur::PartitionProfile
-    data::Vector{<:ExtensionData}
-end
-EMRH.period_duration(n::PartSink) = n.part_dur
 
 @testset "Identification - Partitions in ExtensionData" begin
     # Create the individual resources
