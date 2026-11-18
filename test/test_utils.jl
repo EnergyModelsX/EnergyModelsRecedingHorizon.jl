@@ -198,6 +198,7 @@ end
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
     part_profile = PartitionProfile(rand(n_part))
+    pps = PartitionProfile(vcat(fill(2,7), [1]))
     em_data = [EmissionsProcess(Dict(co2 => profile))]
 
     # Create the individual nodes
@@ -242,14 +243,16 @@ end
         Dict(el => 1),
         [StorageInitData(0.5)],
     )
-    sink = RefSink(
+    sink = PartSink(
         "demand",
         profile,
         Dict(
             :surplus => profile,
             :deficit => part_profile,
         ),
-        Dict(heat => 1)
+        Dict(heat => 1),
+        pps,
+        ExtensionData[],
     )
     𝒩 = EMB.Node[av, source_oper, network, storage, sink]
 
@@ -322,7 +325,8 @@ end
             [
                 [:cap, EMRH.OperPath()],
                 [:penalty, "[:surplus]", EMRH.OperPath()],
-                [:penalty, "[:deficit]", EMRH.PartitionPath()]
+                [:penalty, "[:deficit]", EMRH.PartitionPath()],
+                [:part_dur, EMRH.PartitionPath()],
             ],
         )
 
@@ -373,10 +377,14 @@ end
     end
 
     @testset "Reset functionality" begin
-        # Test that the error throwing functionality is working
-        @test_throws ErrorException EMRH.period_duration(sink)
-        pps = PartitionProfile(vcat(fill(2,7), [1]))
-        EMRH.period_duration(n::Sink) = pps
+        # Test that the error throwing functionality is working for a sink without a method
+        sink_std = RefSink(
+            "demand_std",
+            profile,
+            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e3)),
+            Dict(heat => 1),
+        )
+        @test_throws ErrorException EMRH.period_duration(sink_std)
 
         # Create an operational modeltype and the time structure
         modeltype = RecHorOperationalModel(
