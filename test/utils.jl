@@ -48,23 +48,19 @@ end
 
 # ---- Nodes ----
 
-# Creation of a new node type with a dictionary with string keys. The node is used in the
-# test set "Utility functions" (`test_utils.jl`)
-struct StringDict <: EMB.NetworkNode
-    profile::Dict{String,TimeProfile}
-end
-Base.show(io::IO, w::StringDict) = "StringDict"
-
-# Creation of a new sink type with period partitions. The sink is used in the test set
-# "Utility functions" (`test_utils.jl`)
+# Creation of a new sink type with period partitions and a dictionary with string keys. The
+# sink is used in the test set "Utility functions" (`test_utils.jl`)
 struct PartSink <: EMB.Sink
     id::Any
     cap::TimeProfile
     penalty::Dict{Symbol,<:TimeProfile}
     input::Dict{<:Resource,<:Real}
     part_dur::PartitionProfile
+    profile::Dict{String,TimeProfile}
     data::Vector{<:ExtensionData}
 end
+PartSink(id, cap, penalty, input, part_dur, data::Vector{<:ExtensionData}) =
+    PartSink(id, cap, penalty, input, part_dur, Dict{String,TimeProfile}(), data)
 EMRH.period_duration(n::PartSink) = n.part_dur
 
 # Creation of a new node type with two dynamic states. The node is used in the test set

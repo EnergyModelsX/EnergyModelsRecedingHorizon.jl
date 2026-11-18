@@ -252,18 +252,10 @@ end
         ),
         Dict(heat => 1),
         pps,
+        Dict("a" => profile, "b" => FixedProfile(10), "c" => profile),
         ExtensionData[],
     )
     𝒩 = EMB.Node[av, source_oper, network, storage, sink]
-
-    # Create a node with a dictionary with string keys
-    string_dict = StringDict(
-        Dict(
-            "a" => OperationalProfile([100, 100, 100]),
-            "b" => FixedProfile(10),
-            "c" => OperationalProfile([100, 100, 100]),
-        ),
-    )
 
     @testset "Path creation" begin
         # Test of all potential node input from EMRH as called through the function
@@ -315,30 +307,22 @@ end
             ],
         )
 
-        # Test of a node with operational profile and symbol dictionary
+        # Test of a node with operational profile, partition profile, symbol and string
+        # dictionary
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::PartitionProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _dict_key(key::Symbol)
+        # - _dict_key(key::String)
         @test issetequal(
             EMRH._find_update_paths(sink),
             [
                 [:cap, EMRH.OperPath()],
                 [:penalty, "[:surplus]", EMRH.OperPath()],
                 [:penalty, "[:deficit]", EMRH.PartitionPath()],
-                [:part_dur, EMRH.PartitionPath()],
-            ],
-        )
-
-        # Test of the new node with string dictionary
-        # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
-        # - _dict_key(key::String)
-        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
-        @test issetequal(
-            EMRH._find_update_paths(string_dict),
-            Any[
                 [:profile, "[\"a\"]", EMRH.OperPath()],
-                [:profile, "[\"c\"]", EMRH.OperPath()]
+                [:profile, "[\"c\"]", EMRH.OperPath()],
+                [:part_dur, EMRH.PartitionPath()],
             ],
         )
 
@@ -472,6 +456,7 @@ end
         @test data_init(𝒩ʳ[4]).init_val_dict[:stor_level] == 5.0
         @test surplus_penalty(𝒩ʳ[5]).vals == surplus_penalty(𝒩[5])[opers_opt]
         @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[parts_opt]
+        @test all(𝒩ʳ[5].profile[k].vals == 𝒩[5].profile[k][opers_opt] for k ∈ ["a", "c"])
     end
 end
 
