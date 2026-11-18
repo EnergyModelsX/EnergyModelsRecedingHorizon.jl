@@ -506,46 +506,11 @@ end
     )
     𝒩 = [src, sink]
 
-    # Creation of a new link type with an OperationalProfile
-    struct ProfDirect <: Link
-        id::Any
-        from::EMB.Node
-        to::EMB.Node
-        formulation::EMB.Formulation
-        capacity::TimeProfile
-        part_dur::PartitionProfile
-        part_mult::PartitionProfile
-    end
-
-    # Add methods to required functions
-    EMB.capacity(l::ProfDirect) = l.capacity
-    EMB.capacity(l::ProfDirect, t) = l.capacity[t]
-    EMB.has_capacity(l::ProfDirect) = true
-    EMRH.period_duration(l::ProfDirect) = l.part_dur
-
-    function EMB.create_link(m, l::ProfDirect, 𝒯, 𝒫, modeltype::EnergyModel)
-
-        # Declaration of the required subsets
-        𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(l))
-
-        # Generic link in which each output corresponds to the input
-        @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
-            m[:link_out][l, t, p] == m[:link_in][l, t, p]
-        )
-
-        # Capacity constraint
-        @constraint(m, [t_pd ∈ 𝒯ᵖᵈ, t ∈ t_pd, p ∈ EMB.link_res(l)],
-            m[:link_out][l, t, p] ≤ m[:link_cap_inst][l, t] * l.part_mult[t_pd]
-        )
-        constraints_capacity_installed(m, l, 𝒯, modeltype)
-    end
-
-
-    link = ProfDirect(
+    # Create the link with an operational profile and period partitions
+    link = CapDirect(
         "prof_link",
         src,
         sink,
-        Linear(),
         profile,
         part_dur,
         part_profile,
@@ -671,11 +636,10 @@ end
 
             # Create a node that has an inconsistent partition duration
         ℒ = [
-            ProfDirect(
+            CapDirect(
                 "prof_link",
                 src,
                 sink,
-                Linear(),
                 profile,
                 PartitionProfile(fill(3, 5)),
                 part_profile,
