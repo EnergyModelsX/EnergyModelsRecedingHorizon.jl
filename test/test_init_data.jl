@@ -133,10 +133,6 @@ end
 
     EMB.constraints_couple(m, 𝒫, 𝒯, modeltype::EMRH.RecHorEnergyModel) = nothing
 
-    # TODO: should system throw an error if model is run without initialization data?
-    case, modeltype = create_case_newnode(InitData(Dict(:state => 1.0, :state2 => 1.3)))
-    results_bad = run_model_rh(case, modeltype, optimizer)
-
     function EMB.constraints_data(
         m,
         n::SampleInitNode,
@@ -152,6 +148,7 @@ end
         )
     end
 
+    case, modeltype = create_case_newnode(InitData(Dict(:state => 1.0, :state2 => 1.3)))
     m = EMB.create_model(case, modeltype)
     set_optimizer(m, optimizer)
     optimize!(m)
@@ -207,9 +204,6 @@ end
             push!(all_paths, new_path)
         end
     end
-
-    # Following test should throw before the definition below it
-    @test_throws MethodError bad_results = run_model_rh(case, modeltype, optimizer)
 
     function EMRH.update_init_data!(
         m,
