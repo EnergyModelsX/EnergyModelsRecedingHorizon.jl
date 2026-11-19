@@ -43,7 +43,7 @@ include("utils.jl")
         include("test_future_value.jl")
     end
 
-    @testset verbose = true "RecedingHorizon | Utility functions" begin
+    @testset "RecedingHorizon | Utility functions" begin
         include("test_utils.jl")
     end
 
