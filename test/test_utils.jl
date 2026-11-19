@@ -198,9 +198,8 @@ end
     dur_op = ones(n_op)
     profile = OperationalProfile(rand(n_op))
     part_profile = PartitionProfile(rand(n_part))
+    pps = PartitionProfile(vcat(fill(2,7), [1]))
     em_data = [EmissionsProcess(Dict(co2 => profile))]
-
-    struct TestInitData <: AbstractInitData end
 
     # Create the individual nodes
     av = GenAvailability("Availability", 𝒫)
@@ -244,31 +243,19 @@ end
         Dict(el => 1),
         [StorageInitData(0.5)],
     )
-    sink = RefSink(
+    sink = PartSink(
         "demand",
         profile,
         Dict(
             :surplus => profile,
             :deficit => part_profile,
         ),
-        Dict(heat => 1)
+        Dict(heat => 1),
+        pps,
+        Dict("a" => profile, "b" => FixedProfile(10), "c" => profile),
+        ExtensionData[],
     )
     𝒩 = EMB.Node[av, source_oper, network, storage, sink]
-
-    # Creation of new node type to test that the dictionary with string keys is correctly
-    # considered
-    struct StringDict <: EMB.NetworkNode
-        profile::Dict{String,TimeProfile}
-    end
-
-    string_dict = StringDict(
-        Dict(
-            "a" => OperationalProfile([100, 100, 100]),
-            "b" => FixedProfile(10),
-            "c" => OperationalProfile([100, 100, 100]),
-        ),
-    )
-    Base.show(io::IO, w::StringDict) = "StringDict"
 
     @testset "Path creation" begin
         # Test of all potential node input from EMRH as called through the function
@@ -320,29 +307,22 @@ end
             ],
         )
 
-        # Test of a node with operational profile and symbol dictionary
+        # Test of a node with operational profile, partition profile, symbol and string
+        # dictionary
         # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::PartitionProfile, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
         # - _dict_key(key::Symbol)
+        # - _dict_key(key::String)
         @test issetequal(
             EMRH._find_update_paths(sink),
             [
                 [:cap, EMRH.OperPath()],
                 [:penalty, "[:surplus]", EMRH.OperPath()],
-                [:penalty, "[:deficit]", EMRH.PartitionPath()]
-            ],
-        )
-
-        # Test of the new node with string dictionary
-        # - _find_update_paths(field::AbstractDict, current_path::Vector{Any}, all_paths::Vector{Any})
-        # - _dict_key(key::String)
-        # - _find_update_paths(field::OperationalProfile, current_path::Vector{Any}, all_paths::Vector{Any})
-        @test issetequal(
-            EMRH._find_update_paths(string_dict),
-            Any[
+                [:penalty, "[:deficit]", EMRH.PartitionPath()],
                 [:profile, "[\"a\"]", EMRH.OperPath()],
-                [:profile, "[\"c\"]", EMRH.OperPath()]
+                [:profile, "[\"c\"]", EMRH.OperPath()],
+                [:part_dur, EMRH.PartitionPath()],
             ],
         )
 
@@ -381,10 +361,14 @@ end
     end
 
     @testset "Reset functionality" begin
-        # Test that the error throwing functionality is working
-        @test_throws ErrorException EMRH.period_duration(sink)
-        pps = PartitionProfile(vcat(fill(2,7), [1]))
-        EMRH.period_duration(n::Sink) = pps
+        # Test that the error throwing functionality is working for a sink without a method
+        sink_std = RefSink(
+            "demand_std",
+            profile,
+            Dict(:surplus => FixedProfile(0), :deficit => FixedProfile(1e3)),
+            Dict(heat => 1),
+        )
+        @test_throws ErrorException EMRH.period_duration(sink_std)
 
         # Create an operational modeltype and the time structure
         modeltype = RecHorOperationalModel(
@@ -472,6 +456,7 @@ end
         @test data_init(𝒩ʳ[4]).init_val_dict[:stor_level] == 5.0
         @test surplus_penalty(𝒩ʳ[5]).vals == surplus_penalty(𝒩[5])[opers_opt]
         @test deficit_penalty(𝒩ʳ[5]).vals == deficit_penalty(𝒩[5])[parts_opt]
+        @test all(𝒩ʳ[5].profile[k].vals == 𝒩[5].profile[k][opers_opt] for k ∈ ["a", "c"])
     end
 end
 
@@ -506,46 +491,11 @@ end
     )
     𝒩 = [src, sink]
 
-    # Creation of a new link type with an OperationalProfile
-    struct ProfDirect <: Link
-        id::Any
-        from::EMB.Node
-        to::EMB.Node
-        formulation::EMB.Formulation
-        capacity::TimeProfile
-        part_dur::PartitionProfile
-        part_mult::PartitionProfile
-    end
-
-    # Add methods to required functions
-    EMB.capacity(l::ProfDirect) = l.capacity
-    EMB.capacity(l::ProfDirect, t) = l.capacity[t]
-    EMB.has_capacity(l::ProfDirect) = true
-    EMRH.period_duration(l::ProfDirect) = l.part_dur
-
-    function EMB.create_link(m, l::ProfDirect, 𝒯, 𝒫, modeltype::EnergyModel)
-
-        # Declaration of the required subsets
-        𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(l))
-
-        # Generic link in which each output corresponds to the input
-        @constraint(m, [t ∈ 𝒯, p ∈ EMB.link_res(l)],
-            m[:link_out][l, t, p] == m[:link_in][l, t, p]
-        )
-
-        # Capacity constraint
-        @constraint(m, [t_pd ∈ 𝒯ᵖᵈ, t ∈ t_pd, p ∈ EMB.link_res(l)],
-            m[:link_out][l, t, p] ≤ m[:link_cap_inst][l, t] * l.part_mult[t_pd]
-        )
-        constraints_capacity_installed(m, l, 𝒯, modeltype)
-    end
-
-
-    link = ProfDirect(
+    # Create the link with an operational profile and period partitions
+    link = CapDirect(
         "prof_link",
         src,
         sink,
-        Linear(),
         profile,
         part_dur,
         part_profile,
@@ -671,11 +621,10 @@ end
 
             # Create a node that has an inconsistent partition duration
         ℒ = [
-            ProfDirect(
+            CapDirect(
                 "prof_link",
                 src,
                 sink,
-                Linear(),
                 profile,
                 PartitionProfile(fill(3, 5)),
                 part_profile,
@@ -702,22 +651,6 @@ end
         EMB.TEST_ENV = true
     end
 end
-
-# Creation of an `ExtensionData` type with period partitions without a method for
-# `period_duration` and a sink type with period partitions. The types are used in the tests
-# for partitions in `ExtensionData`
-struct PartLimData <: ExtensionData
-    part_lim::PartitionProfile
-end
-struct PartSink <: EMB.Sink
-    id::Any
-    cap::TimeProfile
-    penalty::Dict{Symbol,<:TimeProfile}
-    input::Dict{<:Resource,<:Real}
-    part_dur::PartitionProfile
-    data::Vector{<:ExtensionData}
-end
-EMRH.period_duration(n::PartSink) = n.part_dur
 
 @testset "Identification - Partitions in ExtensionData" begin
     # Create the individual resources

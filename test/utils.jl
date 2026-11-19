@@ -1,6 +1,8 @@
+# ---- Links ----
+
 # Creation of a new link type with associated capacity and period partitions. The link is
-# used in the tests for the resetting of `PartitionProfile`s, the mapping of period
-# partitions, and the extraction of variables indexed over period partitions
+# used in the test sets "Utility functions" (`test_utils.jl`) and "POI implementation"
+# (`test_poi.jl`)
 struct CapDirect <: Link
     id::Any
     from::EMB.Node
@@ -44,8 +46,68 @@ function EMB.variables_link(m, ℒˢᵘᵇ::Vector{CapDirect}, 𝒯, modeltype::
     @variable(m, int_variable[ℒˢᵘᵇ, 𝒯, 1:2] ≥ 0)
 end
 
+# ---- Nodes ----
+
+# Creation of a new sink type with period partitions and a dictionary with string keys. The
+# sink is used in the test set "Utility functions" (`test_utils.jl`)
+struct PartSink <: EMB.Sink
+    id::Any
+    cap::TimeProfile
+    penalty::Dict{Symbol,<:TimeProfile}
+    input::Dict{<:Resource,<:Real}
+    part_dur::PartitionProfile
+    profile::Dict{String,TimeProfile}
+    data::Vector{<:ExtensionData}
+end
+PartSink(id, cap, penalty, input, part_dur, data::Vector{<:ExtensionData}) =
+    PartSink(id, cap, penalty, input, part_dur, Dict{String,TimeProfile}(), data)
+EMRH.period_duration(n::PartSink) = n.part_dur
+
+# Creation of a new node type with two dynamic states. The node is used in the test set
+# "Node initialization" (`test_init_data.jl`)
+struct SampleInitNode{T<:Real} <: EMB.Node
+    id::Any
+    increment::T
+    increment2::T
+    data::Vector{<:ExtensionData}
+end
+
+EMB.inputs(n::SampleInitNode) = Resource[]
+EMB.outputs(n::SampleInitNode) = Resource[]
+EMB.has_input(n::SampleInitNode) = false
+EMB.has_output(n::SampleInitNode) = false
+EMB.has_opex(n::SampleInitNode) = false
+EMB.has_capacity(n::SampleInitNode) = false
+
+function EMB.variables_node(
+    m,
+    𝒩ˢᵘᵇ::Vector{<:SampleInitNode},
+    𝒯,
+    modeltype::EnergyModel,
+)
+    @variable(m, state[𝒩ˢᵘᵇ, 𝒯])
+    @variable(m, state2[𝒩ˢᵘᵇ, 𝒯])
+end
+
+function EMB.create_node(m, n::SampleInitNode, 𝒯, 𝒫, modeltype::EnergyModel)
+    for data ∈ node_data(n)
+        constraints_data(m, n, 𝒯, 𝒫, modeltype, data)
+    end
+    constraints_state(m, n, 𝒯, modeltype)
+end
+
+function constraints_state(m, n::SampleInitNode, 𝒯, modeltype::EnergyModel)
+    for (t_prev, t) ∈ withprev(𝒯)
+        isnothing(t_prev) && continue
+        @constraint(m, m[:state][n, t] == m[:state][n, t_prev] + n.increment)
+        @constraint(m, m[:state2][n, t] == m[:state2][n, t_prev] + n.increment2)
+    end
+end
+
+# ---- `ExtensionData` and initial data ----
+
 # Creation of a new `ExtensionData` type with period partitions. The data is used in the
-# tests for partitions in `ExtensionData`
+# test sets "Utility functions" (`test_utils.jl`) and "POI implementation" (`test_poi.jl`)
 struct PartData <: ExtensionData
     part_dur::PartitionProfile
     part_lim::PartitionProfile
@@ -82,4 +144,51 @@ function EMB.constraints_ext_data(
         m[:part_data_var][n, t_pd] == sum(m[:cap_use][n, t] * duration(t) for t ∈ t_pd)
     )
     @constraint(m, [t_pd ∈ 𝒯ᵖᵈ], m[:part_data_var][n, t_pd] ≤ data.part_lim[t_pd])
+end
+
+# Creation of a new `ExtensionData` type with period partitions without a method for
+# `period_duration`. The data is used in the test set "Utility functions"
+# (`test_utils.jl`)
+struct PartLimData <: ExtensionData
+    part_lim::PartitionProfile
+end
+
+# Creation of a new `AbstractInitData` type without a method for `_find_update_paths`. The
+# data is used in the test set "Utility functions" (`test_utils.jl`)
+struct TestInitData <: AbstractInitData end
+
+# ---- `TransmissionMode`s ----
+
+# Creation of a new `TransmissionMode` type with period partitions. The mode is used in the
+# test set "Geography" (`test_emg.jl`)
+struct PartStatic <: TransmissionMode
+    id::String
+    resource::Resource
+    trans_cap::TimeProfile
+    trans_loss::TimeProfile
+    part_dur::PartitionProfile
+    part_lim::PartitionProfile
+end
+EMRH.period_duration(tm::PartStatic) = tm.part_dur
+EMB.has_opex(tm::PartStatic) = false
+EMG.is_bidirectional(tm::PartStatic) = false
+
+function EMG.variables_trans_mode(m, 𝒯, ℳˢᵘᵇ::Vector{<:PartStatic}, modeltype::EnergyModel)
+    # Add a test variable indexed over the period partitions of the individual modes
+    @variable(m, trans_part[tm ∈ ℳˢᵘᵇ, partition_duration(𝒯, EMRH.period_duration(tm))])
+end
+function EMG.create_transmission_mode(m, tm::PartStatic, 𝒯, modeltype::EnergyModel)
+    # Declaration of the required subsets
+    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(tm))
+
+    # Call of the constraint functions of a `TransmissionMode`
+    EMG.constraints_trans_balance(m, tm, 𝒯, modeltype)
+    EMG.constraints_trans_loss(m, tm, 𝒯, modeltype)
+    EMG.constraints_capacity(m, tm, 𝒯, modeltype)
+
+    # The variable is the transported energy within a partition and limited by the profile
+    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ],
+        m[:trans_part][tm, t_pd] == sum(m[:trans_out][tm, t] * duration(t) for t ∈ t_pd)
+    )
+    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ], m[:trans_part][tm, t_pd] ≤ tm.part_lim[t_pd])
 end

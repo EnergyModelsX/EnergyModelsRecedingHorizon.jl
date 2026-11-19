@@ -1,11 +1,15 @@
 # Release notes
 
-## Unversioned
+## Version 0.2.6 (2026-11-19)
 
 ### Partitions in `ExtensionData` and `TransmissionMode`s
 
 * The duration of the partitions of a `PartitionReset` is provided by the deepest object on the field path with a method for `period_duration`, *e.g.*, an `ExtensionData`, and the mapping of the partitions is stored per index object of the JuMP variables. All `PartitionProfile`s of an index object must result in the same partitions.
 * `PartitionProfile`s in `TransmissionMode`s are mapped per `TransmissionMode` through a new method of `_index_path` in the `EnergyModelsGeography` extension.
+
+### Tests
+
+* Reduced the number of test types and declared the shared ones in `test/utils.jl`, so that the tests do not depend on the order of the test files.
 
 ## Version 0.2.5 (2026-11-05)
 

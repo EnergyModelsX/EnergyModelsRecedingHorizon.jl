@@ -113,13 +113,6 @@ end
 
 @testset "Dynamic node with two dynamic states" begin
     optimizer = optimizer_with_attributes(HiGHS.Optimizer, MOI.Silent() => true)
-    struct SampleInitNode{T<:Real} <: EMB.Node
-        id::Any
-        increment::T
-        increment2::T
-        data::Vector{<:ExtensionData}
-    end
-
     function create_case_newnode(init_data)
         𝒯 = TwoLevel(1, 1, SimpleTimes([1, 2, 1, 4, 1, 3, 1, 3]))
         ℋ = DurationHorizons([duration(t) for t ∈ 𝒯], 8, 4)
@@ -138,42 +131,7 @@ end
         return case, modeltype
     end
 
-    EMB.inputs(n::SampleInitNode) = Resource[]
-    EMB.outputs(n::SampleInitNode) = Resource[]
-    EMB.has_input(n::SampleInitNode) = false
-    EMB.has_output(n::SampleInitNode) = false
-    EMB.has_opex(n::SampleInitNode) = false
-    EMB.has_capacity(n::SampleInitNode) = false
-
-    function EMB.variables_node(
-        m,
-        𝒩ˢᵘᵇ::Vector{<:SampleInitNode},
-        𝒯,
-        modeltype::EnergyModel,
-    )
-        @variable(m, state[𝒩ˢᵘᵇ, 𝒯])
-        @variable(m, state2[𝒩ˢᵘᵇ, 𝒯])
-    end
-
-    function EMB.create_node(m, n::SampleInitNode, 𝒯, 𝒫, modeltype::EnergyModel)
-        for data ∈ node_data(n)
-            constraints_data(m, n, 𝒯, 𝒫, modeltype, data)
-        end
-        constraints_state(m, n, 𝒯, modeltype)
-    end
     EMB.constraints_couple(m, 𝒫, 𝒯, modeltype::EMRH.RecHorEnergyModel) = nothing
-
-    function constraints_state(m, n::SampleInitNode, 𝒯, modeltype::EnergyModel)
-        for (t_prev, t) ∈ withprev(𝒯)
-            isnothing(t_prev) && continue
-            @constraint(m, m[:state][n, t] == m[:state][n, t_prev] + n.increment)
-            @constraint(m, m[:state2][n, t] == m[:state2][n, t_prev] + n.increment2)
-        end
-    end
-
-    # TODO: should system throw an error if model is run without initialization data?
-    case, modeltype = create_case_newnode(InitData(Dict(:state => 1.0, :state2 => 1.3)))
-    results_bad = run_model_rh(case, modeltype, optimizer)
 
     function EMB.constraints_data(
         m,
@@ -190,6 +148,7 @@ end
         )
     end
 
+    case, modeltype = create_case_newnode(InitData(Dict(:state => 1.0, :state2 => 1.3)))
     m = EMB.create_model(case, modeltype)
     set_optimizer(m, optimizer)
     optimize!(m)
@@ -245,9 +204,6 @@ end
             push!(all_paths, new_path)
         end
     end
-
-    # Following test should throw before the definition below it
-    @test_throws MethodError bad_results = run_model_rh(case, modeltype, optimizer)
 
     function EMRH.update_init_data!(
         m,

@@ -531,40 +531,6 @@ end
     for t ∈ 𝒯)
 end
 
-# Creation of a new `TransmissionMode` type with period partitions. The mode is used in the
-# tests for partitions in `TransmissionMode`s
-struct PartStatic <: TransmissionMode
-    id::String
-    resource::Resource
-    trans_cap::TimeProfile
-    trans_loss::TimeProfile
-    part_dur::PartitionProfile
-    part_lim::PartitionProfile
-end
-EMRH.period_duration(tm::PartStatic) = tm.part_dur
-EMB.has_opex(tm::PartStatic) = false
-EMG.is_bidirectional(tm::PartStatic) = false
-
-function EMG.variables_trans_mode(m, 𝒯, ℳˢᵘᵇ::Vector{<:PartStatic}, modeltype::EnergyModel)
-    # Add a test variable indexed over the period partitions of the individual modes
-    @variable(m, trans_part[tm ∈ ℳˢᵘᵇ, partition_duration(𝒯, EMRH.period_duration(tm))])
-end
-function EMG.create_transmission_mode(m, tm::PartStatic, 𝒯, modeltype::EnergyModel)
-    # Declaration of the required subsets
-    𝒯ᵖᵈ = partition_duration(𝒯, EMRH.period_duration(tm))
-
-    # Call of the constraint functions of a `TransmissionMode`
-    EMG.constraints_trans_balance(m, tm, 𝒯, modeltype)
-    EMG.constraints_trans_loss(m, tm, 𝒯, modeltype)
-    EMG.constraints_capacity(m, tm, 𝒯, modeltype)
-
-    # The variable is the transported energy within a partition and limited by the profile
-    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ],
-        m[:trans_part][tm, t_pd] == sum(m[:trans_out][tm, t] * duration(t) for t ∈ t_pd)
-    )
-    @constraint(m, [t_pd ∈ 𝒯ᵖᵈ], m[:trans_part][tm, t_pd] ≤ tm.part_lim[t_pd])
-end
-
 @testset "Partitions in TransmissionModes" begin
     # Create the individual resources
     el = ResourceCarrier("el", 0.0)

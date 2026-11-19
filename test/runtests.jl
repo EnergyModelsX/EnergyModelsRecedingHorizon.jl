@@ -31,7 +31,7 @@ global_logger(logger_new)
 
 ENV["EMB_TEST"] = true # Set flag for example scripts to check if they are run as part of the testsx
 
-# Load types and functions shared by the individual test files
+# Load types and functions used by the individual test files
 include("utils.jl")
 
 @testset "RecedingHorizon" verbose=true begin
@@ -43,7 +43,7 @@ include("utils.jl")
         include("test_future_value.jl")
     end
 
-    @testset verbose = true "RecedingHorizon | Utility functions" begin
+    @testset "RecedingHorizon | Utility functions" begin
         include("test_utils.jl")
     end
 
